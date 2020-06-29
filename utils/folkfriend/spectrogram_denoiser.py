@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 from folkfriend import cnn
 from folkfriend import cnn_matrix_utils
 from folkfriend import eac

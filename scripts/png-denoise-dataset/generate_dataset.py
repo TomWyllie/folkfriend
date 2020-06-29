@@ -74,6 +74,7 @@ def main(dataset_dir):
         '%%MIDI gchordon\n'
         '%%MIDI chordprog {chord:d} octave={octave:d}\n'
         '%%MIDI program {melody:d}\n'
+        '%%MIDI transpose {transpose:d}\n'
         '{abc_body}'
     )
 
@@ -81,6 +82,7 @@ def main(dataset_dir):
         '{abc_header}\n'
         'Q:1/4={tempo:d}\n'
         '%%MIDI gchordoff\n'
+        '%%MIDI transpose {transpose:d}\n'
         '{abc_body}'
     )
 
@@ -131,6 +133,7 @@ def main(dataset_dir):
                 chord=config['chord'],
                 octave=config['chord_octave_shift'],
                 melody=config['melody'],
+                transpose=config['transpose'],
                 abc_body=abc_body
             ))
 
@@ -142,6 +145,7 @@ def main(dataset_dir):
             f.write(abc_template_y.format(
                 abc_header=abc_header,
                 tempo=config['tempo'],
+                transpose=config['transpose'],
                 abc_body=abc_body
             ))
 
