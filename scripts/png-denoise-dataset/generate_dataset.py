@@ -21,6 +21,7 @@ import argparse
 import csv
 import glob
 import json
+import math
 import os
 import pathlib
 import subprocess
@@ -37,7 +38,6 @@ from folkfriend import ff_config
 # Take 10 second samples out of generated audio files
 SAMPLE_START_SECS = 2
 SAMPLE_END_SECS = 12
-
 
 
 def main(dataset_dir):
@@ -187,14 +187,26 @@ def generate_pseudo_spectrogram(midi_path, index, bpm, png_dir):
                    ) // ff_config.SPECTROGRAM_HOP_SIZE) - 1
     num_bins = ff_config.NUM_BINS
 
-    # +256 to center each frame with the audio at that frame (window function)
-    frame_times_ms = 1000 * (SAMPLE_START_SECS + ((256 + 512 * np.arange(num_frames)) / ff_config.SAMPLE_RATE))
+    # Length in seconds of one frame
+    frame_length = ff_config.SPECTROGRAM_HOP_SIZE / ff_config.SAMPLE_RATE
+
+    # Times in seconds of frames, after the start point
+    frame_times_s = frame_length * np.arange(num_frames)
+
+    # Times in seconds of frames thresholds, after the start point.
+    #   See spacing.png for why there's an extra half here.
+    frame_times_s += frame_length / 2
+
+    # Add start offset
+    frame_times_s += SAMPLE_START_SECS
+
+    # Convert to milliseconds
+    frame_times_ms = 1000 * frame_times_s
 
     active_notes = {}
     us_per_crotchet = 60000000 / bpm
-    # us_per_crotchet *= 1.05
 
-    # This 500,000 comes from 125 bpm being the default tempo with the hard
+    # This 480,000 comes from 125 bpm being the default tempo with the hard
     #   coded midi times (240ms = 1 quaver)
     ms_scale_factor = us_per_crotchet / 480000
 
@@ -238,7 +250,9 @@ def generate_pseudo_spectrogram(midi_path, index, bpm, png_dir):
 
             # -1 because inclusive range. The linear midi bins go
             #   [102.   101.8   101.6   ...     46.6.   46.4    46.2]
-            lo_index = 3 + ff_config.BINS_PER_MIDI * (ff_config.HIGH_MIDI - 1 - note)
+            lo_index = (math.ceil(ff_config.BINS_PER_MIDI / 2)
+                        + ff_config.BINS_PER_MIDI
+                        * (ff_config.HIGH_MIDI - 1 - note))
             hi_index = lo_index + ff_config.BINS_PER_MIDI
 
             pseudo_spectrogram[start_frame: end_frame, lo_index: hi_index] = 255
@@ -313,8 +327,8 @@ def trim_midi(midi_path):
 
         if record['type'] == 'Tempo':
             us_per_crotchet = int(record['channel'])
-            # 500,000 is default, this is what the ms are written in.
-            threshold_ms = int(base_threshold_ms * 500000 / us_per_crotchet)
+            # 480,000 is default, this is what the ms are written in.
+            threshold_ms = int(base_threshold_ms * 480000 / us_per_crotchet)
 
         if ms < threshold_ms:
             filtered_lines.append(line)
