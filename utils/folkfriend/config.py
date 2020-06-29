@@ -1,0 +1,7 @@
+
+BINS_PER_MIDI = 5
+LOW_THRESH = 16
+HIGH_THRESH = 420
+
+MIDI_LOW = 55  # Low G (G3)
+MIDI_HIGH = 86  # High D (D6)
