@@ -5,6 +5,7 @@
 
 import argparse
 import csv
+import glob
 import os
 import pathlib
 import re
@@ -20,8 +21,22 @@ def main(dataset_dir):
 
     get_session_csv(tunes_path)
 
+    files = glob.glob(os.path.join(abcs_path, '*'))
+    for f in files:
+        os.remove(f)
+
     with open(tunes_path, 'r') as f:
         for i, tune in tqdm(enumerate(csv.DictReader(f)), ascii=True):
+            # Some tunes have multiple staves (like piano music) which are
+            #   sometimes in the same cleff. This creates polyphonic melodies
+            #   which for now is not something we want.
+            if 'V:1' in tune['abc']:
+                continue
+
+            # We don't want songs
+            if 'W:' in tune['abc']:
+                continue
+
             # Does this tune have chords written in?
             if len(re.findall(r'"(?:[A-G]#?b?/)?[A-G]#?b?m?7?(?:dim)?"',
                               tune['abc'])) >= 8:
@@ -29,7 +44,8 @@ def main(dataset_dir):
                     tune['meter'].strip(),
                     tune['mode'].strip(),
                     tune['abc'].replace('\\', ''))
-                with open(os.path.join(abcs_path, '{}.abc'.format(
+                with open(os.path.join(abcs_path, '{}-{}.abc'.format(
+                        tune['tune'],
                         tune['setting'])), 'w') as g:
                     g.write(abc_file_string)
 
