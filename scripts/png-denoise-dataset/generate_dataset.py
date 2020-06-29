@@ -38,9 +38,6 @@ from folkfriend import ff_config
 SAMPLE_START_SECS = 2
 SAMPLE_END_SECS = 12
 
-# These values can be output by the EAC script if they need to be changed.
-HIGH_MIDI = 102     # F#7 (2960.0 Hz), just over two octaves above fiddle open E
-LOW_MIDI = 46       # Bb2 (116.54 Hz), just over an octave below middle C
 
 
 def main(dataset_dir):
@@ -188,7 +185,7 @@ def generate_pseudo_spectrogram(midi_path, index, bpm, png_dir):
     sample_duration = (SAMPLE_END_SECS - SAMPLE_START_SECS)
     num_frames = ((ff_config.SAMPLE_RATE * sample_duration
                    ) // ff_config.SPECTROGRAM_HOP_SIZE) - 1
-    num_bins = ff_config.BINS_PER_MIDI * (HIGH_MIDI - LOW_MIDI)
+    num_bins = ff_config.NUM_BINS
 
     # +256 to center each frame with the audio at that frame (window function)
     frame_times_ms = 1000 * (SAMPLE_START_SECS + ((256 + 512 * np.arange(num_frames)) / ff_config.SAMPLE_RATE))
@@ -236,12 +233,12 @@ def generate_pseudo_spectrogram(midi_path, index, bpm, png_dir):
                 continue
 
             # Invalid note
-            if not LOW_MIDI < note < HIGH_MIDI:
+            if not ff_config.LOW_MIDI < note < ff_config.HIGH_MIDI:
                 continue
 
             # -1 because inclusive range. The linear midi bins go
             #   [102.   101.8   101.6   ...     46.6.   46.4    46.2]
-            lo_index = 3 + ff_config.BINS_PER_MIDI * (HIGH_MIDI - 1 - note)
+            lo_index = 3 + ff_config.BINS_PER_MIDI * (ff_config.HIGH_MIDI - 1 - note)
             hi_index = lo_index + ff_config.BINS_PER_MIDI
 
             pseudo_spectrogram[start_frame: end_frame, lo_index: hi_index] = 255

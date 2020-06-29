@@ -27,33 +27,28 @@ def compute_ac_spectrogram(signal,
 
     # Peak pruning
     spectrogram[spectrogram < 0] = 0
-    spectrogram = spectrogram[:, ff_config.LOW_THRESH: ff_config.HIGH_THRESH]
+    spectrogram = spectrogram[:,
+                              ff_config.AC_LOW_THRESH: ff_config.AC_HIGH_THRESH]
     return spectrogram
 
 
 def linearise_ac_spectrogram(spectrogram, sr):
     # Remember high bin = low frequency and vice versa
     nc = note.NoteConverter(sr=sr)
-    high_midi = int(np.floor(nc.bin_to_midi_arr(ff_config.LOW_THRESH)))
-    low_midi = int(np.ceil(nc.bin_to_midi_arr(ff_config.HIGH_THRESH)))
-
-    # print('Low Midi: ', low_midi)
-    # print('High Midi: ', high_midi)
 
     # Resample to linearly spaced (in musical notes)
     bin_midi_values = nc.bin_to_midi_arr(
         np.arange(
-            start=ff_config.LOW_THRESH,
-            stop=ff_config.HIGH_THRESH,
+            start=ff_config.AC_LOW_THRESH,
+            stop=ff_config.AC_HIGH_THRESH,
             step=1)
     )
 
     linear_midi_values = np.linspace(
-        start=high_midi,
-        stop=low_midi,
-        num=ff_config.BINS_PER_MIDI * (high_midi - low_midi),
+        start=ff_config.HIGH_MIDI,
+        stop=ff_config.LOW_MIDI,
+        num=ff_config.NUM_BINS,
         endpoint=False
     )
 
-    # print(linear_midi_values)
     return interp.interp1d(bin_midi_values, spectrogram)(linear_midi_values)
