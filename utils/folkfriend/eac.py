@@ -1,11 +1,13 @@
 import numpy as np
 import scipy.interpolate as interp
 
-from folkfriend import config
+from folkfriend import ff_config
 from folkfriend import note
 
 
-def compute_ac_spectrogram(signal, window_size=1024, hop_size=512):
+def compute_ac_spectrogram(signal,
+                           window_size=ff_config.SPECTROGRAM_WINDOW_SIZE,
+                           hop_size=ff_config.SPECTROGRAM_HOP_SIZE):
     # 1024 / 48000 = 21.33 ms
     # 512 / 48000 = 10.67 ms
     num_frames = signal.size // hop_size
@@ -25,15 +27,15 @@ def compute_ac_spectrogram(signal, window_size=1024, hop_size=512):
 
     # Peak pruning
     spectrogram[spectrogram < 0] = 0
-    spectrogram = spectrogram[:, config.LOW_THRESH: config.HIGH_THRESH]
+    spectrogram = spectrogram[:, ff_config.LOW_THRESH: ff_config.HIGH_THRESH]
     return spectrogram
 
 
 def linearise_ac_spectrogram(spectrogram, sr):
     # Remember high bin = low frequency and vice versa
     nc = note.NoteConverter(sr=sr)
-    high_midi = int(np.floor(nc.bin_to_midi_arr(config.LOW_THRESH)))
-    low_midi = int(np.ceil(nc.bin_to_midi_arr(config.HIGH_THRESH)))
+    high_midi = int(np.floor(nc.bin_to_midi_arr(ff_config.LOW_THRESH)))
+    low_midi = int(np.ceil(nc.bin_to_midi_arr(ff_config.HIGH_THRESH)))
 
     # print('Low Midi: ', low_midi)
     # print('High Midi: ', high_midi)
@@ -41,15 +43,15 @@ def linearise_ac_spectrogram(spectrogram, sr):
     # Resample to linearly spaced (in musical notes)
     bin_midi_values = nc.bin_to_midi_arr(
         np.arange(
-            start=config.LOW_THRESH,
-            stop=config.HIGH_THRESH,
+            start=ff_config.LOW_THRESH,
+            stop=ff_config.HIGH_THRESH,
             step=1)
     )
 
     linear_midi_values = np.linspace(
         start=high_midi,
         stop=low_midi,
-        num=config.BINS_PER_MIDI * (high_midi - low_midi),
+        num=ff_config.BINS_PER_MIDI * (high_midi - low_midi),
         endpoint=False
     )
 
