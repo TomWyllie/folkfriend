@@ -10,6 +10,8 @@ scipy = "*"
 numpy = "*"
 tqdm = "*"
 imageio = "*"
+requests = "*"
+tensorflow = "*"
 
 [requires]
 python_version = "3.8"
