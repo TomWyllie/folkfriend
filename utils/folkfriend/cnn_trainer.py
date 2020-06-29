@@ -3,7 +3,7 @@ from folkfriend import cnn
 
 
 class ModelTrainer:
-    def __init__(self, dataset, model_path, epochs=3, batch_size=16):
+    def __init__(self, dataset, model_path, epochs=3, batch_size=8):
         x_train, y_train, x_test, y_test = dataset
 
         self.train_ds = tf.data.Dataset.from_tensor_slices(

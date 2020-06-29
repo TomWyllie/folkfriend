@@ -31,6 +31,6 @@ if __name__ == '__main__':
                         help='Output directory to save trained model to',
                         default='model-{}'.format(path_timestamp))
     parser.add_argument('-e', '--epochs', default=5, type=int)
-    parser.add_argument('-bs', '--batch-size', default=32, type=int)
+    parser.add_argument('-bs', '--batch-size', default=8, type=int)
     args = parser.parse_args()
     main(args.dataset, args.model, args.epochs, args.batch_size)
