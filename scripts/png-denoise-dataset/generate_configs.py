@@ -11,6 +11,8 @@ import pathlib
 import random
 
 
+# TODO pitch randomisation
+
 def main(dataset_dir, num):
     """
         Instruments in the FolkFriend soundfont file are:

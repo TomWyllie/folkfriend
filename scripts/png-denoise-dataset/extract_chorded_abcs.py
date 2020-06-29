@@ -34,7 +34,7 @@ def main(dataset_dir):
                 continue
 
             # We don't want songs
-            if 'W:' in tune['abc']:
+            if 'W:' in tune['abc'] or 'w:' in tune['abc']:
                 continue
 
             # Does this tune have chords written in?

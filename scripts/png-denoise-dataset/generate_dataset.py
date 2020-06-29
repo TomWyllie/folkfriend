@@ -37,7 +37,7 @@ from folkfriend import ff_config
 
 # Take 10 second samples out of generated audio files
 SAMPLE_START_SECS = 2
-SAMPLE_END_SECS = 8
+SAMPLE_END_SECS = 12
 
 
 def main(dataset_dir):
