@@ -1,15 +1,16 @@
 import tensorflow as tf
-from tensorflow.keras import Model
+from folkfriend import ff_config
 from tensorflow.keras.layers import (Dense, Dropout, Flatten, Conv2D,
                                      MaxPooling2D, LeakyReLU)
-
-from folkfriend import ff_config
 
 
 def get_note_cnn():
     model = tf.keras.Sequential()
 
-    model.add(Conv2D(16, 3, activation='relu'))
+    # Input shape needs to be explicitly given for loading into JS
+    input_shape = (ff_config.CONTEXT_FRAMES, ff_config.NUM_BINS, 1)
+
+    model.add(Conv2D(16, 3, activation='relu', input_shape=input_shape))
     model.add(LeakyReLU())
     model.add(Conv2D(16, 3, activation='relu'))
     model.add(LeakyReLU())

@@ -2,6 +2,7 @@ import tensorflow as tf
 from folkfriend import cnn
 import os
 
+
 class ModelTrainer:
     def __init__(self, dataset, model_dir, epochs, batch_size):
         x_train, y_train, x_test, y_test = dataset
