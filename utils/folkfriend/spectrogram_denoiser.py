@@ -1,11 +1,11 @@
 import os
 
-from folkfriend import cnn
+import tensorflow as tf
 from folkfriend import cnn_matrix_utils
 from folkfriend import eac
 from folkfriend import ff_config
 from scipy.io import wavfile
-
+import h5py
 
 class SpectrogramDenoiser:
     def __init__(self):
@@ -23,9 +23,8 @@ class SpectrogramDenoiser:
         return eac.linearise_ac_spectrogram(spectrogram, sr)
 
     def load_model(self, model_dir):
-        self.model = cnn.NoteCNN()
-        weights_path = os.path.join(model_dir, 'model')
-        self.model.load_weights(weights_path)
+        self.model = tf.keras.models.load_model(h5py.File(
+            os.path.join(model_dir, 'model.h5'), 'r'))
 
     def denoise(self, spectrogram):
         # X shape: (NUM_EXAMPLES, 16, 280)

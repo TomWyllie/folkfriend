@@ -1,9 +1,9 @@
 import tensorflow as tf
 from folkfriend import cnn
-
+import os
 
 class ModelTrainer:
-    def __init__(self, dataset, model_path, epochs, batch_size):
+    def __init__(self, dataset, model_dir, epochs, batch_size):
         x_train, y_train, x_test, y_test = dataset
 
         self.train_ds = tf.data.Dataset.from_tensor_slices(
@@ -12,10 +12,10 @@ class ModelTrainer:
         self.test_ds = tf.data.Dataset.from_tensor_slices(
             (x_test, y_test)).batch(batch_size)
 
-        self.model_path = model_path
+        self.model_dir = model_dir
         self.epochs = epochs
 
-        self.model = cnn.NoteCNN()
+        self.model = cnn.get_note_cnn()
         self.loss_object = tf.keras.losses.CategoricalCrossentropy()
         self.optimizer = tf.keras.optimizers.Adam()
 
@@ -50,8 +50,8 @@ class ModelTrainer:
                                   self.test_loss.result(),
                                   self.test_accuracy.result()))
 
-        print('Finished training model. Saving to {}'.format(self.model_path))
-        self.model.save_weights(self.model_path)
+        print('Finished training model. Saving to {}'.format(self.model_dir))
+        self.model.save(os.path.join(self.model_dir, 'model.h5'))
 
     @tf.function
     def train_step(self, images, labels):

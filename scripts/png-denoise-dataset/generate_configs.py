@@ -11,8 +11,6 @@ import pathlib
 import random
 
 
-# TODO pitch randomisation
-
 def main(dataset_dir, num):
     """
         Instruments in the FolkFriend soundfont file are:
@@ -74,9 +72,6 @@ def main(dataset_dir, num):
         49: 1.5,
     }
 
-    # TODO multiple melodies / chords
-    # TODO percussive accompaniments
-
     melodies = random.choices(list(melody_probs.keys()),
                               weights=melody_probs.values(), k=num)
     chords = random.choices(list(chord_probs.keys()),
@@ -102,6 +97,7 @@ def main(dataset_dir, num):
     pathlib.Path(config_dir).mkdir(parents=True, exist_ok=True)
 
     # TODO lots of other parameters should go into these files
+    # TODO percussive accompaniments
     for i, (tune_path, melody, chord) in enumerate(
             zip(tune_paths, melodies, chords)):
         with open(os.path.join(config_dir, '{:d}.json'.format(i)), 'w') as f:
@@ -111,8 +107,8 @@ def main(dataset_dir, num):
                 'melody': melody,
                 'chord': chord,
                 'tempo': random.choice(range(140, 240)),
-                # We add a random transposition to reduce any key bias, and to improve the
-                #   melodic range of the model.
+                # We add a random transposition to reduce any key bias, and to
+                #   improve the melodic range of the model.
                 'transpose': random.choice(range(-12, 11)),
                 'chord_octave_shift': random.choice((0, 1))
             }, f)

@@ -8,6 +8,8 @@ from tqdm import tqdm
 
 
 # TODO tidy up using matrix_utils
+# TODO switch over to using generators to facilitate much bigger datasets
+# https://www.tensorflow.org/api_docs/python/tf/data/Dataset
 
 class CNNPngDataset:
     def __init__(self, path='/home/tom/datasets/png-cnn'):

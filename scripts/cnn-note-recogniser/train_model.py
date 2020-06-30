@@ -10,9 +10,8 @@ from folkfriend.cnn_trainer import ModelTrainer
 def main(dataset_path, model_dir, epochs, batch_size):
     midi_dataset = CNNPngDataset(path=dataset_path)
 
-    model_path = os.path.join(model_dir, 'model')
     trainer = ModelTrainer(midi_dataset.dataset,
-                           model_path=model_path,
+                           model_dir=model_dir,
                            epochs=epochs,
                            batch_size=batch_size)
 

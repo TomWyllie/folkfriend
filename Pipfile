@@ -12,6 +12,7 @@ tqdm = "*"
 imageio = "*"
 requests = "*"
 tensorflow = "*"
+h5py = "*"
 
 [requires]
 python_version = "3.8"
