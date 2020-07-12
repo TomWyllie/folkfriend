@@ -15,10 +15,11 @@ AC_HIGH_THRESH = 420
 #   (114.29, 3000.0) Hz, as described above.
 HIGH_MIDI = 102     # F#7 (2960.0 Hz), just over two octaves above fiddle open E
 LOW_MIDI = 46       # Bb2 (116.54 Hz), just over an octave below middle C
+NUM_MIDI = HIGH_MIDI - LOW_MIDI     # Nominally 56
 
 # The above parameters infer a range of MIDI values which leads to
 BINS_PER_MIDI = 5
-NUM_BINS = BINS_PER_MIDI * (HIGH_MIDI - LOW_MIDI)
+NUM_BINS = BINS_PER_MIDI * NUM_MIDI
 
 SPECTROGRAM_WINDOW_SIZE = 1024
 SPECTROGRAM_HOP_SIZE = 512
