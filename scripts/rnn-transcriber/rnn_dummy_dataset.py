@@ -16,7 +16,7 @@ import math
 class RNNDummyDataset:
     def __init__(self, dir_path, num=50000,
                  # max_frames=100, bins=ff_config.NUM_MIDIS):
-                 max_frames=100, bins=32):
+                 max_frames=750, bins=32):
 
         # TODO next start messing around with maximum image widths and such
 
@@ -49,9 +49,9 @@ class RNNDummyDataset:
             #              dtype=np.uint8)  # so all seqs hardcoded to length 10
 
             if random.random() > 0.85:
-                base_frames_per_note = random.randint(25, 40)
+                base_frames_per_note = random.randint(25, 56)   # 56 = 50.22 bpm
             else:
-                base_frames_per_note = random.randint(5, 25)
+                base_frames_per_note = random.randint(7, 25)    # 7 = 401.79 bpm (some notes are very short though)
 
             # base_frames_per_note = 10
 
