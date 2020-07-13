@@ -26,16 +26,18 @@ import os
 import pathlib
 import subprocess
 import sys
-from scipy.io import wavfile
+import timeit
+from multiprocessing import Pool
+
 import imageio
 import numpy as np
 from folkfriend import eac
 from folkfriend import ff_config
 from scipy.io import wavfile
-from tqdm import tqdm
 
-logging.basicConfig()
-log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG,
+                    format='[%(name)s:%(lineno)s] %(message)s')
+log = logging.getLogger(os.path.basename(__file__))
 
 # Take 10 second samples out of generated audio files
 SAMPLE_START_SECS = 2
@@ -50,18 +52,29 @@ ABC_COMMANDS = (
 )
 
 
-def generate(retain_audio):
-    retain_audio = True
+def generate():
     config_files = list(os.listdir(config_dir.path))
+    config_files.sort(key=lambda x: int(os.path.splitext(x)[0]))
+    log.info(f'Beginning processing {len(config_files)} files')
+    start_time = timeit.default_timer()
 
-    for config_filename in tqdm(config_files, ascii=True):
-        # === Create this dataset entry ===
-        # noinspection PyBroadException
-        try:
-            DatasetEntry(config_filename=config_filename,
-                         retain_audio=retain_audio)
-        except ConfigError as e:
-            print(e)
+    with Pool() as p:
+        p.map(create_entry_wrapper, config_files)
+
+    log.info('Done in {:.3f} seconds'.format(
+        timeit.default_timer() - start_time))
+
+
+def create_entry_wrapper(config_filename):
+    # === Create this dataset entry ===
+    log.info(f'Processing {config_filename}')
+    # noinspection PyBroadException
+    try:
+        DatasetEntry(config_filename=config_filename)
+    except ConfigError as e:
+        log.warning(e)
+    except Exception as e:
+        log.error(e)
 
 
 def generate_pseudo_spectrogram(midi_path, index, bpm, png_dir):
@@ -206,7 +219,7 @@ class DatasetSubDir:
 
 
 class DatasetEntry:
-    def __init__(self, config_filename, retain_audio=False):
+    def __init__(self, config_filename):
         self._config_filename = config_filename
         self._config_path = os.path.join(config_dir.path, config_filename)
         with open(self._config_path, 'r') as f:
@@ -226,11 +239,12 @@ class DatasetEntry:
         self._generate_midis()
 
         # Input files
-        sr, samples = self._generate_audio(retain_audio)
+        sr, samples = self._generate_audio(self._midi_x)
         self._generate_spectrogram(sr, samples)
 
         # Label files
-        pass
+        # midi_events = self._midi_as_csv(self._midi_y)
+        # spec_mask, contour = self._csv_to_training_data(midi_events)
 
     def _load_abc(self):
         """Load in the abc file contents for this dataset entry"""
@@ -258,7 +272,7 @@ class DatasetEntry:
         self._abc_to_midi(abc, self._midi_x, chords=True)
         self._abc_to_midi(abc, self._midi_y, chords=False)
 
-    def _generate_audio(self, retain_audio):
+    def _generate_audio(self, midi_path):
         """Convert the midi file with chords to a .wav file
 
         This uses the FolkFriend soundfont file. Instruments in the FolkFriend
@@ -297,7 +311,7 @@ class DatasetEntry:
              '--gain', '1.0',
              '--quiet',
              '/home/tom/sounds/folk-friend.sf2',
-             self._midi_x])
+             midi_path])
 
         sample_rate, samples = wavfile.read(self._audio_x)
 
@@ -337,6 +351,12 @@ class DatasetEntry:
                                 dtype=np.uint8)
         imageio.imwrite(png_path, png_matrix)
 
+    def _midi_as_csv(self, midi_path):
+        raise NotImplementedError()
+
+    def _csv_to_training_data(self, midi_path):
+        raise NotImplementedError()
+
     @property
     def index(self):
         return self._config['index']
@@ -347,13 +367,13 @@ class DatasetEntry:
 
         # Generate MIDI file with chords and actual instruments
         captured = subprocess.run([
-                                      'abc2midi', '-',
-                                      '-quiet', '-silent',
-                                      '' if chords else '-NGUI',
-                                      '-o', midi_path
-                                  ],
-                                  input=abc.encode('utf-8'),
-                                  capture_output=True)
+            'abc2midi', '-',
+            '-quiet', '-silent',
+            '' if chords else '-NGUI',
+            '-o', midi_path
+        ],
+            input=abc.encode('utf-8'),
+            capture_output=True)
         stderr = captured.stderr.decode('utf-8')
         if stderr:
             log.warning(stderr, file=sys.stderr)
@@ -389,4 +409,6 @@ if __name__ == '__main__':
     audio_dir = DatasetSubDir('audio', purge=True)
     png_dir = DatasetSubDir('pngs', purge=True)
 
-    generate(args.retain_audio)
+    retain_audio = args.retain_audio
+
+    generate()
