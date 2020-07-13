@@ -53,6 +53,7 @@ def main(dataset_dir):
 def get_session_csv(tunes_path):
     session_tunes_url = 'https://raw.githubusercontent.com/adactio/TheSession-data/main/csv/tunes.csv'
     if not os.path.exists(tunes_path):
+        print(f'Downloading from {session_tunes_url}...')
         r = requests.get(session_tunes_url, allow_redirects=True)
         with open(tunes_path, 'wb') as f:
             f.write(r.content)

@@ -13,172 +13,56 @@
 
     Convert the .wav file to a heavily compressed .mp3 file in case we ever
     want to listen back to the data (although it should be able to be exactly
-    recreated from the config file, barring and stochasticity) and then remove
-    the relatively large .wav file.
+    recreated from the config file).
 """
 
 import argparse
 import csv
 import glob
 import json
+import logging
 import math
 import os
 import pathlib
 import subprocess
-import tempfile
-
+import sys
+from scipy.io import wavfile
 import imageio
 import numpy as np
+from folkfriend import eac
+from folkfriend import ff_config
 from scipy.io import wavfile
 from tqdm import tqdm
 
-from folkfriend import eac
-from folkfriend import ff_config
+logging.basicConfig()
+log = logging.getLogger(__name__)
 
 # Take 10 second samples out of generated audio files
 SAMPLE_START_SECS = 2
 SAMPLE_END_SECS = 12
 
+ABC_COMMANDS = (
+    'Q:1/4={tempo:d}\n'
+    '%%MIDI gchordon\n'
+    '%%MIDI chordprog {chord:d} octave={octave:d}\n'
+    '%%MIDI program {melody:d}\n'
+    '%%MIDI transpose {transpose:d}\n'
+)
 
-def main(dataset_dir):
-    """
-        Instruments in the FolkFriend soundfont file are:
 
-        Bank:Instrument Description
-        000:000 Grand Piano
-        000:001 Violin
-        000:002 Accordion
-        000:003 Flute
-        000:004 Recorder
-        000:005 Banjo
-        000:006 Mandolin
-        000:007 Clarinet
-        000:008 Oboe
-        000:009 Pan Flute
-        000:010 Harp
-        000:040 Nylon String Guitar
-        000:041 Steel String Guitar
-        000:042 Jazz Guitar
-        000:043 Clean Guitar
-        000:044 Palm Muted Guitar
-        000:045 Distortion Guitar
-        000:046 Overdrive Guitar
-        000:047 Acoustic Bass
-        000:048 Fingered Bass
-        000:049 Picked Bass
-    """
+def generate(retain_audio):
+    retain_audio = True
+    config_files = list(os.listdir(config_dir.path))
 
-    abc_template_x = (
-        '{abc_header}\n'
-        'Q:1/4={tempo:d}\n'
-        '%%MIDI gchordon\n'
-        '%%MIDI chordprog {chord:d} octave={octave:d}\n'
-        '%%MIDI program {melody:d}\n'
-        '%%MIDI transpose {transpose:d}\n'
-        '{abc_body}'
-    )
-
-    abc_template_y = (
-        '{abc_header}\n'
-        'Q:1/4={tempo:d}\n'
-        '%%MIDI gchordoff\n'
-        '%%MIDI transpose {transpose:d}\n'
-        '{abc_body}'
-    )
-
-    abcs_dir = os.path.join(dataset_dir, 'abcs')
-    config_dir = os.path.join(dataset_dir, 'configs')
-    temp_dir = os.path.join(tempfile.gettempdir(), 'png-cnn')
-    # temp_dir = '/home/tom/tmp'
-    png_dir = os.path.join(dataset_dir, 'pngs')
-    mp3_dir = os.path.join(dataset_dir, 'mp3s')
-    pathlib.Path(temp_dir).mkdir(parents=True, exist_ok=True)
-    pathlib.Path(png_dir).mkdir(parents=True, exist_ok=True)
-    pathlib.Path(mp3_dir).mkdir(parents=True, exist_ok=True)
-
-    for required_dir in (abcs_dir, config_dir):
-        if not os.path.isdir(required_dir):
-            raise RuntimeError('Could not find path {}'.format(required_dir))
-
-    # Empty existing pngs
-    files = glob.glob(os.path.join(png_dir, '*'))
-    for f in files:
-        os.remove(f)
-
-    # Empty existing mp3s
-    files = glob.glob(os.path.join(mp3_dir, '*'))
-    for f in files:
-        os.remove(f)
-
-    config_files = list(os.listdir(config_dir))
-
-    for config_file in tqdm(config_files, ascii=True):
-        with open(os.path.join(config_dir, config_file), 'r') as f:
-            config = json.load(f)
-
-        with open(config['tune'], 'r') as f:
-            abc_lines = f.read().split('\n')
-            # All ABC files are written out with exactly four lines of header
-            abc_header = '\n'.join(abc_lines[:4])
-            abc_body = '\n'.join(abc_lines[4:])
-
-        x_abc_path = os.path.join(temp_dir, '{:d}x.abc'.format(config['index']))
-        with open(x_abc_path, 'w') as f:
-            # Insert relevant ABC commands. See documentation at
-            #   https://manpages.debian.org/stretch/abcmidi/abc2midi.1.en.html
-            #   http://abc.sourceforge.net/standard/abc2midi.txt
-            f.write(abc_template_x.format(
-                abc_header=abc_header,
-                tempo=config['tempo'],
-                chord=config['chord'],
-                octave=config['chord_octave_shift'],
-                melody=config['melody'],
-                transpose=config['transpose'],
-                abc_body=abc_body
-            ))
-
-        y_abc_path = os.path.join(temp_dir, '{:d}y.abc'.format(config['index']))
-        with open(y_abc_path, 'w') as f:
-            # Insert relevant ABC commands. See documentation at
-            #   https://manpages.debian.org/stretch/abcmidi/abc2midi.1.en.html
-            #   http://abc.sourceforge.net/standard/abc2midi.txt
-            f.write(abc_template_y.format(
-                abc_header=abc_header,
-                tempo=config['tempo'],
-                transpose=config['transpose'],
-                abc_body=abc_body
-            ))
-
-        x_midi_path = os.path.join(temp_dir,
-                                   '{:d}x.midi'.format(config['index']))
-        y_midi_path = os.path.join(temp_dir,
-                                   '{:d}y.midi'.format(config['index']))
-
-        # Generate MIDI file with chords and actual instruments
-        captured = subprocess.run(['abc2midi', x_abc_path, '-quiet', '-silent',
-                                   '-o', x_midi_path], capture_output=True)
-        stderr = captured.stderr.decode('utf-8')
-        if stderr:
-            print(stderr)
-
-        # Generate MIDI file without chords or grace notes just for making the
-        #   pseudo-spectrogram.
-        captured = subprocess.run(['abc2midi', y_abc_path, '-quiet',
-                                   '-silent', '-NGRA', '-NGUI', '-o',
-                                   y_midi_path], capture_output=True)
-        stderr = captured.stderr.decode('utf-8')
-        if stderr:
-            print(stderr)
-
+    for config_filename in tqdm(config_files, ascii=True):
+        # === Create this dataset entry ===
+        # noinspection PyBroadException
         try:
-            generate_input_spectrogram(x_midi_path, config['index'], temp_dir,
-                                       png_dir, mp3_dir)
-            generate_pseudo_spectrogram(y_midi_path, config['index'],
-                                        config['tempo'], png_dir)
-        except ValueError as e:
-            print('Error occurred in file {}'.format(config_file))
+            DatasetEntry(config_filename=config_filename,
+                         retain_audio=retain_audio)
+        except Exception as e:
+            print(config_filename)
             print(e)
-            continue
 
 
 def generate_pseudo_spectrogram(midi_path, index, bpm, png_dir):
@@ -265,51 +149,6 @@ def generate_pseudo_spectrogram(midi_path, index, bpm, png_dir):
     imageio.imwrite(out_path, pseudo_spectrogram.T)
 
 
-def generate_input_spectrogram(midi_path, index, temp_dir, png_dir, mp3_dir):
-    # Synthesize a .wav file from this midi. Trim to length and take the EAC.
-    #   also encode an .mp3 of the trimmed segment.
-
-    """
-    fluidsynth -l -T raw -F - ~/sounds/folk-friend.sf2 <MIDI FILE PATH> \
-    | sox -t raw -r 48000 -e signed -b 16 -c 1 - <OUTPUT WAV>
-    """
-
-    trimmed_midi_path = trim_midi(midi_path)
-
-    temp_wav_path = os.path.join(temp_dir, 'audio.wav')
-    temp_short_wav_path = os.path.join(temp_dir, 'short-audio.wav')
-    subprocess.run(
-        ['fluidsynth', '-l', '-T', 'wav', '-F', temp_wav_path, '--reverb', 'no',
-         '--quiet', '-r', str(ff_config.SAMPLE_RATE), '--gain', '1',
-         '/home/tom/sounds/folk-friend.sf2', trimmed_midi_path])
-
-    # Trim to length
-    subprocess.run(
-        ['ffmpeg', '-y', '-hide_banner', '-loglevel', 'panic', '-i',
-         temp_wav_path, '-ss', str(SAMPLE_START_SECS), '-ac', '1',
-         '-to', str(SAMPLE_END_SECS), temp_short_wav_path])
-
-    # Perform linearised AC on short audio file
-    sample_rate, samples = wavfile.read(temp_short_wav_path)
-
-    if sample_rate != ff_config.SAMPLE_RATE:
-        raise RuntimeError('The provided input audio file should have a sample'
-                           'rate of {:d}'.format(ff_config.SAMPLE_RATE))
-
-    spectrogram = eac.compute_ac_spectrogram(samples)
-    png_out_path = os.path.join(png_dir, '{:d}x.png'.format(index))
-    spectrogram = eac.linearise_ac_spectrogram(spectrogram, sample_rate)
-    img_matrix = np.asarray(255 * spectrogram.T / np.max(spectrogram),
-                            dtype=np.uint8)
-    imageio.imwrite(png_out_path, img_matrix)
-
-    # Compress original audio file
-    mp3_out_path = os.path.join(mp3_dir, '{:d}.mp3'.format(index))
-    subprocess.run(['ffmpeg', '-y', '-hide_banner', '-loglevel', 'panic', '-i',
-                    temp_short_wav_path, '-codec:a', 'libmp3lame', '-qscale:a',
-                    '4', mp3_out_path])
-
-
 def trim_midi(midi_path):
     """Remove all midi events after the SAMPLE_END_SECS. This means we don't
         synthesize the audio for parts of the file that will be trimmed away,
@@ -346,6 +185,178 @@ def trim_midi(midi_path):
     return trimmed_midi_path
 
 
+class DatasetSubDir:
+    DATASET_PARENT_DIR = '.'
+
+    def __init__(self, dir_name, purge=False, require=False):
+        self._path = os.path.join(DatasetSubDir.DATASET_PARENT_DIR, dir_name)
+
+        if require and not os.path.isdir(self._path):
+            raise RuntimeError(f'The directory {self._path} '
+                               f'could not be found.')
+
+        pathlib.Path(self._path).mkdir(parents=True, exist_ok=True)
+
+        if purge:
+            for f in glob.glob(os.path.join(self._path, '*')):
+                os.remove(f)
+
+    @property
+    def path(self):
+        return self._path
+
+
+class DatasetEntry:
+    def __init__(self, config_filename, retain_audio=False):
+        self._config_filename = config_filename
+        self._config_path = os.path.join(config_dir.path, config_filename)
+        with open(self._config_path, 'r') as f:
+            self._config = json.load(f)
+
+        # Load in abcs from specified file
+        self._abc_header, self._abc_body = self._load_abc()
+
+        self._midi_x = os.path.join(midi_dir.path, f'{self.index}-x.midi')
+        self._midi_y = os.path.join(midi_dir.path, f'{self.index}-y.midi')
+        self._audio_x = os.path.join(audio_dir.path, f'{self.index}-x.wav')
+
+        # Create two midi files; one which will be turned into audio to be used
+        #   as input for the model, and the other which will be used to
+        #   determine the output image mask for the CNN, and the label for the
+        #   RNN.
+        self._generate_midis()
+
+        # Input files
+        sr, samples = self._generate_audio(retain_audio)
+        self._generate_spectrogram(sr, samples)
+
+        # Label files
+        pass
+
+    def _load_abc(self):
+        """Load in the abc file contents for this dataset entry"""
+        with open(self._config['tune'], 'r') as f:
+            abc_lines = f.readlines()
+        # All ABC files are written out with exactly four lines of header
+        return abc_lines[:4], abc_lines[4:]
+
+    def _generate_midis(self):
+        """Generate the midi files for this dataset entry."""
+
+        # Insert relevant ABC commands. See documentation at
+        #   https://manpages.debian.org/stretch/abcmidi/abc2midi.1.en.html
+        #   http://abc.sourceforge.net/standard/abc2midi.txt
+        abc_lines = self._abc_header + [ABC_COMMANDS.format(
+            tempo=self._config['tempo'],
+            chord=self._config['chord'],
+            octave=self._config['chord_octave_shift'],
+            melody=self._config['melody'],
+            transpose=self._config['transpose'],
+        )] + self._abc_body
+
+        abc = ''.join(abc_lines)
+
+        self._abc_to_midi(abc, self._midi_x, chords=True)
+        self._abc_to_midi(abc, self._midi_y, chords=False)
+
+    def _generate_audio(self, retain_audio):
+        """Convert the midi file with chords to a .wav file
+
+        This uses the FolkFriend soundfont file. Instruments in the FolkFriend
+         soundfont file are:
+
+            Bank:Instrument Description
+            000:000 Grand Piano
+            000:001 Violin
+            000:002 Accordion
+            000:003 Flute
+            000:004 Recorder
+            000:005 Banjo
+            000:006 Mandolin
+            000:007 Clarinet
+            000:008 Oboe
+            000:009 Pan Flute
+            000:010 Harp
+            000:040 Nylon String Guitar
+            000:041 Steel String Guitar
+            000:042 Jazz Guitar
+            000:043 Clean Guitar
+            000:044 Palm Muted Guitar
+            000:045 Distortion Guitar
+            000:046 Overdrive Guitar
+            000:047 Acoustic Bass
+            000:048 Fingered Bass
+            000:049 Picked Bass
+        """
+
+        subprocess.run(
+            ['fluidsynth', '-l',
+             '-T', 'wav',
+             '-F', self._audio_x,
+             '--reverb', 'no',
+             '--sample-rate', str(ff_config.SAMPLE_RATE),
+             '--gain', '1.0',
+             '--quiet',
+             '/home/tom/sounds/folk-friend.sf2',
+             self._midi_x])
+
+        sample_rate, samples = wavfile.read(self._audio_x)
+
+        if sample_rate != ff_config.SAMPLE_RATE:
+            raise RuntimeError(f'{self._audio_x} should have a sample rate of '
+                               f'{ff_config.SAMPLE_RATE}')
+
+        samples = samples[sample_rate * SAMPLE_START_SECS:
+                          sample_rate * SAMPLE_END_SECS]
+
+        # TODO we should be able to avoid writing stereo output.
+        #   fluidsynth doesn't seem to allow this, maybe the soundfont can
+        #   be changed to have all samples mono?
+        samples = samples.mean(axis=1)
+
+        if retain_audio:
+            wavfile.write(self._audio_x, sample_rate, samples)
+            subprocess.run(['ffmpeg', '-y', '-hide_banner',
+                            '-loglevel', 'panic',
+                            '-i', self._audio_x,
+                            '-ac', '1',
+                            self._audio_x.replace('.wav', '.mp3')])
+
+        # TODO this is only useful for debugging this script
+        # os.remove(self._audio_x)
+
+        return sample_rate, samples
+
+    def _generate_spectrogram(self, sr, samples):
+        spectrogram = eac.compute_ac_spectrogram(samples)
+        spectrogram = eac.linearise_ac_spectrogram(spectrogram, sr)
+        png_path = os.path.join(png_dir.path, f'{self.index}x.png')
+        png_matrix = np.asarray(255 * spectrogram.T / np.max(spectrogram),
+                                dtype=np.uint8)
+        imageio.imwrite(png_path, png_matrix)
+
+    @property
+    def index(self):
+        return self._config['index']
+
+    @staticmethod
+    def _abc_to_midi(abc, midi_path, chords=True):
+        """Convert ABC text into a midi file."""
+
+        # Generate MIDI file with chords and actual instruments
+        captured = subprocess.run([
+                                      'abc2midi', '-',
+                                      '-quiet', '-silent',
+                                      '' if chords else '-NGUI',
+                                      '-o', midi_path
+                                  ],
+                                  input=abc.encode('utf-8'),
+                                  capture_output=True)
+        stderr = captured.stderr.decode('utf-8')
+        if stderr:
+            log.warning(stderr, file=sys.stderr)
+
+
 class CSVMidiNoteReader(csv.DictReader):
     def __init__(self, *posargs, **kwargs):
         kwargs['fieldnames'] = ['track', 'time', 'type', 'channel',
@@ -359,5 +370,17 @@ if __name__ == '__main__':
                         default=os.path.join(str(pathlib.Path.home()),
                                              'datasets/png-cnn'),
                         help='Directory to contain the dataset files in')
+    parser.add_argument('--retain-audio', action='store_true')
     args = parser.parse_args()
-    main(args.dir)
+
+    DatasetSubDir.DATASET_PARENT_DIR = args.dir
+
+    # User must have run both extract_chorded_abcs.py generate_configs.py
+    abcs_dir = DatasetSubDir('abcs', require=True)
+    config_dir = DatasetSubDir('configs', require=True)
+
+    midi_dir = DatasetSubDir('midis', purge=True)
+    audio_dir = DatasetSubDir('audio', purge=True)
+    png_dir = DatasetSubDir('pngs', purge=True)
+
+    generate(args.retain_audio)

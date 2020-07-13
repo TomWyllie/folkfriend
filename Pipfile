@@ -13,6 +13,7 @@ imageio = "*"
 requests = "*"
 tensorflow = "*"
 h5py = "*"
+midi2audio = "*"
 
 [requires]
 python_version = "3.8"
