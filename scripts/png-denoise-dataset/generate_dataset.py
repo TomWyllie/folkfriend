@@ -60,8 +60,7 @@ def generate(retain_audio):
         try:
             DatasetEntry(config_filename=config_filename,
                          retain_audio=retain_audio)
-        except Exception as e:
-            print(config_filename)
+        except ConfigError as e:
             print(e)
 
 
@@ -314,6 +313,10 @@ class DatasetEntry:
         #   be changed to have all samples mono?
         samples = samples.mean(axis=1)
 
+        if samples.size != sample_rate * (SAMPLE_END_SECS - SAMPLE_START_SECS):
+            raise ConfigError(f'Synthesized .wav file was too short '
+                              f'({self.index}.json)')
+
         if retain_audio:
             wavfile.write(self._audio_x, sample_rate, samples)
             subprocess.run(['ffmpeg', '-y', '-hide_banner',
@@ -322,8 +325,7 @@ class DatasetEntry:
                             '-ac', '1',
                             self._audio_x.replace('.wav', '.mp3')])
 
-        # TODO this is only useful for debugging this script
-        # os.remove(self._audio_x)
+        os.remove(self._audio_x)
 
         return sample_rate, samples
 
@@ -362,6 +364,10 @@ class CSVMidiNoteReader(csv.DictReader):
         kwargs['fieldnames'] = ['track', 'time', 'type', 'channel',
                                 'note', 'velocity']
         super().__init__(*posargs, **kwargs)
+
+
+class ConfigError(Exception):
+    """Raised to fail the creation of a dataset entry."""
 
 
 if __name__ == '__main__':
