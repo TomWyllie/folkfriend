@@ -201,7 +201,7 @@ class DatasetEntry:
              '-F', self._audio_x,
              '--reverb', 'no',
              '--sample-rate', str(ff_config.SAMPLE_RATE),
-             '--gain', '1.0',
+             # '--gain', '1.0', # TODO variable gain for deliberate distortion
              '--quiet',
              '/home/tom/sounds/folk-friend.sf2',
              midi_path])
