@@ -87,40 +87,35 @@ def main(dataset_dir, num):
     abc_files = list(os.listdir(abcs_dir))
 
     tune_paths = random.choices(abc_files, k=num)
-
-    config_dir = os.path.join(dataset_dir, 'configs')
-
-    files = glob.glob(os.path.join(config_dir, '*'))
-    for f in files:
-        os.remove(f)
-
-    pathlib.Path(config_dir).mkdir(parents=True, exist_ok=True)
+    configs = []
 
     # TODO lots of other parameters should go into these files
     # TODO percussive accompaniments
     for i, (tune_path, melody, chord) in enumerate(
             zip(tune_paths, melodies, chords)):
-        with open(os.path.join(config_dir, '{:d}.json'.format(i)), 'w') as f:
-            json.dump({
-                'index': i,
-                'tune': os.path.join(abcs_dir, tune_path),
-                'melody': melody,
-                'chord': chord,
-                'tempo': random.choice(range(140, 240)),
-                # We add a random transposition to reduce any key bias, and to
-                #   improve the melodic range of the model.
-                'transpose': random.choice(range(-12, 11)),
-                'chord_octave_shift': random.choice((0, 1))
-            }, f)
+        config = {
+            'index': i,
+            'tune': os.path.join(abcs_dir, tune_path),
+            'melody': melody,
+            'chord': chord,
+            'tempo': random.choice(range(100, 240)),
+            # We add a random transposition to reduce any key bias, and to
+            #   improve the melodic range of the model.
+            'transpose': random.choice(range(-12, 11)),
+            'chord_octave_shift': random.choice((0, 1))
+        }
+        configs.append(config)
 
-    print(f'Generated {num} config files to {config_dir}.')
+    with open(os.path.join(dataset_dir, 'configs.json'), 'w') as f:
+        json.dump(configs, f)
+    print(f'Generated {num} config files to configs.json')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir',
                         default=os.path.join(str(pathlib.Path.home()),
-                                             'datasets/png-cnn'),
+                                             'datasets/folkfriend'),
                         help='Directory to contain the dataset files in')
     parser.add_argument('--num', default=100, help='Number of config files to'
                                                    'generate',

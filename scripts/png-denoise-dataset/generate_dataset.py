@@ -24,6 +24,7 @@ import logging
 import math
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import timeit
@@ -34,6 +35,7 @@ import numpy as np
 from folkfriend import eac
 from folkfriend import ff_config
 from scipy.io import wavfile
+import py_midicsv
 
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(name)s:%(lineno)s] %(message)s')
@@ -52,9 +54,7 @@ ABC_COMMANDS = (
 )
 
 
-def generate():
-    config_files = list(os.listdir(config_dir.path))
-    config_files.sort(key=lambda x: int(os.path.splitext(x)[0]))
+def generate(config_files):
     log.info(f'Beginning processing {len(config_files)} files')
     start_time = timeit.default_timer()
 
@@ -65,143 +65,25 @@ def generate():
         timeit.default_timer() - start_time))
 
 
-def create_entry_wrapper(config_filename):
+def create_entry_wrapper(config):
     # === Create this dataset entry ===
-    log.info(f'Processing {config_filename}')
+    log.info(f"Processing config {config['index']}")
     # noinspection PyBroadException
     try:
-        DatasetEntry(config_filename=config_filename)
+        DatasetEntry(config=config)
     except ConfigError as e:
         log.warning(e)
     except Exception as e:
-        log.error(e)
-
-
-def generate_pseudo_spectrogram(midi_path, index, bpm, png_dir):
-    midi_as_csv = subprocess.run(['midicsv', midi_path], capture_output=True)
-    lines = midi_as_csv.stdout.decode('utf-8').split('\n')
-    csv_lines = (line.replace(', ', ',') for line in lines)
-
-    sample_duration = (SAMPLE_END_SECS - SAMPLE_START_SECS)
-    num_frames = ((ff_config.SAMPLE_RATE * sample_duration
-                   ) // ff_config.SPECTROGRAM_HOP_SIZE) - 1
-    num_bins = ff_config.NUM_BINS
-
-    # Length in seconds of one frame
-    frame_length = ff_config.SPECTROGRAM_HOP_SIZE / ff_config.SAMPLE_RATE
-
-    # Times in seconds of frames, after the start point
-    frame_times_s = frame_length * np.arange(num_frames)
-
-    # Times in seconds of frames thresholds, after the start point.
-    #   See spacing.png for why there's an extra half here.
-    frame_times_s += frame_length / 2
-
-    # Add start offset
-    frame_times_s += SAMPLE_START_SECS
-
-    # Convert to milliseconds
-    frame_times_ms = 1000 * frame_times_s
-
-    active_notes = {}
-    us_per_crotchet = 60000000 / bpm
-
-    # This 480,000 comes from 125 bpm being the default tempo with the hard
-    #   coded midi times (240ms = 1 quaver)
-    ms_scale_factor = us_per_crotchet / 480000
-
-    pseudo_spectrogram = np.zeros((num_frames, num_bins), dtype=np.uint8)
-
-    for record in CSVMidiNoteReader(csv_lines):
-        if not record['note'] or not record['note'].isdigit():
-            continue
-        note = int(record['note'])
-        time = ms_scale_factor * int(record['time'])
-
-        if record['type'] == 'Note_on_c':
-            if note not in active_notes:
-                active_notes[note] = time
-        elif record['type'] == 'Note_off_c':
-            if note not in active_notes:
-                continue
-
-            # Now update the pseudo-spectrogram matrix with this start / end
-            #   time and note.
-            note_end = time
-            note_start = active_notes.pop(note)
-            if note_end < 1000 * SAMPLE_START_SECS:
-                continue
-
-            start_frame = np.argmax(frame_times_ms > note_start)
-
-            if note_start < frame_times_ms[-1] < note_end:
-                # RHS edge case
-                end_frame = num_frames
-            else:
-                end_frame = np.argmax(frame_times_ms > note_end)
-
-            if end_frame <= start_frame:
-                # argmax can return 0 if no matches
-                continue
-
-            # Invalid note
-            if not ff_config.LOW_MIDI < note < ff_config.HIGH_MIDI:
-                continue
-
-            # -1 because inclusive range. The linear midi bins go
-            #   [102.   101.8   101.6   ...     46.6.   46.4    46.2]
-            lo_index = (math.ceil(ff_config.BINS_PER_MIDI / 2)
-                        + ff_config.BINS_PER_MIDI
-                        * (ff_config.HIGH_MIDI - 1 - note))
-            hi_index = lo_index + ff_config.BINS_PER_MIDI
-
-            pseudo_spectrogram[start_frame: end_frame, lo_index: hi_index] = 255
-
-    out_path = os.path.join(png_dir, '{}y.png'.format(index))
-    imageio.imwrite(out_path, pseudo_spectrogram.T)
-
-
-def trim_midi(midi_path):
-    """Remove all midi events after the SAMPLE_END_SECS. This means we don't
-        synthesize the audio for parts of the file that will be trimmed away,
-        greatly speeding up the generation of the dataset."""
-
-    midi_as_csv = subprocess.run(['midicsv', midi_path], capture_output=True)
-    lines = midi_as_csv.stdout.decode('utf-8').split('\n')
-    csv_lines = (line.replace(', ', ',') for line in lines)
-
-    filtered_lines = []
-    last_events = {}
-
-    base_threshold_ms = SAMPLE_END_SECS * 1000
-    threshold_ms = base_threshold_ms
-
-    for line, record in zip(lines, CSVMidiNoteReader(csv_lines)):
-        t = record['track']
-        ms = int(record['time'])
-
-        if record['type'] == 'Tempo':
-            us_per_crotchet = int(record['channel'])
-            # 480,000 is default, this is what the ms are written in.
-            threshold_ms = int(base_threshold_ms * 480000 / us_per_crotchet)
-
-        if ms < threshold_ms:
-            filtered_lines.append(line)
-            last_events[t] = max(last_events.get(t, 0), ms)
-        elif record['type'] == 'End_track':
-            filtered_lines.append('{}, {:d}, End_track'.format(t, threshold_ms))
-
-    trimmed_midi_path = midi_path + '.trim'
-    subprocess.run(['csvmidi', '-', trimmed_midi_path],
-                   input='\n'.join(filtered_lines).encode('utf-8'))
-    return trimmed_midi_path
+        log.exception(e)
 
 
 class DatasetSubDir:
-    DATASET_PARENT_DIR = '.'
+    DS_DIR = os.path.join(str(pathlib.Path.home()), 'datasets/folkfriend')
+    DS_SIZE = 100
 
     def __init__(self, dir_name, purge=False, require=False):
-        self._path = os.path.join(DatasetSubDir.DATASET_PARENT_DIR, dir_name)
+        self._path = os.path.join(DatasetSubDir.DS_DIR, dir_name)
+        self._chunk_size = 200
 
         if require and not os.path.isdir(self._path):
             raise RuntimeError(f'The directory {self._path} '
@@ -211,26 +93,29 @@ class DatasetSubDir:
 
         if purge:
             for f in glob.glob(os.path.join(self._path, '*')):
-                os.remove(f)
+                shutil.rmtree(f)
 
-    @property
-    def path(self):
-        return self._path
+        self._chunk_paths = {}
+        for chunk in range(math.ceil(DatasetSubDir.DS_SIZE / self._chunk_size)):
+            chunk_dir_path = os.path.join(self._path, str(chunk))
+            pathlib.Path(chunk_dir_path).mkdir(parents=True, exist_ok=True)
+            self._chunk_paths[chunk] = chunk_dir_path
+
+    def chunk_path(self, index, pattern):
+        chunk_dir = self._chunk_paths[index // self._chunk_size]
+        return os.path.join(chunk_dir, pattern.format(index))
 
 
 class DatasetEntry:
-    def __init__(self, config_filename):
-        self._config_filename = config_filename
-        self._config_path = os.path.join(config_dir.path, config_filename)
-        with open(self._config_path, 'r') as f:
-            self._config = json.load(f)
+    def __init__(self, config):
+        self.config = config
 
         # Load in abcs from specified file
         self._abc_header, self._abc_body = self._load_abc()
 
-        self._midi_x = os.path.join(midi_dir.path, f'{self.index}-x.midi')
-        self._midi_y = os.path.join(midi_dir.path, f'{self.index}-y.midi')
-        self._audio_x = os.path.join(audio_dir.path, f'{self.index}-x.wav')
+        self._midi_x = midi_dir.chunk_path(self.index, '{:d}-x.midi')
+        self._midi_y = midi_dir.chunk_path(self.index, '{:d}-y.midi')
+        self._audio_x = audio_dir.chunk_path(self.index, '{:d}-x.wav')
 
         # Create two midi files; one which will be turned into audio to be used
         #   as input for the model, and the other which will be used to
@@ -243,12 +128,15 @@ class DatasetEntry:
         self._generate_spectrogram(sr, samples)
 
         # Label files
-        # midi_events = self._midi_as_csv(self._midi_y)
-        # spec_mask, contour = self._csv_to_training_data(midi_events)
+        midi_events = self._midi_as_csv(self._midi_y)
+        spec_mask, label = self._csv_to_training_data(midi_events)
+
+        self._save_spec_mask(spec_mask)
+        self._save_label(label)
 
     def _load_abc(self):
         """Load in the abc file contents for this dataset entry"""
-        with open(self._config['tune'], 'r') as f:
+        with open(self.config['tune'], 'r') as f:
             abc_lines = f.readlines()
         # All ABC files are written out with exactly four lines of header
         return abc_lines[:4], abc_lines[4:]
@@ -260,11 +148,11 @@ class DatasetEntry:
         #   https://manpages.debian.org/stretch/abcmidi/abc2midi.1.en.html
         #   http://abc.sourceforge.net/standard/abc2midi.txt
         abc_lines = self._abc_header + [ABC_COMMANDS.format(
-            tempo=self._config['tempo'],
-            chord=self._config['chord'],
-            octave=self._config['chord_octave_shift'],
-            melody=self._config['melody'],
-            transpose=self._config['transpose'],
+            tempo=self.config['tempo'],
+            chord=self.config['chord'],
+            octave=self.config['chord_octave_shift'],
+            melody=self.config['melody'],
+            transpose=self.config['transpose'],
         )] + self._abc_body
 
         abc = ''.join(abc_lines)
@@ -327,7 +215,8 @@ class DatasetEntry:
         #   be changed to have all samples mono?
         samples = samples.mean(axis=1)
 
-        if samples.size != sample_rate * (SAMPLE_END_SECS - SAMPLE_START_SECS):
+        if samples.size < sample_rate * 2:      # 2 seconds is chosen as limit
+            os.remove(self._audio_x)
             raise ConfigError(f'Synthesized .wav file was too short '
                               f'({self.index}.json)')
 
@@ -346,20 +235,109 @@ class DatasetEntry:
     def _generate_spectrogram(self, sr, samples):
         spectrogram = eac.compute_ac_spectrogram(samples)
         spectrogram = eac.linearise_ac_spectrogram(spectrogram, sr)
-        png_path = os.path.join(png_dir.path, f'{self.index}x.png')
+        png_path = png_dir.chunk_path(self.index, '{:d}-x.png')
         png_matrix = np.asarray(255 * spectrogram.T / np.max(spectrogram),
                                 dtype=np.uint8)
         imageio.imwrite(png_path, png_matrix)
 
-    def _midi_as_csv(self, midi_path):
-        raise NotImplementedError()
+    def _csv_to_training_data(self, csv_lines):
+        sample_duration = (SAMPLE_END_SECS - SAMPLE_START_SECS)
+        num_frames = ((ff_config.SAMPLE_RATE * sample_duration
+                       ) // ff_config.SPECTROGRAM_HOP_SIZE) - 1
+        num_bins = ff_config.NUM_BINS
 
-    def _csv_to_training_data(self, midi_path):
-        raise NotImplementedError()
+        # Length in seconds of one frame
+        frame_length = ff_config.SPECTROGRAM_HOP_SIZE / ff_config.SAMPLE_RATE
+
+        # Times in seconds of frames, after the start point
+        frame_times_s = frame_length * np.arange(num_frames)
+
+        # Times in seconds of frames thresholds, after the start point.
+        #   There's an extra half here for centering.
+        frame_times_s += frame_length / 2
+
+        # Add start offset
+        frame_times_s += SAMPLE_START_SECS
+
+        # Convert to milliseconds
+        frame_times_ms = 1000 * frame_times_s
+
+        active_notes = {}
+        us_per_crotchet = 60000000 / self.config['tempo']
+
+        # This 480,000 comes from 125 bpm being the default tempo with the hard
+        #   coded midi times (240ms = 1 quaver)
+        ms_scale_factor = us_per_crotchet / 480000
+
+        pseudo_spectrogram = np.zeros((num_frames, num_bins), dtype=np.uint8)
+
+        for record in CSVMidiNoteReader(csv_lines):
+            if not record['note'] or not record['note'].isdigit():
+                continue
+            note = int(record['note'])
+            time = ms_scale_factor * int(record['time'])
+
+            if record['type'] == 'Note_on_c':
+                if note not in active_notes:
+                    active_notes[note] = time
+            elif record['type'] == 'Note_off_c':
+                if note not in active_notes:
+                    continue
+
+                # Now update the pseudo-spectrogram matrix with this start / end
+                #   time and note.
+                note_end = time
+                note_start = active_notes.pop(note)
+                if note_end < 1000 * SAMPLE_START_SECS:
+                    continue
+
+                start_frame = np.argmax(frame_times_ms > note_start)
+
+                if note_start < frame_times_ms[-1] < note_end:
+                    # RHS edge case
+                    end_frame = num_frames
+                else:
+                    end_frame = np.argmax(frame_times_ms > note_end)
+
+                if end_frame <= start_frame:
+                    # argmax can return 0 if no matches
+                    continue
+
+                # Invalid note
+                if not ff_config.LOW_MIDI < note < ff_config.HIGH_MIDI:
+                    continue
+
+                # -1 because inclusive range. The linear midi bins go
+                #   [102.   101.8   101.6   ...     46.6.   46.4    46.2]
+                lo_index = (math.ceil(ff_config.BINS_PER_MIDI / 2)
+                            + ff_config.BINS_PER_MIDI
+                            * (ff_config.HIGH_MIDI - 1 - note))
+                hi_index = lo_index + ff_config.BINS_PER_MIDI
+
+                pseudo_spectrogram[start_frame: end_frame, lo_index: hi_index] = 255
+
+        return pseudo_spectrogram, 'placeholder_label'
+
+    def _save_spec_mask(self, spec_mask):
+        png_path = png_dir.chunk_path(self.index, '{:d}-y.png')
+        imageio.imwrite(png_path, spec_mask.T)
+
+    def _save_label(self, label):
+        # We would rather write all of these out to one big file but this isn't
+        #   possible with multiprocessing. Instead write out small files and
+        #   cat them all right at the end.
+        label_path = label_dir.chunk_path(self.index, '{:d}.txt')
+        with open(label_path, 'w') as f:
+            f.write(label)
 
     @property
     def index(self):
-        return self._config['index']
+        return self.config['index']
+
+    @staticmethod
+    def _midi_as_csv(midi_path):
+        midi_lines = py_midicsv.midi_to_csv(midi_path)
+        return [line.strip().replace(', ', ',') for line in midi_lines]
 
     @staticmethod
     def _abc_to_midi(abc, midi_path, chords=True):
@@ -394,21 +372,31 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir',
                         default=os.path.join(str(pathlib.Path.home()),
-                                             'datasets/png-cnn'),
+                                             'datasets/folkfriend'),
                         help='Directory to contain the dataset files in')
     parser.add_argument('--retain-audio', action='store_true')
+    parser.add_argument('-vf', '--val-fraction', default=0.1, type=float,
+                        help='Use this fraction of the dataset as validation'
+                             'data when training.')
     args = parser.parse_args()
 
-    DatasetSubDir.DATASET_PARENT_DIR = args.dir
+    if not 0 <= args.val_fraction < 1:
+        raise ValueError('Validation Fraction must belong to [0, 1)')
+
+    val_fraction = args.val_fraction
+    retain_audio = args.retain_audio
+    DatasetSubDir.DS_DIR = args.dir
+
+    with open(os.path.join(args.dir, 'configs.json')) as config_file:
+        configs = json.load(config_file)
+    DatasetSubDir.DS_SIZE = len(configs)
 
     # User must have run both extract_chorded_abcs.py generate_configs.py
-    abcs_dir = DatasetSubDir('abcs', require=True)
-    config_dir = DatasetSubDir('configs', require=True)
+    abcs_dir_path = os.path.join(args.dir, 'abcs')  # TODO switch to JSON
 
     midi_dir = DatasetSubDir('midis', purge=True)
     audio_dir = DatasetSubDir('audio', purge=True)
     png_dir = DatasetSubDir('pngs', purge=True)
+    label_dir = DatasetSubDir('labels', purge=True)
 
-    retain_audio = args.retain_audio
-
-    generate()
+    generate(configs)

@@ -63,7 +63,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir',
                         default=os.path.join(str(pathlib.Path.home()),
-                                             'datasets/png-cnn'),
+                                             'datasets/folkfriend'),
                         help='Directory to contain the dataset files in')
     args = parser.parse_args()
     main(args.dir)
