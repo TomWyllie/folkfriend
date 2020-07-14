@@ -17,7 +17,6 @@
 """
 
 import argparse
-import csv
 import glob
 import json
 import logging
@@ -32,11 +31,11 @@ from multiprocessing import Pool
 
 import imageio
 import numpy as np
+import py_midicsv
 from folkfriend import eac
 from folkfriend import ff_config
 from folkfriend.midi import CSVMidiNoteReader
 from scipy.io import wavfile
-import py_midicsv
 
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(name)s:%(lineno)s] %(message)s')
@@ -44,7 +43,7 @@ log = logging.getLogger(os.path.basename(__file__))
 
 # Take 10 second samples out of generated audio files
 SAMPLE_START_SECS = 2
-SAMPLE_END_SECS = 12
+SAMPLE_END_SECS = 10
 
 ABC_COMMANDS = (
     'Q:1/4={tempo:d}\n'
@@ -64,6 +63,9 @@ def generate(config_files):
 
     log.info('Done in {:.3f} seconds'.format(
         timeit.default_timer() - start_time))
+
+    # https://github.com/kkroening/ffmpeg-python/issues/108
+    subprocess.run(['stty', 'echo'])  # This fixes terminal being broken
 
 
 def create_entry_wrapper(config):
@@ -201,7 +203,7 @@ class DatasetEntry:
              '-F', self._audio_x,
              '--reverb', 'no',
              '--sample-rate', str(ff_config.SAMPLE_RATE),
-             # '--gain', '1.0', # TODO variable gain for deliberate distortion
+             '--gain', '1',
              '--quiet',
              '/home/tom/sounds/folk-friend.sf2',
              midi_path])
@@ -218,14 +220,15 @@ class DatasetEntry:
         # TODO we should be able to avoid writing stereo output.
         #   fluidsynth doesn't seem to allow this, maybe the soundfont can
         #   be changed to have all samples mono?
-        samples = samples.mean(axis=1)
+        samples = samples[:, 0]
 
-        if samples.size < sample_rate * 2:      # 2 seconds is chosen as limit
+        if samples.size < sample_rate * 2:  # 2 seconds is chosen as limit
             os.remove(self._audio_x)
             raise ConfigError(f'Synthesized .wav file was too short '
                               f'({self.index}.json)')
 
         if retain_audio:
+            # TODO use ffmpeg library for python
             wavfile.write(self._audio_x, sample_rate, samples)
             subprocess.run(['ffmpeg', '-y', '-hide_banner',
                             '-loglevel', 'panic',
