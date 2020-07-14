@@ -55,11 +55,6 @@ class CSVMidiNoteReader(csv.DictReader):
                 # LHS edge case
                 start_frame = 0     # Clip to start
 
-            # not required?
-            # if end_frame <= start_frame:
-                # argmax can return 0 if no matches. Skip this note.
-                # continue
-
             # Invalid note. Skip this note.
             if not ff_config.LOW_MIDI < note.pitch < ff_config.HIGH_MIDI:
                 continue
@@ -103,12 +98,60 @@ class CSVMidiNoteReader(csv.DictReader):
         return notes
 
     def to_note_contour(self, tempo, start_seconds, end_seconds=10):
-        label = ''
+        """Quantise an arbitrary sequence of MIDI notes into all quavers.
 
-        for record in self:
-            raise NotImplementedError()
+        This results in some distortion of the melody but it should closely
+        resemble the original; if both the training data and the data file
+        builder use this same function then tune query searching should
+        be relatively unaffected. Tune query searching with variable note
+        durations would be a whole different kettle of fish."""
 
-        return label
+        # TODO this NEEDS test cases as it's a pretty weird function.
+
+        label = []
+
+        music_time = 0
+        output_time = 0
+
+        # Dummy quaver to compute duration of a single quaver at this tempo
+        #   Remember default midi quaver duration is 240 ms (TODO always?)
+        n = Note(0, 240, None)
+        n.set_tempo(tempo)
+        quaver_duration = n.duration
+
+        for i, note in enumerate(self._notes):
+            note.set_tempo(tempo)
+
+            # Note occurs outwith range specified
+            if note.end < 1000 * start_seconds:
+                music_time = note.end
+                output_time = note.end
+                continue
+            if note.start > 1000 * end_seconds:
+                break
+            else:
+                music_time += note.duration
+
+            # If we're ahead, skip notes until we're back in sync
+            if music_time <= output_time:
+                continue
+
+            rel_duration = (note.duration / quaver_duration)
+            if rel_duration.is_integer():
+                output_time += note.duration
+                label.append(note.char() * int(rel_duration))
+            elif rel_duration < 1.0:
+                # In the output label everything is a quaver
+                output_time += quaver_duration
+                label.append(note.char())
+            else:
+                # If we've fallen behind, round up, else round down
+                round_f = math.ceil if music_time > output_time else math.floor
+                rounded_int = round_f(rel_duration)
+                output_time += rounded_int * quaver_duration
+                label.append(note.char() * rounded_int)
+
+        return ''.join(label)
 
 
 class Note:
@@ -144,40 +187,16 @@ class Note:
     def duration(self):
         return self.end - self.start
 
+    def char(self):
+        pitch = self.pitch
 
-class ABCHandler:
-    def __init__(self):
-        pass
+        # We use LTE / GTE here because we need an amount of frequency
+        #   content on both sides of the relevant pitch bin. See
+        #   comment on inclusive range in to_pseudo_spectrogram.
+        while pitch <= ff_config.LOW_MIDI:
+            pitch += 12
 
-    @staticmethod
-    def expand_abc(tune):
-        """Given an ABC string, return a list abc-style notes all as quavers"""
+        while pitch >= ff_config.HIGH_MIDI:
+            pitch -= 12
 
-        music_time = 0
-        output_time = 0
-        output_pitches = []
-
-        for i, note in enumerate(notes):
-            music_time += note.duration
-
-            # If we're ahead, skip notes until we're back in sync
-            if music_time <= output_time:
-                continue
-
-            if note.duration.is_integer():
-                output_time += note.duration
-                output_pitches.extend([note.pitch.abs_value] *
-                                      int(note.duration))
-            elif note.duration < 1.0:
-                output_time += 1.0
-                output_pitches.append(note.pitch.abs_value)
-            else:
-                # If we've fallen behind, round up, else round down
-                round_f = math.ceil if music_time > output_time else math.floor
-
-                rounded_int = round_f(note.duration)
-                output_time += rounded_int
-                output_pitches.extend([note.pitch.abs_value] *
-                                      int(note.duration))
-
-        return output_pitches
+        return ff_config.MIDI_MAP[pitch - ff_config.LOW_MIDI]

@@ -111,6 +111,7 @@ class DatasetSubDir:
 
 class DatasetEntry:
     def __init__(self, config):
+        """Build a single entry in the folkfriend dataset"""
         self.config = config
 
         # Load in abcs from specified file
@@ -138,8 +139,8 @@ class DatasetEntry:
         self._save_spec_mask(spec_mask)
 
         # Generate output labels for RNN decoder
-        # label = self._midi_to_note_contour(midi_events)
-        # self._save_label(label)
+        label = self._midi_to_note_contour(midi_events)
+        self._save_label(label)
 
     def _load_abc(self):
         """Load in the abc file contents for this dataset entry"""
