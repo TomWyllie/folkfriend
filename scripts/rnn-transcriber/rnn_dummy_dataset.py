@@ -1,8 +1,8 @@
 import glob
+import math
 import os
 import pathlib
 import random
-import string
 import shutil
 
 import imageio
@@ -10,15 +10,10 @@ import numpy as np
 from folkfriend import ff_config
 from tqdm import tqdm
 
-import math
-
 
 class RNNDummyDataset:
-    def __init__(self, dir_path, num=50000,
-                 # max_frames=100, bins=ff_config.NUM_MIDIS):
-                 max_frames=750, bins=32):
-
-        # TODO next start messing around with maximum image widths and such
+    def __init__(self, dir_path, num=10000,
+                 max_frames=749, bins=ff_config.NUM_MIDI):
 
         png_parent_dir = os.path.join(dir_path, 'pngs')
         pathlib.Path(png_parent_dir).mkdir(parents=True, exist_ok=True)
@@ -38,26 +33,18 @@ class RNNDummyDataset:
 
         annotations = []
 
-        # TODO specify better
-        midi_chars = string.ascii_letters + string.digits
-
         for example in tqdm(range(num), ascii=True,
                             desc='Generating input data'):
 
             x = np.zeros((max_frames, bins))
-            # y = np.zeros((10, bins),
-            #              dtype=np.uint8)  # so all seqs hardcoded to length 10
 
             if random.random() > 0.85:
-                base_frames_per_note = random.randint(25, 56)   # 56 = 50.22 bpm
+                base_frames_per_note = random.randint(25, 56)  # 56 = 50.22 bpm
             else:
-                base_frames_per_note = random.randint(7, 25)    # 7 = 401.79 bpm (some notes are very short though)
-
-            # base_frames_per_note = 10
+                base_frames_per_note = random.randint(7, 25)  # 7 = 401.79 bpm (some notes are very short though)
 
             # Random offset at start
             current_frame = np.random.randint(0, 20)
-            # current_frame = 0
             out_seq = []
 
             x += np.abs(np.random.normal(
@@ -84,17 +71,16 @@ class RNNDummyDataset:
                     # Input dummy frequency data
                     if pitch is not None:
                         x[t_lo: t_hi, pitch] += 1
-                        out_seq.append(midi_chars[pitch])
+                        out_seq.append(ff_config.MIDI_MAP[pitch])
 
                     current_frame = t_hi
 
                     if current_frame == max_frames - 1:
                         break
 
-            # x = np.asarray(255 * x / np.max(x), dtype=np.uint8).T
             ann = ''.join(out_seq)
             chunk_num = example // pngs_per_dir
-            png_file_name = '{:d}_{}_0.png'.format(example, ann)
+            png_file_name = '{:d}.png'.format(example, ann)
             png_file_path_string = './pngs/{:d}/{}'.format(chunk_num, png_file_name)
 
             png_child_dir = child_dirs[chunk_num]
@@ -102,10 +88,6 @@ class RNNDummyDataset:
                             np.asarray(255 * x / np.max(x), dtype=np.uint8).T)
 
             annotations.append('{} {}'.format(png_file_path_string, ann))
-
-            # for i, pitch in enumerate(out_seq):
-            #     y[example, i, pitch] = 1
-            # imageio.imwrite(seq_png_path, 255 * y[example].T)
 
         val_split = int(0.9 * num)
 
@@ -115,7 +97,12 @@ class RNNDummyDataset:
         with open(os.path.join(dir_path, 'val.txt'), 'w') as f:
             f.write('\n'.join(annotations[val_split:]))
 
+        with open(os.path.join(dir_path, 'table.txt'), 'w') as f:
+            # TODO debugging
+            f.write('\n'.join(ff_config.MIDI_MAP[:bins]))
+            f.write(f'\n{ff_config.BLANK_CHARACTER}')
+
 
 if __name__ == '__main__':
-    RNNDummyDataset('/home/tom/datasets/rnn-dummy')
-    # RNNDummyDataset('D:/datasets/rnn-dummy')
+    RNNDummyDataset(os.path.join(str(pathlib.Path.home()),
+                                 'datasets/rnn-dummy'), )

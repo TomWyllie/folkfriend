@@ -123,7 +123,7 @@ def build_meta_files(config_files):
 
     with open(table, 'w') as f:
         f.write('\n'.join(ff_config.MIDI_MAP))
-        f.write('\n<BLK>')      # Blank token
+        f.write('\n-')      # Blank token
 
 
 class DatasetSubDir:
