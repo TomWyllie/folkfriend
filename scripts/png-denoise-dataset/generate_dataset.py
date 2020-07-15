@@ -37,8 +37,6 @@ from folkfriend import ff_config
 from folkfriend.midi import CSVMidiNoteReader
 from scipy.io import wavfile
 
-import matplotlib.pyplot as plt
-
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(name)s:%(lineno)s] %(message)s')
 log = logging.getLogger(os.path.basename(__file__))
