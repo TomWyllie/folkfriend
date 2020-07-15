@@ -17,7 +17,7 @@ AC_HIGH_THRESH = 420
 #   (114.29, 3000.0) Hz, as described above.
 HIGH_MIDI = 102  # F#7 (2960.0 Hz), just over two octaves above fiddle open E
 LOW_MIDI = 46    # Bb2 (116.54 Hz), just over an octave below middle C
-NUM_MIDI = HIGH_MIDI - LOW_MIDI  # Nominally 56
+NUM_MIDI = HIGH_MIDI - LOW_MIDI - 1  # Nominally 55. -1 because exclusive
 
 # abc...ABC...0123
 MIDI_MAP = (string.ascii_letters + string.digits)[:NUM_MIDI]

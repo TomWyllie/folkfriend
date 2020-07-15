@@ -53,7 +53,7 @@ class CSVMidiNoteReader(csv.DictReader):
 
             if note.start < frame_times_ms[0] < note.end:
                 # LHS edge case
-                start_frame = 0     # Clip to start
+                start_frame = 0  # Clip to start
 
             # Invalid note. Skip this note.
             if not ff_config.LOW_MIDI < note.pitch < ff_config.HIGH_MIDI:
@@ -61,9 +61,12 @@ class CSVMidiNoteReader(csv.DictReader):
 
             # -1 because inclusive range. The linear midi bins go
             #   [102.   101.8   101.6   ...     46.6.   46.4    46.2]
-            lo_index = (math.ceil(ff_config.BINS_PER_MIDI / 2)
+            # TODO work out why math.floor gives better looking
+            #  result than math.ceil
+
+            lo_index = (math.floor(ff_config.BINS_PER_MIDI / 2)
                         + ff_config.BINS_PER_MIDI
-                        * (ff_config.HIGH_MIDI - 1 - note.pitch))
+                        * (ff_config.HIGH_MIDI - note.pitch - 1))
             hi_index = lo_index + ff_config.BINS_PER_MIDI
             pseudo_spectrogram[start_frame: end_frame, lo_index: hi_index] = 255
 

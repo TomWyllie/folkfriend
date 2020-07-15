@@ -37,6 +37,8 @@ from folkfriend import ff_config
 from folkfriend.midi import CSVMidiNoteReader
 from scipy.io import wavfile
 
+import matplotlib.pyplot as plt
+
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(name)s:%(lineno)s] %(message)s')
 log = logging.getLogger(os.path.basename(__file__))
@@ -58,11 +60,18 @@ def generate(config_files):
     log.info(f'Beginning processing {len(config_files)} files')
     start_time = timeit.default_timer()
 
+    # Parallel
     with Pool() as p:
         p.map(create_entry_wrapper, config_files)
 
+    # Single
+    # for config in config_files:
+    #     create_entry_wrapper(config)
+
     log.info('Done in {:.3f} seconds'.format(
         timeit.default_timer() - start_time))
+
+    build_meta_files(config_files)
 
     # https://github.com/kkroening/ffmpeg-python/issues/108
     subprocess.run(['stty', 'echo'])  # This fixes terminal being broken
@@ -78,6 +87,45 @@ def create_entry_wrapper(config):
         log.warning(e)
     except Exception as e:
         log.exception(e)
+
+
+def build_meta_files(config_files):
+    # RNN requires train.txt/val.txt in format <PATH> <LABEL>
+    #   as well as table.txt.
+    annotations = []
+    for config in config_files:
+        index = config['index']
+
+        label_path = label_dir.chunk_path(index, '{:d}.txt')
+        png_path = png_dir.chunk_path(index, '{:d}z.png')
+
+        if not os.path.exists(png_path):
+            continue
+
+        try:
+            with open(label_path, 'r') as f:
+                label_text = f.read()
+        except FileNotFoundError:
+            continue
+
+        # Use local path
+        annotations.append('{} {}\n'.format(png_path.replace(args.dir, '.'), label_text))
+
+    val_index = int(val_fraction * len(annotations))
+
+    train = os.path.join(args.dir, 'train.txt')
+    val = os.path.join(args.dir, 'val.txt')
+    table = os.path.join(args.dir, 'table.txt')
+
+    with open(train, 'w') as f:
+        f.writelines(annotations[:-val_index])
+
+    with open(val, 'w') as f:
+        f.writelines(annotations[-val_index:])
+
+    with open(table, 'w') as f:
+        f.write('\n'.join(ff_config.MIDI_MAP))
+        f.write('\n<BLK>')      # Blank token
 
 
 class DatasetSubDir:
@@ -129,7 +177,8 @@ class DatasetEntry:
 
         # Input files
         sr, samples = self._generate_audio(self._midi_x)
-        self._generate_spectrogram(sr, samples)
+        spectrogram = self._generate_spectrogram(sr, samples)
+        self._save_spectrogram(spectrogram)
 
         # Label files
         midi_events = self._midi_as_csv(self._midi_y)
@@ -137,6 +186,13 @@ class DatasetEntry:
         # Generate output labels for CNN denoiser
         spec_mask = self._midi_to_pseudo_spectrogram(midi_events)
         self._save_spec_mask(spec_mask)
+
+        # Combine the spectrogram and mask to give the expected output
+        #   of the denoising step. This is then the input to the RNN
+        #   decoder.
+        denoised_spectrogram = self._denoise_spectrogram(spectrogram,
+                                                         spec_mask)
+        self._save_denoised_spectrogram(denoised_spectrogram)
 
         # Generate output labels for RNN decoder
         label = self._midi_to_note_contour(midi_events)
@@ -241,14 +297,6 @@ class DatasetEntry:
 
         return sample_rate, samples
 
-    def _generate_spectrogram(self, sr, samples):
-        spectrogram = eac.compute_ac_spectrogram(samples)
-        spectrogram = eac.linearise_ac_spectrogram(spectrogram, sr)
-        png_path = png_dir.chunk_path(self.index, '{:d}x.png')
-        png_matrix = np.asarray(255 * spectrogram.T / np.max(spectrogram),
-                                dtype=np.uint8)
-        imageio.imwrite(png_path, png_matrix)
-
     def _midi_to_pseudo_spectrogram(self, csv_lines):
         midi_reader = CSVMidiNoteReader(csv_lines)
         return midi_reader.to_pseudo_spectrogram(
@@ -269,6 +317,14 @@ class DatasetEntry:
         png_path = png_dir.chunk_path(self.index, '{:d}y.png')
         imageio.imwrite(png_path, spec_mask.T)
 
+    def _save_spectrogram(self, spectrogram):
+        png_path = png_dir.chunk_path(self.index, '{:d}x.png')
+        imageio.imwrite(png_path, spectrogram.T)
+
+    def _save_denoised_spectrogram(self, denoised_spectrogram):
+        png_path = png_dir.chunk_path(self.index, '{:d}z.png')
+        imageio.imwrite(png_path, denoised_spectrogram.T)
+
     def _save_label(self, label):
         # We would rather write all of these out to one big file but this isn't
         #   possible with multiprocessing. Instead write out small files and
@@ -280,6 +336,26 @@ class DatasetEntry:
     @property
     def index(self):
         return self.config['index']
+
+    @staticmethod
+    def _generate_spectrogram(sr, samples):
+        spectrogram = eac.compute_ac_spectrogram(samples)
+        spectrogram = eac.linearise_ac_spectrogram(spectrogram, sr)
+        spectrogram = np.asarray(255 * spectrogram / np.max(spectrogram),
+                                 dtype=np.uint8)
+        return spectrogram
+
+    @staticmethod
+    def _denoise_spectrogram(spectrogram, spec_mask):
+        """Apply the computed mask to the computed spectrogram"""
+        # TODO adjust bins so we don't slice out anything
+        # TODO spec mask doesn't shorten even if spectrogram does
+        denoised = spectrogram * (spec_mask[:spectrogram.shape[0]] / 255)
+        denoised = denoised.T
+        denoised = denoised[2:-3, :]
+        denoised = denoised.reshape(
+            denoised.shape[0] // 5, 5, -1).sum(axis=1).T
+        return np.asarray(255 * denoised / np.max(denoised), dtype=np.uint8)
 
     @staticmethod
     def _midi_as_csv(midi_path):
