@@ -3,7 +3,7 @@ import os
 import pathlib
 from datetime import datetime
 
-from folkfriend.cnn.cnn_png_dataset import CNNPngDataset
+from folkfriend.cnn.cnn_dataset import CNNPngDataset
 from folkfriend.cnn.model import assemble_model
 from tensorflow import keras
 
