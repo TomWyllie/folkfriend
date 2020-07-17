@@ -9,8 +9,8 @@ from tensorflow import keras
 
 
 def main(args):
-    train_ds = CNNDataset(args.dir, sub_dir='train')
-    val_ds = CNNDataset(args.dir, sub_dir='val')
+    train_ds = CNNDataset(args.dir, sub_dir='train', size_cap=5000)
+    val_ds = CNNDataset(args.dir, sub_dir='val', size_cap=500)
 
     train_data, train_steps = train_ds.build(args.batch_size)
     val_data, _ = val_ds.build(args.batch_size)
@@ -40,7 +40,7 @@ def main(args):
 
     model.fit(train_data,
               epochs=args.epochs,
-              initial_epoch=0,  # TODO
+              initial_epoch=args.resume_epoch,
               callbacks=callbacks,
               validation_data=val_data,
               # steps_per_epoch=train_steps,    # TODO this breaks training
@@ -62,8 +62,9 @@ if __name__ == '__main__':
                              'current time.',
                         default=datetime.now().strftime('%d-%b-%Y-%H%M%S'))
     parser.add_argument('-e', '--epochs', default=5, type=int)
-    parser.add_argument('-bs', '--batch-size', default=512, type=int)
+    parser.add_argument('-bs', '--batch-size', default=256, type=int)
     parser.add_argument('-lr', '--learning-rate', default=0.001, type=float)
+    parser.add_argument('-re', '--resume-epoch', default=0, type=int)
     parser.add_argument('-w', '--weights',
                         help='Restore model using previously trained weights')
     main(parser.parse_args())

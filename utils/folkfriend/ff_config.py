@@ -1,5 +1,8 @@
 import string
+import numpy as np
 
+# TODO go through this file properly and explain / unify some of the messy bits
+#   particularly number of bins across different bits.
 
 # Use 48 kHz as sample rate everywhere. If anything is not this sample rate,
 #   resample it before proceeding any further. This is the default sample rate
@@ -24,8 +27,6 @@ HIGH_MIDI = 102  # F#7 (2960.0 Hz), just over two octaves above fiddle open E
 LOW_MIDI = 46    # Bb2 (116.54 Hz), just over an octave below middle C
 NUM_MIDI = HIGH_MIDI - LOW_MIDI - 1  # Nominally 55 (see below)
 
-# The linear midi bins go
-#   [102.   101.8   101.6   ...     46.6.   46.4    46.2]
 
 # When we sum the frequency bins into MIDI note bins we obviously
 #   should center the summation around BIN.0 (hence why BINS_PER_MIDI is
@@ -43,6 +44,15 @@ BINS_PER_MIDI = 5
 #   (+3 top, +2 bottom)
 NUM_BINS = BINS_PER_MIDI * (NUM_MIDI + 1)
 
+# The linear midi bins go
+#   [102.   101.8   101.6   ...     46.6.   46.4    46.2]
+LINEAR_MIDI_BINS = np.linspace(
+        start=HIGH_MIDI,
+        stop=LOW_MIDI,
+        num=275,
+        endpoint=False
+    )
+
 # TODO explain better
 SPECTROGRAM_IMG_WIDTH = 749
 SPECTROGRAM_IMG_HEIGHT = 275
@@ -57,7 +67,7 @@ assert not CONTEXT_FRAMES % 2   # Or edge padding breaks
 #   examples dataset this leads to 749 * 100k = 7.49M examples.
 #   This is overkill for such a small model and would take a long
 #   time to train.
-CNN_DATASET_SAMPLES_PER_IMAGE = 20
+CNN_DATASET_SAMPLES_PER_IMAGE = 50
 # CNN_DATASET_SAMPLES_PER_IMAGE = 2
 
 # abc...ABC...0123

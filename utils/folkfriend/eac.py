@@ -44,11 +44,5 @@ def linearise_ac_spectrogram(spectrogram, sr):
             step=1)
     )
 
-    linear_midi_values = np.linspace(
-        start=ff_config.HIGH_MIDI,
-        stop=ff_config.LOW_MIDI,
-        num=ff_config.NUM_BINS,
-        endpoint=False
-    )
-
-    return interp.interp1d(bin_midi_values, spectrogram)(linear_midi_values)
+    return interp.interp1d(bin_midi_values,
+                           spectrogram)(ff_config.LINEAR_MIDI_BINS)

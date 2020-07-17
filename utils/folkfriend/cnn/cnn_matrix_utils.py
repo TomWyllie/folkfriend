@@ -22,8 +22,8 @@ def spec_to_cnn_input(img):
     # Normalise to [0, 1]
     #   TODO this step is breaking it? probably because weights being trained
     #       on non-normalised data?
-    # input_mat -= np.min(input_mat)
-    # input_mat /= np.max(input_mat)
+    input_mat -= np.min(input_mat)
+    input_mat /= np.max(input_mat)
 
     # Add a channels dimension
     input_mat = input_mat[..., np.newaxis]
