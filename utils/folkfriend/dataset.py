@@ -245,6 +245,8 @@ class DatasetEntry:
         spectrogram = eac.linearise_ac_spectrogram(spectrogram, sr)
         spectrogram = np.asarray(255 * spectrogram / np.max(spectrogram),
                                  dtype=np.uint8)
+        # TODO investigate shape, should be 280 no?
+        #   actually let's keep 275 but be more clever about it
         return spectrogram
 
     @staticmethod

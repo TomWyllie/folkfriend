@@ -3,20 +3,24 @@ import os
 import pathlib
 from datetime import datetime
 
-from folkfriend.cnn.cnn_dataset import CNNPngDataset
+from folkfriend.cnn.cnn_dataset import CNNDataset
 from folkfriend.cnn.model import assemble_model
 from tensorflow import keras
 
 
 def main(args):
-    train_data, val_data = CNNPngDataset(args.dataset)
-    model = assemble_model()
+    train_ds = CNNDataset(args.dataset, sub_dir='train')
+    val_ds = CNNDataset(args.dataset, sub_dir='val')
 
+    train_data = train_ds.build(args.batch_size)
+    val_data = val_ds.build(args.batch_size)
+
+    model = assemble_model()
     model.compile(optimizer=keras.optimizers.Adam(args.learning_rate),
                   loss=keras.losses.CategoricalCrossentropy())
     model.summary()
 
-    if args.restore:
+    if args.weights:
         # TODO reload entire model not just weights
         model.load_weights(args.weights, by_name=True, skip_mismatch=True)
 
@@ -41,12 +45,13 @@ if __name__ == '__main__':
                                              'folkfriend'),
                         help='Path to dataset directory')
     parser.add_argument('-n', '--name',
-                        'A label to use for this training run. Models will be'
-                        'saved to models/<name> and logs to logs/<name>. '
-                        'Defaults to a timestamp of the current time.',
+                        help='A label to use for this training run. Models'
+                             ' will be saved to models/<name> and logs to '
+                             'logs/<name>. Defaults to a timestamp of the '
+                             'current time.',
                         default=datetime.now().strftime('%d-%b-%Y-%H%M%S'))
     parser.add_argument('-e', '--epochs', default=5, type=int)
-    parser.add_argument('-bs', '--batch-size', default=512, type=int)
+    parser.add_argument('-bs', '--batch-size', default=256, type=int)
     parser.add_argument('-lr', '--learning-rate', default=0.001, type=float)
     parser.add_argument('-w', '--weights',
                         help='Restore model using previously trained weights')

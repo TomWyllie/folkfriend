@@ -1,10 +1,15 @@
 import string
 
+
 # Use 48 kHz as sample rate everywhere. If anything is not this sample rate,
 #   resample it before proceeding any further. This is the default sample rate
 #   on the majority of modern devices so resampling should not normally be
 #   required in the web app.
 SAMPLE_RATE = 48000
+
+# Number of samples for Short-time Fourier Transform window width
+SPECTROGRAM_WINDOW_SIZE = 1024
+SPECTROGRAM_HOP_SIZE = 512
 
 # We trim anything outside these autocorrelation bins when making the
 #   spectrogram. These correspond to frequencies;
@@ -32,22 +37,24 @@ NUM_MIDI = HIGH_MIDI - LOW_MIDI - 1  # Nominally 55 (see below)
 #   MIDI note that makes it through to the RNN stage is then 101,
 #   and the lowest is 47. This means we have 55 bins.
 
-# abc...ABC...0123
-MIDI_MAP = (string.ascii_letters + string.digits)[:NUM_MIDI]
-BLANK_CHARACTER = '-'
-
 # The above parameters infer a range of MIDI values which leads to
 BINS_PER_MIDI = 5
 # +1 because combined padding of 1 x BINS_PER_MIDI at either end
 #   (+3 top, +2 bottom)
 NUM_BINS = BINS_PER_MIDI * (NUM_MIDI + 1)
+print(NUM_BINS)
 
-# Number of samples for Short-time Fourier Transform window width
-SPECTROGRAM_WINDOW_SIZE = 1024
-SPECTROGRAM_HOP_SIZE = 512
+# TODO explain better
+SPECTROGRAM_IMG_WIDTH = 749
+SPECTROGRAM_IMG_HEIGHT = 275
 
-# How much context does each frame get in the CNN
+# How much context does each frame get in the CNN (must be even)
 CONTEXT_FRAMES = 16
+assert not CONTEXT_FRAMES % 2   # Or edge padding breaks
+
+# abc...ABC...0123
+MIDI_MAP = (string.ascii_letters + string.digits)[:NUM_MIDI]
+BLANK_CHARACTER = '-'
 
 # Take 10 second samples out of generated audio files when making the dataset
 SAMPLE_START_SECS = 2
