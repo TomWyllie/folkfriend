@@ -1,7 +1,7 @@
 import os
 
 import tensorflow as tf
-from folkfriend import cnn_matrix_utils
+from folkfriend.cnn import cnn_matrix_utils
 from folkfriend import eac
 from folkfriend import ff_config
 from scipy.io import wavfile

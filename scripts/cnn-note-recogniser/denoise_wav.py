@@ -3,7 +3,7 @@ import os
 import pathlib
 
 import imageio
-from folkfriend.spectrogram_denoiser import SpectrogramDenoiser
+from folkfriend.cnn.spectrogram_denoiser import SpectrogramDenoiser
 import numpy as np
 
 

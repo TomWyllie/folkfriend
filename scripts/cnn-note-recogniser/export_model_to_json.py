@@ -1,6 +1,6 @@
 import argparse
 
-from folkfriend.spectrogram_denoiser import SpectrogramDenoiser
+from folkfriend.cnn.spectrogram_denoiser import SpectrogramDenoiser
 
 
 def main(model_dir):
