@@ -88,7 +88,7 @@ def build_meta_files(config_files):
             continue
 
         # Use local path
-        annotations.append('{} {}\n'.format(png_path.replace(args.dir, '.'), label_text))
+        annotations.append('{} {}\n'.format(png_path.replace(args.dir, ''), label_text))
 
     val_index = int(val_fraction * len(annotations))
 

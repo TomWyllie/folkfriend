@@ -42,7 +42,6 @@ BINS_PER_MIDI = 5
 # +1 because combined padding of 1 x BINS_PER_MIDI at either end
 #   (+3 top, +2 bottom)
 NUM_BINS = BINS_PER_MIDI * (NUM_MIDI + 1)
-print(NUM_BINS)
 
 # TODO explain better
 SPECTROGRAM_IMG_WIDTH = 749
@@ -51,6 +50,15 @@ SPECTROGRAM_IMG_HEIGHT = 275
 # How much context does each frame get in the CNN (must be even)
 CONTEXT_FRAMES = 16
 assert not CONTEXT_FRAMES % 2   # Or edge padding breaks
+
+# This value can be as high as liked, but over SPECTROGRAM_IMG_WIDTH
+#   and it will simply cause data to start repeating. At that value
+#   there will be an immense amount of data as well, on the 100k
+#   examples dataset this leads to 749 * 100k = 7.49M examples.
+#   This is overkill for such a small model and would take a long
+#   time to train.
+CNN_DATASET_SAMPLES_PER_IMAGE = 20
+# CNN_DATASET_SAMPLES_PER_IMAGE = 2
 
 # abc...ABC...0123
 MIDI_MAP = (string.ascii_letters + string.digits)[:NUM_MIDI]

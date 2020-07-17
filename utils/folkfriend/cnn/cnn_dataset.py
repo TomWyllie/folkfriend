@@ -3,10 +3,11 @@ import os
 
 import tensorflow as tf
 from folkfriend import ff_config
+import math
 
 
 class CNNDataset:
-    def __init__(self, dataset, sub_dir='train', size_cap=500):
+    def __init__(self, dataset, sub_dir='train', size_cap=None):
         self.logger = logging.getLogger('logger')
 
         if sub_dir not in {'train', 'val'}:
@@ -27,25 +28,21 @@ class CNNDataset:
 
         with open(self._annotations_path, 'r') as f:
             for line in f:
-                z_img_path, _ = line.strip().split()  # "<img_path> <annotation>\n"
+                z_img_path = line.strip().split()[0]  # "<img_path> <annotation>\n"
                 x_img_path = z_img_path.replace('z.png', 'x.png')
                 y_img_path = z_img_path.replace('z.png', 'y.png')
                 x_img_paths.append(os.path.join(self._dataset, x_img_path))
                 y_img_paths.append(os.path.join(self._dataset, y_img_path))
 
-                if len(x_img_paths) >= self._size_cap:
+                if self._size_cap and len(x_img_paths) >= self._size_cap:
                     break
 
         # This is now a dataset of paths
         ds = tf.data.Dataset.from_tensor_slices((x_img_paths, y_img_paths))
 
-        # if shuffle:
-        #     ds = ds.shuffle(buffer_size=10000)
-
         # This is now a dataset of image matrices
         ds = ds.map(self._load_paths,
                     num_parallel_calls=tf.data.experimental.AUTOTUNE)
-        # ds = ds.batch(self._batch_size)
 
         ds = ds.map(self._extract_img_slices,
                     num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -59,12 +56,14 @@ class CNNDataset:
         # exit(0)
 
         ds = ds.shuffle(buffer_size=10000)
-        ds = ds.batch(batch_size)
+        ds = ds.batch(batch_size, drop_remainder=True)
+        ds = ds.apply(tf.data.experimental.ignore_errors())
 
-        # Ignore the errors e.g. decode error or invalid data.
-        # ds = ds.apply(tf.data.experimental.ignore_errors())
+        # Pre-compute number of batches per epoch for convenience
+        samples = ff_config.CNN_DATASET_SAMPLES_PER_IMAGE * len(x_img_paths)
+        batches_per_epoch = math.floor(samples / batch_size)
 
-        return ds.prefetch(tf.data.experimental.AUTOTUNE)
+        return ds.prefetch(tf.data.experimental.AUTOTUNE), batches_per_epoch
 
     def _load_paths(self, x_img_path, y_img_path):
         return self._load_image(x_img_path), self._load_image(y_img_path)
@@ -94,67 +93,13 @@ class CNNDataset:
         # Now expand *each x/y pair* into *its own mini dataset*. These
         #   will be flattened into one large dataset later.
         # See https://www.tensorflow.org/guide/data#time_series_windowing
-        #   ("Using Window" section)
-        edge_padding = ff_config.CONTEXT_FRAMES // 2
 
         def expand_img_pair_to_sub_dataset(i):
             return x_img[i: i + ff_config.CONTEXT_FRAMES], y_img[i]
 
         range_ds = tf.data.Dataset.range(ff_config.SPECTROGRAM_IMG_WIDTH)
+        range_ds = range_ds.shuffle(ff_config.SPECTROGRAM_IMG_WIDTH)
+        range_ds = range_ds.take(ff_config.CNN_DATASET_SAMPLES_PER_IMAGE)
         sub_dataset = range_ds.map(expand_img_pair_to_sub_dataset)
 
         return sub_dataset
-
-
-if __name__ == '__main__':
-
-    # img = tf.io.read_file('/home/tom/datasets/folkfriend/pngs/1/222x.png')
-    # img = tf.io.decode_png(img, channels=1)
-    # img = tf.image.transpose(img)
-    # # img = tf.image.convert_image_dtype(img, tf.float32)
-    #
-    # # Make sure image is the right size
-    # img = tf.image.resize(
-    #     img,
-    #     (
-    #         ff_config.SPECTROGRAM_IMG_WIDTH,
-    #         ff_config.SPECTROGRAM_IMG_HEIGHT
-    #     ),
-    #     preserve_aspect_ratio=True
-    # )
-
-    # # Now add CONTEXT_FRAMES / 2 frames of zeros at either end in
-    # #   the time domain.
-    # img = tf.image.resize_with_pad(
-    #     img,
-    #     ff_config.SPECTROGRAM_IMG_WIDTH + 10 * ff_config.CONTEXT_FRAMES,
-    #     ff_config.SPECTROGRAM_IMG_HEIGHT
-    # )
-
-    # img = tf.image.transpose(img)
-    # img = tf.cast(img, tf.uint8)
-    # img = tf.image.encode_png(img)
-    # img = tf.io.write_file('/tmp/222x-tf.png', img)
-
-    # print(img)
-
-    # exit(0)
-
-    # def make_window_dataset(ds, window_size=5, shift=1, stride=1):
-    #     windows = ds.window(window_size, shift=shift, stride=stride)
-    #
-    #     def sub_to_batch(sub):
-    #         return sub.batch(window_size, drop_remainder=True)
-    #
-    #     windows = windows.flat_map(sub_to_batch)
-    #     return windows
-    #
-    #
-    # range_ds = tf.data.Dataset.range(1000)
-    # ds = make_window_dataset(range_ds, window_size=10, shift=5, stride=3)
-    #
-    # for example in ds.take(10):
-    #     print(example.numpy())
-
-    dataset = CNNDataset(dataset='/home/tom/datasets/folkfriend')
-    dataset.build(128)
