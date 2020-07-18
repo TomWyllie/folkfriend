@@ -67,7 +67,7 @@ assert not CONTEXT_FRAMES % 2   # Or edge padding breaks
 #   examples dataset this leads to 749 * 100k = 7.49M examples.
 #   This is overkill for such a small model and would take a long
 #   time to train.
-CNN_DATASET_SAMPLES_PER_IMAGE = 50
+CNN_DATASET_SAMPLES_PER_IMAGE = 200
 # CNN_DATASET_SAMPLES_PER_IMAGE = 2
 
 # abc...ABC...0123

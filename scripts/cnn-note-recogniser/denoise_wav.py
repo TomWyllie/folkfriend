@@ -17,7 +17,7 @@ def main(wav_path, model_dir, out_dir):
                      for wav_file in os.listdir(args.wav)]
         wav_paths = [p for p in wav_paths if p.endswith('.wav')]
     else:
-        wav_paths = [args.wav]
+        wav_paths = [wav_path]
 
     if not wav_paths:
         print('No paths found!')

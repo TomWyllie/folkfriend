@@ -18,17 +18,17 @@ def assemble_model():
     # Input shape needs to be explicitly given for loading into JS
     input_shape = (ff_config.CONTEXT_FRAMES, num_bins, 1)
 
-    model.add(Conv2D(32, 3, activation='relu', input_shape=input_shape))
+    model.add(Conv2D(16, 3, activation='relu', input_shape=input_shape))
     # model.add(BatchNormalization())
     model.add(LeakyReLU())
-    model.add(Conv2D(32, 3, activation='relu'))
+    model.add(Conv2D(16, 3, activation='relu'))
     model.add(LeakyReLU())
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.2))
 
-    model.add(Conv2D(32, 3, activation='relu'))
+    model.add(Conv2D(16, 3, activation='relu'))
     model.add(LeakyReLU())
-    model.add(Conv2D(32, 3, activation='relu'))
+    model.add(Conv2D(16, 3, activation='relu'))
     model.add(LeakyReLU())
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.2))
