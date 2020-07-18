@@ -1,6 +1,7 @@
 # Script outputs
 scripts/*/logs/*
 scripts/*/models/*
+scripts/*/img/*
 
 # PyCharm
 .idea/*
