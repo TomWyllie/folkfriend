@@ -8,11 +8,11 @@ body {
     display: inline-block;
 }
 
-img {
+img, canvas {
     display: block;
-    margin: auto;
+    margin: 10px auto;
 }
 
-img.Unloaded {
+img.Unloaded, canvas.Unloaded {
     display: none;
 }

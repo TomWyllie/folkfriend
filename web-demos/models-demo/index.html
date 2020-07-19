@@ -16,8 +16,22 @@
     <div class="Sect">
         <p>Select an image as input for the CNN:</p>
         <input id="cnn-file-input" type="file" />
+        <br>
         <button id="cnn-start-button" disabled>Run CNN</button>
+        <button id="cnn-out-to-rnn-in" disabled>CNN output to RNN input</button>
+        <button id="rnn-start-button" disabled>Run RNN</button>
+        <br>
+        <p id="decoded"></p>
+        <br>
+        <h3>Input image</h3>
         <img id="cnn-img-input" alt="CNN Image Input" class="Unloaded" src=""/>
+        <h3>CNN Prediction Mask</h3>
+        <canvas id="cnn-canv-predict" class="Unloaded"></canvas>
+        <h3>Mask applied to input</h3>
+        <canvas id="cnn-canv-denoised" class="Unloaded"></canvas>
+        <h3>Input to RNN</h3>
+        <canvas id="rnn-canv-input" class="Unloaded"></canvas>
+
     </div>
 </body>
 </html>
