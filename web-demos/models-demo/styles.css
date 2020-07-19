@@ -1,0 +1,18 @@
+body {
+    font-family: arial, sans-serif;
+    font-size: 14px;
+    text-align: center;
+}
+
+.Sect > p {
+    display: inline-block;
+}
+
+img {
+    display: block;
+    margin: auto;
+}
+
+img.Unloaded {
+    display: none;
+}

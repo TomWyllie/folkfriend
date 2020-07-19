@@ -2,11 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <script src="tf.min.js"></script>
-    <script src="cnn.js"></script>
     <title>TF-JS Demo</title>
+
+    <script src="js/tf.min.js"></script>
+    <script type="module" src="js/demo.js"></script>
+<!--    <script src="js/cnn-denoiser.js" type="module"></script>-->
+<!--    <script src="js/ff-config.js" type="module"></script>-->
+
+    <link href="styles.css" rel="stylesheet" >
 </head>
 <body>
-    <h1>This is a demo page</h1>
+    <h1>FolkFriend Demo Page</h1>
+    <div class="Sect">
+        <p>Select an image as input for the CNN:</p>
+        <input id="cnn-file-input" type="file" />
+        <button id="cnn-start-button" disabled>Run CNN</button>
+        <img id="cnn-img-input" alt="CNN Image Input" class="Unloaded" src=""/>
+    </div>
 </body>
 </html>
