@@ -15,11 +15,11 @@ class CSVMidiNoteReader(csv.DictReader):
     def to_pseudo_spectrogram(self, tempo, start_seconds, end_seconds=10):
         sample_seconds = (end_seconds - start_seconds)
         num_frames = ((ff_config.SAMPLE_RATE * sample_seconds
-                       ) // ff_config.SPECTROGRAM_HOP_SIZE) - 1
-        num_bins = ff_config.NUM_BINS
+                       ) // ff_config.SPEC_HOP_SIZE) - 1
+        num_bins = ff_config.SPEC_NUM_BINS
 
         # Length in seconds of one frame
-        frame_length_s = ff_config.SPECTROGRAM_HOP_SIZE / ff_config.SAMPLE_RATE
+        frame_length_s = ff_config.SPEC_HOP_SIZE / ff_config.SAMPLE_RATE
 
         # Times in seconds of frames, after the start point
         frame_times_s = frame_length_s * np.arange(num_frames)
@@ -56,7 +56,7 @@ class CSVMidiNoteReader(csv.DictReader):
                 start_frame = 0  # Clip to start
 
             # Invalid note. Skip this note.
-            if not ff_config.LOW_MIDI < note.pitch < ff_config.HIGH_MIDI:
+            if not ff_config.MIDI_LOW < note.pitch < ff_config.MIDI_HIGH:
                 continue
 
             # -1 because inclusive range. The linear midi bins go
@@ -64,10 +64,10 @@ class CSVMidiNoteReader(csv.DictReader):
             # TODO work out why math.floor gives better looking
             #  result than math.ceil
 
-            lo_index = (math.floor(ff_config.BINS_PER_MIDI / 2)
-                        + ff_config.BINS_PER_MIDI
-                        * (ff_config.HIGH_MIDI - note.pitch - 1))
-            hi_index = lo_index + ff_config.BINS_PER_MIDI
+            lo_index = (math.floor(ff_config.SPEC_BINS_PER_MIDI / 2)
+                        + ff_config.SPEC_BINS_PER_MIDI
+                        * (ff_config.MIDI_HIGH - note.pitch - 1))
+            hi_index = lo_index + ff_config.SPEC_BINS_PER_MIDI
             pseudo_spectrogram[start_frame: end_frame, lo_index: hi_index] = 255
 
         return pseudo_spectrogram
@@ -196,10 +196,10 @@ class Note:
         # We use LTE / GTE here because we need an amount of frequency
         #   content on both sides of the relevant pitch bin. See
         #   comment on inclusive range in to_pseudo_spectrogram.
-        while pitch <= ff_config.LOW_MIDI:
+        while pitch <= ff_config.MIDI_LOW:
             pitch += 12
 
-        while pitch >= ff_config.HIGH_MIDI:
+        while pitch >= ff_config.MIDI_HIGH:
             pitch -= 12
 
-        return ff_config.MIDI_MAP[pitch - ff_config.LOW_MIDI]
+        return ff_config.MIDI_MAP[pitch - ff_config.MIDI_LOW]

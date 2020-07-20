@@ -245,15 +245,11 @@ class DatasetEntry:
         spectrogram = eac.linearise_ac_spectrogram(spectrogram, sr)
         spectrogram = np.asarray(255 * spectrogram / np.max(spectrogram),
                                  dtype=np.uint8)
-        # TODO investigate shape, should be 280 no?
-        #   actually let's keep 275 but be more clever about it
         return spectrogram
 
     @staticmethod
     def _denoise_spectrogram(spectrogram, spec_mask):
         """Apply the computed mask to the computed spectrogram"""
-        # TODO adjust bins so we don't slice out anything
-        # TODO spec mask doesn't shorten even if spectrogram does
         denoised = spectrogram * (spec_mask[:spectrogram.shape[0]] / 255)
         denoised = denoised.T
         denoised = denoised[2:-3, :]

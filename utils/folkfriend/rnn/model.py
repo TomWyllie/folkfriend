@@ -32,7 +32,7 @@ def vgg_style(input_tensor):
 def build_model(image_width=None, channels=1):
     """build CNN-RNN model"""
 
-    img_input = keras.Input(shape=(ff_config.NUM_MIDI, image_width, channels))
+    img_input = keras.Input(shape=(ff_config.MIDI_NUM, image_width, channels))
     x = vgg_style(img_input)
     x = layers.Reshape((-1, 64))(x)
 

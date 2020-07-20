@@ -98,7 +98,7 @@ def main(dataset_dir, num):
             'tune': os.path.join(abcs_dir, tune_path),
             'melody': melody,
             'chord': chord,
-            'tempo': random.choice(range(100, 240)),
+            'tempo': get_random_tempo(),
             # We add a random transposition to reduce any key bias, and to
             #   improve the melodic range of the model.
             'transpose': random.choice(range(-12, 11)),
@@ -109,6 +109,13 @@ def main(dataset_dir, num):
     with open(os.path.join(dataset_dir, 'configs.json'), 'w') as f:
         json.dump(configs, f)
     print(f'Generated {num} config files to configs.json')
+
+
+def get_random_tempo():
+    if random.random() > 0.80:
+        return random.choice(range(50, 100))
+    else:
+        return random.choice(range(100, 230))
 
 
 if __name__ == '__main__':

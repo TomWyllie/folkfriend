@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 class RNNDummyDataset:
     def __init__(self, dir_path, num=10000,
-                 max_frames=749, bins=ff_config.NUM_MIDI):
+                 max_frames=749, bins=ff_config.MIDI_NUM):
 
         png_parent_dir = os.path.join(dir_path, 'pngs')
         pathlib.Path(png_parent_dir).mkdir(parents=True, exist_ok=True)

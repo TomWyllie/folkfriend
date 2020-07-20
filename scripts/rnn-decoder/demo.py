@@ -29,7 +29,7 @@ def read_img_and_preprocess(path):
     img = tf.io.read_file(path)
     img = tf.io.decode_png(img, channels=args.img_channels)
     img = tf.image.convert_image_dtype(img, tf.float32)
-    img = tf.image.resize(img, (ff_config.NUM_MIDI, args.img_width))
+    img = tf.image.resize(img, (ff_config.MIDI_NUM, args.img_width))
     return img
 
 

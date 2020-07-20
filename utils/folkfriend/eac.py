@@ -6,8 +6,8 @@ from folkfriend import note
 
 
 def compute_ac_spectrogram(signal,
-                           window_size=ff_config.SPECTROGRAM_WINDOW_SIZE,
-                           hop_size=ff_config.SPECTROGRAM_HOP_SIZE):
+                           window_size=ff_config.SPEC_WINDOW_SIZE,
+                           hop_size=ff_config.SPEC_HOP_SIZE):
     # 1024 / 48000 = 21.33 ms
     # 512 / 48000 = 10.67 ms
     num_frames = signal.size // hop_size
@@ -22,7 +22,16 @@ def compute_ac_spectrogram(signal,
     signal = (signal_windowed * np.hanning(window_size))
 
     # Cube root of power spectrum
-    spectrogram = np.absolute(np.fft.fft(signal)) ** (1. / 3.)
+    spectra = np.fft.fft(signal)
+    # This corresponds to a "k-value" of 2/3, which is recommended
+    #   as the best value for magnitude compression in
+    #   https://labrosa.ee.columbia.edu/~dpwe/papers/ToloK2000-mupitch.pdf
+    spectrogram = np.cbrt((spectra * spectra.conj()).real)
+
+    # Forwards FFT is equivalent to IFFT here so either can be used.
+    #   This was useful when running our own implementation of FFT
+    #   as it meant we used FFT twice rather than separate FFT / IFFT
+    #   implementations.
     spectrogram = np.fft.rfft(spectrogram).real
 
     # Peak pruning
