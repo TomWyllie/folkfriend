@@ -20,10 +20,9 @@ export default class CNNDenoiser {
     }
 
     predict(t) {
-        let rnnInput = t.transpose([0, 1, 2]);
-        console.warn(rnnInput.shape);
-        rnnInput = rnnInput.expandDims();
-        console.warn(rnnInput.shape);
+        console.warn("RNN Predict in shape", t.shape);
+        let rnnInput = t.expandDims().transpose().expandDims();
+        console.warn("RNN Input shape", rnnInput.shape);
         const prediction = this.model.predict(rnnInput);
         console.debug(prediction);
 
