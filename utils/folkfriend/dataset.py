@@ -13,6 +13,7 @@ import py_midicsv
 from folkfriend import eac
 from folkfriend import ff_config
 from folkfriend.midi import CSVMidiNoteReader
+from folkfriend.cnn import cnn_matrix_utils
 from scipy.io import wavfile
 
 logging.basicConfig(level=logging.DEBUG,
@@ -67,9 +68,9 @@ class DatasetEntry:
         # Load in abcs from specified file
         self._abc_header, self._abc_body = self._load_abc()
 
-        self._midi_x = self._dirs.midi_dir.chunk_path(self.index, '{:d}x.midi')
-        self._midi_y = self._dirs.midi_dir.chunk_path(self.index, '{:d}y.midi')
-        self._audio_x = self._dirs.audio_dir.chunk_path(self.index, '{:d}x.wav')
+        self._midi_x = self._dirs.midi_dir.chunk_path(self.index, '{:d}a.midi')
+        self._midi_y = self._dirs.midi_dir.chunk_path(self.index, '{:d}b.midi')
+        self._audio_x = self._dirs.audio_dir.chunk_path(self.index, '{:d}a.wav')
 
         # Create two midi files; one which will be turned into audio to be used
         #   as input for the model, and the other which will be used to
@@ -80,21 +81,25 @@ class DatasetEntry:
         # Input files
         sr, samples = self._generate_audio(self._midi_x)
         spectrogram = self._generate_spectrogram(sr, samples)
-        self._save_spectrogram(spectrogram)
+        self._save_spectral_image(spectrogram, 'a')
 
         # Label files
         midi_events = self._midi_as_csv(self._midi_y)
 
         # Generate output labels for CNN denoiser
         spec_mask = self._midi_to_pseudo_spectrogram(midi_events)
-        self._save_spec_mask(spec_mask)
+        expanded_mask = cnn_matrix_utils.pseudo_spec_to_spec(spec_mask)
+
+        # (b) Just for visual inspection that masks line up
+        self._save_spectral_image(255 * expanded_mask, 'b')
+        self._save_spectral_image(255 * spec_mask, 'c')
 
         # Combine the spectrogram and mask to give the expected output
         #   of the denoising step. This is then the input to the RNN
         #   decoder.
         denoised_spectrogram = self._denoise_spectrogram(spectrogram,
                                                          spec_mask)
-        self._save_denoised_spectrogram(denoised_spectrogram)
+        self._save_spectral_image(denoised_spectrogram, 'd')
 
         # Generate output labels for RNN decoder
         label = self._midi_to_note_contour(midi_events)
@@ -173,8 +178,8 @@ class DatasetEntry:
             raise RuntimeError(f'{self._audio_x} should have a sample rate of '
                                f'{ff_config.SAMPLE_RATE}')
 
-        samples = samples[sample_rate * ff_config.SAMPLE_START_SECS:
-                          sample_rate * ff_config.SAMPLE_END_SECS]
+        samples = samples[sample_rate * ff_config.CNN_DS_SS:
+                          sample_rate * ff_config.CNN_DS_TO]
 
         # TODO we should be able to avoid writing stereo output.
         #   fluidsynth doesn't seem to allow this, maybe the soundfont can
@@ -201,31 +206,24 @@ class DatasetEntry:
 
     def _midi_to_pseudo_spectrogram(self, csv_lines):
         midi_reader = CSVMidiNoteReader(csv_lines)
-        return midi_reader.to_pseudo_spectrogram(
+        return midi_reader.to_spectrogram_mask(
             tempo=self.config['tempo'],
-            start_seconds=ff_config.SAMPLE_START_SECS,
-            end_seconds=ff_config.SAMPLE_END_SECS
+            start_seconds=ff_config.CNN_DS_SS,
+            end_seconds=ff_config.CNN_DS_TO
         )
 
     def _midi_to_note_contour(self, csv_lines):
         midi_reader = CSVMidiNoteReader(csv_lines)
         return midi_reader.to_note_contour(
             tempo=self.config['tempo'],
-            start_seconds=ff_config.SAMPLE_START_SECS,
-            end_seconds=ff_config.SAMPLE_END_SECS
+            start_seconds=ff_config.CNN_DS_SS,
+            end_seconds=ff_config.CNN_DS_TO
         )
 
-    def _save_spec_mask(self, spec_mask):
-        png_path = self._dirs.png_dir.chunk_path(self.index, '{:d}y.png')
-        imageio.imwrite(png_path, spec_mask.T)
-
-    def _save_spectrogram(self, spectrogram):
-        png_path = self._dirs.png_dir.chunk_path(self.index, '{:d}x.png')
-        imageio.imwrite(png_path, spectrogram.T)
-
-    def _save_denoised_spectrogram(self, denoised_spectrogram):
-        png_path = self._dirs.png_dir.chunk_path(self.index, '{:d}z.png')
-        imageio.imwrite(png_path, denoised_spectrogram.T)
+    def _save_spectral_image(self, spec, stage):
+        img_name = '{:d}' + f'{stage}.png'
+        png_path = self._dirs.png_dir.chunk_path(self.index, img_name)
+        imageio.imwrite(png_path, spec.T)
 
     def _save_label(self, label):
         # We would rather write all of these out to one big file but this isn't
@@ -248,14 +246,26 @@ class DatasetEntry:
         return spectrogram
 
     @staticmethod
-    def _denoise_spectrogram(spectrogram, spec_mask):
+    def _denoise_spectrogram(spectrogram, spec_mask, salt=True):
         """Apply the computed mask to the computed spectrogram"""
-        denoised = spectrogram * (spec_mask[:spectrogram.shape[0]] / 255)
-        denoised = denoised.T
-        denoised = denoised[2:-3, :]
-        denoised = denoised.reshape(
-            denoised.shape[0] // 5, 5, -1).sum(axis=1).T
-        return np.asarray(255 * denoised / np.max(denoised), dtype=np.uint8)
+        spectrogram = cnn_matrix_utils.spec_to_pseudo_spec(spectrogram)
+        spec_mask = np.asarray(spec_mask[:spectrogram.shape[0]], np.bool)
+
+        if salt:
+            # Salting means we're not training the RNN on perfectly denoised
+            #   images. This reflects the fact that the output of the CNN
+            #   won't always be perfect.
+            salt = np.random.uniform(size=spectrogram.size
+                                     ).reshape(spectrogram.shape)
+            salt[salt < ff_config.RNN_INPUT_SALTING] = 1
+            salt[salt < 1] = 0
+            spec_mask = np.logical_or(salt, spec_mask)
+
+        denoised = spectrogram * spec_mask
+        denoised /= np.max(denoised)
+        denoised *= 255
+        denoised = np.asarray(denoised, dtype=np.uint8)
+        return denoised
 
     @staticmethod
     def _midi_as_csv(midi_path):

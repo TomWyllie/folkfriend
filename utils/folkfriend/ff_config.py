@@ -48,7 +48,7 @@ MIDI_NUM = MIDI_HIGH - MIDI_LOW + 1  # =48
 # When resampling we can choose how many values to interpolate.
 SPEC_BINS_PER_MIDI = 5
 SPEC_NUM_BINS = SPEC_BINS_PER_MIDI * MIDI_NUM
-SPEC_IMG_WIDTH = (SAMPLE_RATE * AUDIO_QUERY_SECS) // SPEC_WINDOW_SIZE
+SPEC_NUM_FRAMES = (SAMPLE_RATE * AUDIO_QUERY_SECS) // SPEC_WINDOW_SIZE
 
 # Each midi note get SPECTROGRAM_BINS_PER_MIDI bins. We centre the range of
 #   each note about .0, and give plus or equal floor(0.5 *
@@ -114,3 +114,5 @@ CNN_DS_TO = CNN_DS_SS + AUDIO_QUERY_SECS    # 8 second samples
 #   This is overkill for such a small model and would take a long
 #   time to train.
 CNN_DS_SAMPLES_PER_IMAGE = 200
+
+RNN_INPUT_SALTING = 0.01        # 1%

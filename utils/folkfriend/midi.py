@@ -12,21 +12,15 @@ class CSVMidiNoteReader(csv.DictReader):
         super().__init__(*posargs, **kwargs)
         self._notes = self.to_notes()
 
-    def to_pseudo_spectrogram(self, tempo, start_seconds, end_seconds=10):
-        sample_seconds = (end_seconds - start_seconds)
-        num_frames = ((ff_config.SAMPLE_RATE * sample_seconds
-                       ) // ff_config.SPEC_HOP_SIZE) - 1
-        num_bins = ff_config.SPEC_NUM_BINS
+    def to_spectrogram_mask(self, tempo, start_seconds, end_seconds=10):
+        num_frames = ff_config.SPEC_NUM_FRAMES
+        num_midi = ff_config.MIDI_NUM
 
         # Length in seconds of one frame
-        frame_length_s = ff_config.SPEC_HOP_SIZE / ff_config.SAMPLE_RATE
+        frame_length_s = ff_config.SPEC_WINDOW_SIZE / ff_config.SAMPLE_RATE
 
         # Times in seconds of frames, after the start point
         frame_times_s = frame_length_s * np.arange(num_frames)
-
-        # Times in seconds of frames thresholds, after the start point.
-        #   There's an extra half here for centering.
-        frame_times_s += frame_length_s / 2
 
         # Add start offset
         frame_times_s += start_seconds
@@ -34,7 +28,7 @@ class CSVMidiNoteReader(csv.DictReader):
         # Convert to milliseconds
         frame_times_ms = 1000 * frame_times_s
 
-        pseudo_spectrogram = np.zeros((num_frames, num_bins), dtype=np.uint8)
+        pseudo_spectrogram = np.zeros((num_frames, num_midi), dtype=np.uint8)
 
         for note in self._notes:
             note.set_tempo(tempo)
@@ -56,19 +50,11 @@ class CSVMidiNoteReader(csv.DictReader):
                 start_frame = 0  # Clip to start
 
             # Invalid note. Skip this note.
-            if not ff_config.MIDI_LOW < note.pitch < ff_config.MIDI_HIGH:
+            if not ff_config.MIDI_LOW <= note.pitch <= ff_config.MIDI_HIGH:
                 continue
 
-            # -1 because inclusive range. The linear midi bins go
-            #   [102.   101.8   101.6   ...     46.6.   46.4    46.2]
-            # TODO work out why math.floor gives better looking
-            #  result than math.ceil
-
-            lo_index = (math.floor(ff_config.SPEC_BINS_PER_MIDI / 2)
-                        + ff_config.SPEC_BINS_PER_MIDI
-                        * (ff_config.MIDI_HIGH - note.pitch - 1))
-            hi_index = lo_index + ff_config.SPEC_BINS_PER_MIDI
-            pseudo_spectrogram[start_frame: end_frame, lo_index: hi_index] = 255
+            i = ff_config.MIDI_HIGH - note.pitch
+            pseudo_spectrogram[start_frame: end_frame, i: i+1] = 1
 
         return pseudo_spectrogram
 

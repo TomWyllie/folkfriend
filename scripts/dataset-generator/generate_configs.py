@@ -101,7 +101,7 @@ def main(dataset_dir, num):
             'tempo': get_random_tempo(),
             # We add a random transposition to reduce any key bias, and to
             #   improve the melodic range of the model.
-            'transpose': random.choice(range(-12, 11)),
+            'transpose': random.choice(range(-11, 12)),
             'chord_octave_shift': random.choice((0, 1))
         }
         configs.append(config)

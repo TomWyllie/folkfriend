@@ -31,6 +31,17 @@ def spec_to_cnn_input(img):
     return input_mat
 
 
+def spec_to_pseudo_spec(spec):
+    spec = np.asarray(spec, np.float64)
+    spec = spec.reshape((-1, spec.shape[1] // ff_config.SPEC_BINS_PER_MIDI,
+                         ff_config.SPEC_BINS_PER_MIDI)).sum(axis=2)
+    return spec / ff_config.SPEC_BINS_PER_MIDI
+
+
+def pseudo_spec_to_spec(ps):
+    return ps.repeat(ff_config.SPEC_BINS_PER_MIDI, axis=1)
+
+
 def cnn_output_to_spec(output_mat):
     return np.vstack(output_mat)
 

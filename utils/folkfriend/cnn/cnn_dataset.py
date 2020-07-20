@@ -23,22 +23,22 @@ class CNNDataset:
         self._annotations_path = os.path.join(dataset, f'{sub_dir}.txt')
 
     def build(self, batch_size):
-        x_img_paths = []
-        y_img_paths = []
+        a_img_paths = []
+        c_img_paths = []
 
         with open(self._annotations_path, 'r') as f:
             for line in f:
-                z_img_path = line.strip().split()[0]  # "<img_path> <annotation>\n"
-                x_img_path = z_img_path.replace('z.png', 'x.png')
-                y_img_path = z_img_path.replace('z.png', 'y.png')
-                x_img_paths.append(os.path.join(self._dataset, x_img_path))
-                y_img_paths.append(os.path.join(self._dataset, y_img_path))
+                d_img_path = line.strip().split()[0]  # "<img_path> <annotation>\n"
+                a_img_path = d_img_path.replace('d.png', 'a.png')
+                c_img_path = d_img_path.replace('d.png', 'c.png')
+                a_img_paths.append(os.path.join(self._dataset, a_img_path))
+                c_img_paths.append(os.path.join(self._dataset, c_img_path))
 
-                if self._size_cap and len(x_img_paths) >= self._size_cap:
+                if self._size_cap and len(a_img_paths) >= self._size_cap:
                     break
 
         # This is now a dataset of paths
-        ds = tf.data.Dataset.from_tensor_slices((x_img_paths, y_img_paths))
+        ds = tf.data.Dataset.from_tensor_slices((a_img_paths, c_img_paths))
 
         # This is now a dataset of image matrices
         ds = ds.map(self._load_paths,
@@ -49,18 +49,12 @@ class CNNDataset:
 
         ds = ds.flat_map(lambda x: x)
 
-        # for x, y in ds.take(5):
-        #     print(x.numpy().shape, end=' ')
-        #     print(y.numpy().shape)
-        # print(ds)
-        # exit(0)
-
         ds = ds.shuffle(buffer_size=10000)
         ds = ds.batch(batch_size, drop_remainder=True)
         ds = ds.apply(tf.data.experimental.ignore_errors())
 
         # Pre-compute number of batches per epoch for convenience
-        samples = ff_config.CNN_DATASET_SAMPLES_PER_IMAGE * len(x_img_paths)
+        samples = ff_config.CNN_DS_SAMPLES_PER_IMAGE * len(a_img_paths)
         batches_per_epoch = math.floor(samples / batch_size)
 
         return ds.prefetch(tf.data.experimental.AUTOTUNE), batches_per_epoch
@@ -75,8 +69,8 @@ class CNNDataset:
         img = tf.image.transpose(img)
         # Shape is now (batch, 749, 275, 1)
         img = tf.image.convert_image_dtype(img, tf.float32)
-        return tf.image.resize(img, (ff_config.SPECTROGRAM_IMG_WIDTH,
-                                     ff_config.SPECTROGRAM_IMG_HEIGHT))
+        return tf.image.resize(img, (ff_config.SPEC_NUM_FRAMES,
+                                     ff_config.SPEC_NUM_BINS))
 
     @staticmethod
     def _extract_img_slices(x_img, y_img):
@@ -86,8 +80,8 @@ class CNNDataset:
         #   near the edges. This pads evenly at either end.
         x_img = tf.image.resize_with_pad(
             x_img,
-            ff_config.SPECTROGRAM_IMG_WIDTH + ff_config.CONTEXT_FRAMES,
-            ff_config.SPECTROGRAM_IMG_HEIGHT
+            ff_config.SPEC_NUM_FRAMES + ff_config.CONTEXT_FRAMES,
+            ff_config.SPEC_NUM_BINS
         )
 
         # Now expand *each x/y pair* into *its own mini dataset*. These
@@ -97,9 +91,9 @@ class CNNDataset:
         def expand_img_pair_to_sub_dataset(i):
             return x_img[i: i + ff_config.CONTEXT_FRAMES], y_img[i]
 
-        range_ds = tf.data.Dataset.range(ff_config.SPECTROGRAM_IMG_WIDTH)
-        range_ds = range_ds.shuffle(ff_config.SPECTROGRAM_IMG_WIDTH)
-        range_ds = range_ds.take(ff_config.CNN_DATASET_SAMPLES_PER_IMAGE)
+        range_ds = tf.data.Dataset.range(ff_config.SPEC_NUM_FRAMES)
+        range_ds = range_ds.shuffle(ff_config.SPEC_NUM_FRAMES)
+        range_ds = range_ds.take(ff_config.CNN_DS_SAMPLES_PER_IMAGE)
         sub_dataset = range_ds.map(expand_img_pair_to_sub_dataset)
 
         return sub_dataset

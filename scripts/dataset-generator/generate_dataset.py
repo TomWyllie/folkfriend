@@ -76,7 +76,7 @@ def build_meta_files(config_files):
         index = config['index']
 
         label_path = label_dir.chunk_path(index, '{:d}.txt')
-        png_path = png_dir.chunk_path(index, '{:d}z.png')
+        png_path = png_dir.chunk_path(index, '{:d}d.png')
 
         if not os.path.exists(png_path):
             continue
