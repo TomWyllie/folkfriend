@@ -6,6 +6,7 @@ from folkfriend.cnn import cnn_matrix_utils
 from scipy.io import wavfile
 import numpy as np
 
+
 class CNNPredictor:
     def __init__(self):
         self.model = None
@@ -29,6 +30,6 @@ class CNNPredictor:
         # Y shape: (NUM_EXAMPLES, 275)
         input_mat = cnn_matrix_utils.spec_to_cnn_input(spectrogram)
         predictions = self.model(input_mat, training=False)
-        predictions = np.round(predictions)     # Make values 1 or 0
+        predictions = np.round(predictions)  # Make values 1 or 0
         denoised_spec = cnn_matrix_utils.cnn_output_to_spec(predictions)
         return denoised_spec

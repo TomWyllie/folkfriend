@@ -4,6 +4,7 @@ import pathlib
 
 import imageio
 from folkfriend.cnn.cnn_predictor import CNNPredictor
+from folkfriend.cnn import cnn_matrix_utils
 import numpy as np
 
 
@@ -26,6 +27,12 @@ def main(wav_path, model_dir, out_dir):
         noisy_spectrogram = denoiser.load_spectrogram_from_wav(wav_path)
         print(noisy_spectrogram.shape)
         cleaned_spectrogram = denoiser.denoise(noisy_spectrogram)
+        print(cleaned_spectrogram.shape)
+
+        cleaned_spectrogram[cleaned_spectrogram > 0.5] = 1
+        cleaned_spectrogram[cleaned_spectrogram < 1] = 0
+        cleaned_spectrogram = cnn_matrix_utils.pseudo_spec_to_spec(
+            cleaned_spectrogram)
 
         img_label = os.path.basename(wav_path)[:-4]
 

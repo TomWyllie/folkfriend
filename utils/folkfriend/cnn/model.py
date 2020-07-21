@@ -30,9 +30,9 @@ def assemble_model():
     model.add(Dropout(0.2))
 
     model.add(Flatten())
-    # model.add(Dense(128, activation='relu'))
-    # model.add(LeakyReLU())
+    model.add(Dense(64, activation='relu'))
+    model.add(LeakyReLU())
     model.add(Dropout(0.4))
-    model.add(Dense(ff_config.MIDI_NUM, activation='relu'))
+    model.add(Dense(ff_config.SPEC_NUM_FRAMES, activation='sigmoid'))
 
     return model
