@@ -11,11 +11,11 @@ def main():
                         # '--dir', '/home/tom/datasets/rnn-dummy/',
                         '-ar',
                         '-w', f'{ff_config.SPEC_NUM_FRAMES}',
-                        '-b', '32',
+                        '-b', '128',
                         '-e', '400',
-                        '-lr', '0.001'
-                        # '-lr', '0.0001'
-                        # '-lr', '0.00001'
+                        # '-lr', '0.001'
+                        # '-lr', '0.0003'
+                        '-lr', '0.00001'
                         ], stdout=sys.stdout, bufsize=1)
 
         # Folkfriend 100k learning rate schedule for 55x2 bi-LSTM

@@ -9,8 +9,8 @@ from tensorflow import keras
 
 
 def main(args):
-    train_ds = CNNDataset(args.dir, sub_dir='train', size_cap=10000)
-    val_ds = CNNDataset(args.dir, sub_dir='val', size_cap=1000)
+    train_ds = CNNDataset(args.dir, sub_dir='train', size_cap=1000)
+    val_ds = CNNDataset(args.dir, sub_dir='val', size_cap=100)
 
     train_data, train_steps = train_ds.build(args.batch_size)
     val_data, _ = val_ds.build(args.batch_size)
@@ -61,7 +61,7 @@ if __name__ == '__main__':
                              'logs/<name>. Defaults to a timestamp of the '
                              'current time.',
                         default=datetime.now().strftime('%d-%b-%Y-%H%M%S'))
-    parser.add_argument('-e', '--epochs', default=5, type=int)
+    parser.add_argument('-e', '--epochs', default=100, type=int)
     parser.add_argument('-bs', '--batch-size', default=256, type=int)
     parser.add_argument('-lr', '--learning-rate', default=0.001, type=float)
     parser.add_argument('-re', '--resume-epoch', default=0, type=int)

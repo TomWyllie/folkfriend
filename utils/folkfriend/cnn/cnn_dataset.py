@@ -30,7 +30,7 @@ class CNNDataset:
             for line in f:
                 d_img_path = line.strip().split()[0]  # "<img_path> <annotation>\n"
                 a_img_path = d_img_path.replace('d.png', 'a.png')
-                b_img_path = d_img_path.replace('d.png', 'b.png')
+                b_img_path = d_img_path.replace('d.png', 'c.png')
                 a_img_paths.append(os.path.join(self._dataset, a_img_path))
                 b_img_paths.append(os.path.join(self._dataset, b_img_path))
 
@@ -66,7 +66,7 @@ class CNNDataset:
 
     def _load_paths(self, a_img_path, c_img_path):
         return (self._load_image(a_img_path, pseudo=False),
-                self._load_image(c_img_path, pseudo=False))
+                self._load_image(c_img_path, pseudo=True))
 
     @staticmethod
     def _load_image(path, pseudo):

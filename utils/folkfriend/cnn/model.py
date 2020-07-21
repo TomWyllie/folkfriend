@@ -31,6 +31,6 @@ def assemble_model():
     model.add(Dense(128, activation='relu'))
     model.add(LeakyReLU())
     model.add(Dropout(0.5))
-    model.add(Dense(ff_config.SPEC_NUM_BINS, activation='sigmoid'))
+    model.add(Dense(ff_config.MIDI_NUM, activation='sigmoid'))
 
     return model
