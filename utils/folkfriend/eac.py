@@ -20,7 +20,8 @@ def compute_ac_spectrogram(signal, window_size=ff_config.SPEC_WINDOW_SIZE):
     # This next step corresponds to a "k-value" of 2/3, which is recommended
     #   as the best value for magnitude compression in
     #   https://labrosa.ee.columbia.edu/~dpwe/papers/ToloK2000-mupitch.pdf
-    spectrogram = np.cbrt((spectra * spectra.conj()).real)
+    # TODO we are now actually using (1/2)*(1/3) = (1/6)
+    spectrogram = np.cbrt(np.abs(spectra))
 
     # Forwards FFT is equivalent to IFFT here so either can be used.
     #   This was useful when running our own implementation of FFT

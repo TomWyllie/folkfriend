@@ -24,21 +24,21 @@ class CNNDataset:
 
     def build(self, batch_size):
         a_img_paths = []
-        c_img_paths = []
+        b_img_paths = []
 
         with open(self._annotations_path, 'r') as f:
             for line in f:
                 d_img_path = line.strip().split()[0]  # "<img_path> <annotation>\n"
                 a_img_path = d_img_path.replace('d.png', 'a.png')
-                c_img_path = d_img_path.replace('d.png', 'c.png')
+                b_img_path = d_img_path.replace('d.png', 'b.png')
                 a_img_paths.append(os.path.join(self._dataset, a_img_path))
-                c_img_paths.append(os.path.join(self._dataset, c_img_path))
+                b_img_paths.append(os.path.join(self._dataset, b_img_path))
 
                 if self._size_cap and len(a_img_paths) >= self._size_cap:
                     break
 
         # This is now a dataset of paths
-        ds = tf.data.Dataset.from_tensor_slices((a_img_paths, c_img_paths))
+        ds = tf.data.Dataset.from_tensor_slices((a_img_paths, b_img_paths))
 
         # This is now a dataset of image matrices
         ds = ds.map(self._load_paths,
@@ -49,7 +49,7 @@ class CNNDataset:
 
         ds = ds.flat_map(lambda x: x)
 
-        ds = ds.shuffle(buffer_size=10000)
+        ds = ds.shuffle(buffer_size=20000)
         ds = ds.batch(batch_size, drop_remainder=True)
         ds = ds.apply(tf.data.experimental.ignore_errors())
 
@@ -66,7 +66,7 @@ class CNNDataset:
 
     def _load_paths(self, a_img_path, c_img_path):
         return (self._load_image(a_img_path, pseudo=False),
-                self._load_image(c_img_path, pseudo=True))
+                self._load_image(c_img_path, pseudo=False))
 
     @staticmethod
     def _load_image(path, pseudo):
@@ -76,11 +76,12 @@ class CNNDataset:
         """
         img = tf.io.read_file(path)
         img = tf.io.decode_png(img, channels=1)
-        # img = tf.image.transpose(img)
+        img = tf.image.transpose(img)
         # Shape is now (batch, 375, 240|48, 1)
         img = tf.image.convert_image_dtype(img, tf.float32)
-        height = ff_config.MIDI_NUM if pseudo else ff_config.SPEC_NUM_BINS
-        return tf.image.resize(img, (ff_config.SPEC_NUM_FRAMES, height))
+        # height = ff_config.MIDI_NUM if pseudo else ff_config.SPEC_NUM_BINS
+        # return tf.image.resize(img, (ff_config.SPEC_NUM_FRAMES, height))
+        return img
 
     @staticmethod
     def _extract_img_slices(x_img, y_img):

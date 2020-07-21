@@ -115,6 +115,6 @@ CNN_DS_TO = CNN_DS_SS + AUDIO_QUERY_SECS    # 8 second samples
 #   examples dataset this leads to 749 * 100k = 7.49M examples.
 #   This is overkill for such a small model and would take a long
 #   time to train.
-CNN_DS_SAMPLES_PER_IMAGE = 10
+CNN_DS_SAMPLES_PER_IMAGE = 100
 
 RNN_INPUT_SALTING = 0.01        # 1%
