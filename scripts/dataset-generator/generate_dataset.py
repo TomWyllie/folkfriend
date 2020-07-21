@@ -88,7 +88,12 @@ def build_meta_files(config_files):
             continue
 
         # Use local path
-        annotations.append('{} {}\n'.format(png_path.replace(args.dir, ''), label_text))
+        # TODO tidy this up a bit
+        dir_string_no_slash = args.dir
+        if args.dir.endswith('/'):
+            dir_string_no_slash = dir_string_no_slash[:-1]
+        annotations.append('{} {}\n'.format(png_path.replace(
+            dir_string_no_slash, '.'), label_text))
 
     val_index = int(val_fraction * len(annotations))
 
@@ -104,7 +109,6 @@ def build_meta_files(config_files):
 
     with open(table, 'w') as f:
         f.write('\n'.join(ff_config.MIDI_MAP))
-        f.write('\n-')  # Blank token
 
 
 if __name__ == '__main__':

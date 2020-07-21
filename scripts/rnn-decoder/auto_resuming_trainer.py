@@ -1,5 +1,6 @@
 import subprocess
 import sys
+from folkfriend import ff_config
 
 
 def main():
@@ -9,11 +10,11 @@ def main():
                         '--dir', '/home/tom/datasets/folkfriend/',
                         # '--dir', '/home/tom/datasets/rnn-dummy/',
                         '-ar',
-                        '-w', '749',
-                        '-b', '128',
+                        '-w', f'{ff_config.SPEC_NUM_FRAMES}',
+                        '-b', '32',
                         '-e', '400',
-                        # '-lr', '0.001'
-                        '-lr', '0.0001'
+                        '-lr', '0.001'
+                        # '-lr', '0.0001'
                         # '-lr', '0.00001'
                         ], stdout=sys.stdout, bufsize=1)
 

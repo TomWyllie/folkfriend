@@ -12,6 +12,7 @@ from folkfriend.rnn.dataset import DatasetBuilder
 from folkfriend.rnn.losses import CTCLoss
 from folkfriend.rnn.metrics import WordError
 from folkfriend.rnn.model import build_model
+from folkfriend import ff_config
 
 # import tensorflow as tf
 # gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -23,7 +24,7 @@ parser.add_argument('--dir',
                     default=os.path.join(str(pathlib.Path.home()),
                                          'datasets/folkfriend'),
                     help='Directory to contain the dataset files in')
-parser.add_argument('-w', '--img_width', type=int, default=749,
+parser.add_argument('-w', '--img_width', type=int, default=ff_config.SPEC_NUM_FRAMES,
                     help='Image width, this parameter will affect the output '
                          'shape of the model, default is 100, so this model '
                          'can only predict up to 24 characters.')

@@ -71,8 +71,10 @@ LINEAR_MIDI_BINS = np.linspace(
 
 # For model specific parameters see train.py and model.py
 
-# How much context does each frame get in the CNN (must be even)
-CONTEXT_FRAMES = 12
+# How much context does each frame get in the CNN (must be even and
+#   not too small, or 'Negative dimension size' occurs due to over
+#   downsampling)
+CONTEXT_FRAMES = 16
 
 # Applying spectrogram denoising leaves dimensions unchanged.
 
@@ -113,6 +115,6 @@ CNN_DS_TO = CNN_DS_SS + AUDIO_QUERY_SECS    # 8 second samples
 #   examples dataset this leads to 749 * 100k = 7.49M examples.
 #   This is overkill for such a small model and would take a long
 #   time to train.
-CNN_DS_SAMPLES_PER_IMAGE = 200
+CNN_DS_SAMPLES_PER_IMAGE = 10
 
 RNN_INPUT_SALTING = 0.01        # 1%

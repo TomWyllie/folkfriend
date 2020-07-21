@@ -58,9 +58,9 @@ class DatasetBuilder:
         self.img_width = img_width
         self.img_channels = img_channels
         self.num_classes = self.table.size()
-        if self.num_classes != ff_config.NUM_CLASSES:
+        if self.num_classes != ff_config.RNN_CLASSES_NUM:
             raise ValueError(f"{self.num_classes} is not equal to "
-                             f"{ff_config.NUM_CLASSES}")
+                             f"{ff_config.RNN_CLASSES_NUM}")
 
         print('NUM_CLASSES', self.num_classes)
 
@@ -68,7 +68,7 @@ class DatasetBuilder:
         img = tf.io.read_file(filename)
         img = tf.io.decode_png(img, channels=self.img_channels)
         img = tf.image.convert_image_dtype(img, tf.float32)
-        img = tf.image.resize(img, (ff_config.NUM_CLASSES, self.img_width))
+        img = tf.image.resize(img, (ff_config.RNN_CLASSES_NUM, self.img_width))
         print('IMAGE SHAPE', img.shape)
         return img, label
 

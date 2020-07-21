@@ -11,12 +11,8 @@ from tensorflow.keras.layers import (
 def assemble_model():
     model = tf.keras.Sequential()
 
-    # TODO safely change ff_config NUM_BINS to 275.
-    #   not changing it yet or it'll break other things
-    num_bins = 275
-
     # Input shape needs to be explicitly given for loading into JS
-    input_shape = (ff_config.CONTEXT_FRAMES, num_bins, 1)
+    input_shape = (ff_config.CONTEXT_FRAMES, ff_config.SPEC_NUM_BINS, 1)
 
     model.add(Conv2D(16, 3, activation='relu', input_shape=input_shape))
     # model.add(BatchNormalization())
@@ -34,9 +30,9 @@ def assemble_model():
     model.add(Dropout(0.2))
 
     model.add(Flatten())
-    model.add(Dense(128, activation='relu'))
-    model.add(LeakyReLU())
+    # model.add(Dense(128, activation='relu'))
+    # model.add(LeakyReLU())
     model.add(Dropout(0.4))
-    model.add(Dense(num_bins, activation='sigmoid'))
+    model.add(Dense(ff_config.MIDI_NUM, activation='relu'))
 
     return model

@@ -37,5 +37,5 @@ def build_model(image_width=None, channels=1):
     x = layers.Reshape((-1, 64))(x)
 
     x = layers.Bidirectional(layers.LSTM(units=64, return_sequences=True))(x)
-    x = layers.Dense(units=ff_config.NUM_CLASSES)(x)
+    x = layers.Dense(units=ff_config.RNN_CLASSES_NUM)(x)
     return keras.Model(inputs=img_input, outputs=x, name='CRNN')
