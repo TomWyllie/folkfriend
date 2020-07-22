@@ -13,6 +13,7 @@ function main() {
     const CNNImgInput = document.querySelector('#cnn-img-input');
     const CNNStartButton = document.querySelector('#cnn-start-button');
     const CNNCanvPrediction = document.querySelector('#cnn-canv-predict');
+    const RNNCanvPrediction = document.querySelector('#rnn-canv-predict');
     const CNNCanvDenoised = document.querySelector('#cnn-canv-denoised');
 
     const CNNOutToRNNInButton = document.querySelector('#cnn-out-to-rnn-in');
@@ -78,6 +79,10 @@ function main() {
         let decoded = decoder.predict(rnnTensorInput);
         console.debug(decoded);
         document.querySelector("#decoded").innerText = decoded;
+
+        tf.browser.toPixels(tf.cast(decoder.prediction.transpose(), "float32"), RNNCanvPrediction).then(() => {
+            RNNCanvPrediction.classList.remove('Unloaded');
+        });
     });
 }
 

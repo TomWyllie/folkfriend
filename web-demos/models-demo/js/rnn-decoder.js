@@ -23,8 +23,21 @@ export default class CNNDenoiser {
         console.warn("RNN Predict in shape", t.shape);
         let rnnInput = t.expandDims().transpose().expandDims();
         console.warn("RNN Input shape", rnnInput.shape);
-        const prediction = this.model.predict(rnnInput);
+        let prediction = this.model.predict(rnnInput);
         console.debug(prediction);
+
+        tf.max(prediction).print();
+        tf.min(prediction).print();
+
+        prediction = tf.sub(prediction, tf.min(prediction));
+        prediction = tf.div(prediction, tf.max(prediction));
+
+        // prediction = prediction.softmax();
+
+        tf.max(prediction).print();
+        tf.min(prediction).print();
+
+        this.prediction = prediction;
 
         return this.decodePrediction(prediction);
     }
