@@ -119,7 +119,7 @@ class Decoder:
     def map2string(self, inputs):
         strings = []
         for i in inputs:
-            text = [self.table[char_index] for char_index in i
+            text = [self.table[char_index - 1] for char_index in i
                     if char_index != self.blank_index]
             strings.append(''.join(text))
         return strings

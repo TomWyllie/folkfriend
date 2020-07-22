@@ -4,8 +4,7 @@ import os
 import tensorflow as tf
 from tensorflow import keras
 
-from dataset import Decoder
-import config
+from folkfriend.rnn.dataset import Decoder
 from folkfriend import ff_config
 
 parser = argparse.ArgumentParser()
@@ -15,7 +14,7 @@ parser.add_argument('table', type=str,
                     help='The path of table file.')
 parser.add_argument('model', type=str,
                     help='The saved model.')
-parser.add_argument('-w', '--img_width', type=int, default=749,
+parser.add_argument('-w', '--img_width', type=int, default=375,
                     help='Image width, this parameter will affect the output '
                          'shape of the model, default is 100, so this model '
                          'can only predict up to 24 characters.')
@@ -48,6 +47,9 @@ with open(args.table, 'r') as f:
 
 model = keras.models.load_model(args.model, compile=False)
 decoder = Decoder(inv_table)
+
+print(tf.math.reduce_max(imgs))
+print(tf.math.reduce_min(imgs))
 
 y_pred = model.predict(imgs)
 

@@ -59,7 +59,13 @@ function main() {
         rnnTensorInput = tf.sum(rnnTensorInput, 1).transpose();
         rnnTensorInput = tf.cast(rnnTensorInput, "float32");
         rnnTensorInput = tf.div(rnnTensorInput, tf.max(rnnTensorInput));
-        console.debug(rnnTensorInput);
+        console.info(rnnTensorInput)
+        tf.max(rnnTensorInput).print()
+        tf.min(rnnTensorInput).print()
+        // rnnTensorInput = tf.round(rnnTensorInput);
+        // rnnTensorInput = tf.cast(rnnTensorInput, "int32");
+        // rnnTensorInput = tf.cast(rnnTensorInput, "float32");
+        // rnnTensorInput = tf.div(rnnTensorInput, tf.max(rnnTensorInput));
 
         RNNStartButton.removeAttribute("disabled");
         tf.browser.toPixels(rnnTensorInput.transpose(), RNNCanvInput).then(() => {
@@ -69,7 +75,6 @@ function main() {
 
     RNNStartButton.addEventListener('click', function() {
         // let rnnIn = tf.browser.fromPixels(RNNCanvInput, 1)
-        // rnnIn = tf.cast(rnnIn, 'float32');
         let decoded = decoder.predict(rnnTensorInput);
         console.debug(decoded);
         document.querySelector("#decoded").innerText = decoded;

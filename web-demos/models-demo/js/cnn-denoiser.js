@@ -27,7 +27,7 @@ export default class CNNDenoiser {
             // console.debug('CNN Input batch', nextBlock);
             console.time('CNN-predict');
             let prediction = this.model.predict(nextBlock);
-            prediction = tf.cast(prediction, 'bool');
+            prediction = tf.cast(tf.round(prediction), 'bool');
             console.timeEnd('CNN-predict');
             // console.debug('CNN Output prediction', prediction);
 
@@ -36,6 +36,14 @@ export default class CNNDenoiser {
         }
 
         this.prediction = tf.concat(this.outQueue);
+
+        // Pseudo -> not pseudo
+        const initialShape = this.prediction.shape;
+        this.prediction = this.prediction.reshape([initialShape[0], initialShape[1], 1]);
+        this.prediction = tf.tile(this.prediction, [1, 1, FFConfig.BINS_PER_MIDI]);
+        this.prediction = this.prediction.reshape([initialShape[0], initialShape[1] * FFConfig.BINS_PER_MIDI]);
+
+        console.warn(this.prediction.shape);
         this.denoised = tf.mul(this.prediction, this.rawImgInputData);
     }
 
@@ -57,6 +65,9 @@ export default class CNNDenoiser {
         // Need this for later for the actual denoising step
         this.rawImgInputData = cnnInputData.squeeze();
         console.debug("Squeezed data tensor ", this.rawImgInputData);
+
+        cnnInputData = tf.cast(cnnInputData, 'float32');
+        cnnInputData = tf.div(cnnInputData, tf.max(cnnInputData));
 
         // Should be an even number
         const pad = FFConfig.CONTEXT_FRAMES / 2;

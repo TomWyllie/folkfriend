@@ -39,15 +39,15 @@ export default class CNNDenoiser {
         console.debug(decodedBins);
 
         let greedyDecode = [];
-        let lastWas55 = false;
+        let lastWasBlank = false;
         for(let i = 0; i < decodedBins.length; i++) {
-            if(decodedBins[i] === 55) {
-                lastWas55 = true;
+            if(decodedBins[i] === 48) {
+                lastWasBlank = true;
             } else {
-                if(lastWas55) {
+                if(lastWasBlank) {
                     greedyDecode.push(FFConfig.MIDI_MAP[decodedBins[i]]);
                 }
-                lastWas55 = false;
+                lastWasBlank = false;
             }
         }
 
