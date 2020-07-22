@@ -62,4 +62,4 @@ export const SPECTROGRAM_IMG_HEIGHT = 275
 // How much context does each frame get in the CNN (must be even)
 export const CONTEXT_FRAMES = 16
 
-export const MIDI_MAP = "£abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+export const MIDI_MAP = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012"

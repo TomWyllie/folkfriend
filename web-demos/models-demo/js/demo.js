@@ -60,7 +60,7 @@ function main() {
         rnnTensorInput = tf.sum(rnnTensorInput, 1).transpose();
         rnnTensorInput = tf.cast(rnnTensorInput, "float32");
         rnnTensorInput = tf.div(rnnTensorInput, tf.max(rnnTensorInput));
-        console.info(rnnTensorInput)
+        console.info("RNN tensor input", rnnTensorInput);
         tf.max(rnnTensorInput).print()
         tf.min(rnnTensorInput).print()
         // rnnTensorInput = tf.round(rnnTensorInput);

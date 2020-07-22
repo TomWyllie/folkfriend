@@ -25,10 +25,15 @@ args = parser.parse_args()
 
 
 def read_img_and_preprocess(path):
+    # img = tf.io.read_file(path)
+    # img = tf.io.decode_png(img, channels=args.img_channels)
+    # img = tf.image.convert_image_dtype(img, tf.float32)
+    # img = tf.image.resize(img, (ff_config.MIDI_NUM, args.img_width))
+
     img = tf.io.read_file(path)
-    img = tf.io.decode_png(img, channels=args.img_channels)
+    img = tf.io.decode_png(img, channels=1)
+    img = tf.image.transpose(img)
     img = tf.image.convert_image_dtype(img, tf.float32)
-    img = tf.image.resize(img, (ff_config.MIDI_NUM, args.img_width))
     return img
 
 
@@ -53,12 +58,12 @@ print(tf.math.reduce_min(imgs))
 
 y_pred = model.predict(imgs)
 
-# import imageio
-# import numpy as np
-# print(imgs)
-# y = y_pred - np.min(y_pred)
-# y = np.asarray(255 * y / np.max(y), dtype=np.uint8)
-# imageio.imwrite('predictions1.png', y[0].T)
+import imageio
+import numpy as np
+print(imgs)
+y = y_pred - np.min(y_pred)
+y = np.asarray(255 * y / np.max(y), dtype=np.uint8)
+imageio.imwrite('predictions-py.png', y[0].T)
 
 for path, g_pred, b_pred in zip(img_paths,
                                 decoder.decode(y_pred, method='greedy'),

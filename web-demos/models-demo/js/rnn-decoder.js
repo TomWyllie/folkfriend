@@ -21,7 +21,8 @@ export default class CNNDenoiser {
 
     predict(t) {
         console.warn("RNN Predict in shape", t.shape);
-        let rnnInput = t.expandDims().transpose().expandDims();
+        // let rnnInput = t.expandDims().transpose().expandDims();
+        let rnnInput = t.expandDims();
         console.warn("RNN Input shape", rnnInput.shape);
         let prediction = this.model.predict(rnnInput);
         console.debug(prediction);
@@ -52,7 +53,7 @@ export default class CNNDenoiser {
         console.debug(decodedBins);
 
         let greedyDecode = [];
-        let lastWasBlank = false;
+        let lastWasBlank = (decodedBins[0] !== 48);
         for(let i = 0; i < decodedBins.length; i++) {
             if(decodedBins[i] === 48) {
                 lastWasBlank = true;
