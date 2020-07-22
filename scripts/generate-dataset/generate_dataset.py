@@ -28,6 +28,9 @@ import collections
 from folkfriend import ff_config
 from folkfriend.dataset import ConfigError, DatasetEntry, DatasetSubDir
 
+import download_abcs
+import random_config
+
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(name)s:%(lineno)s] %(message)s')
 log = logging.getLogger(os.path.basename(__file__))
@@ -41,7 +44,7 @@ def generate(config_files):
     with Pool() as p:
         p.map(create_entry_wrapper, config_files)
 
-    # Single
+    # Single (useful for debugging)
     # for config in config_files:
     #     create_entry_wrapper(config)
 
@@ -61,6 +64,7 @@ def create_entry_wrapper(config):
     try:
         DatasetEntry(config=config,
                      dirs=dirs,
+                     thesession_data=thesession_data,
                      retain_audio=retain_audio)
     except ConfigError as e:
         log.warning(e)
@@ -114,10 +118,10 @@ def build_meta_files(config_files):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir',
-                        default=os.path.join(str(pathlib.Path.home()),
-                                             'datasets/folkfriend'),
+                        default=ff_config.DEFAULT_DS_DIR,
                         help='Directory to contain the dataset files in')
-    parser.add_argument('--retain-audio', action='store_true')
+    parser.add_argument('--no-audio', action='store_true')
+    parser.add_argument('--num', default=100, help='Number of entries in dataset', type=int)
     parser.add_argument('-vf', '--val-fraction', default=0.1, type=float,
                         help='Use this fraction of the dataset as validation'
                              'data when training.')
@@ -126,16 +130,21 @@ if __name__ == '__main__':
     if not 0 <= args.val_fraction < 1:
         raise ValueError('Validation Fraction must belong to [0, 1)')
 
+    pathlib.Path(args.dir).mkdir(parents=True, exist_ok=True)
+
     val_fraction = args.val_fraction
-    retain_audio = args.retain_audio
-    DatasetSubDir.DS_DIR = args.dir
+    retain_audio = not args.no_audio
+
+    download_abcs.download_abcs(args.dir)
+    random_config.generate_random_config(args.dir, args.num)
 
     with open(os.path.join(args.dir, 'configs.json')) as config_file:
         configs = json.load(config_file)
     DatasetSubDir.DS_SIZE = len(configs)
+    DatasetSubDir.DS_DIR = args.dir
 
-    # User must have run both extract_chorded_abcs.py generate_configs.py
-    abcs_dir_path = os.path.join(args.dir, 'abcs')  # TODO switch to JSON
+    with open(os.path.join(args.dir, 'thesession-data.json')) as f:
+        thesession_data = json.load(f)
 
     midi_dir = DatasetSubDir('midis', purge=True)
     audio_dir = DatasetSubDir('audio', purge=True)

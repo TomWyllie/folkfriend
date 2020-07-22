@@ -3,15 +3,14 @@
     generated.
 """
 
-import argparse
-import glob
 import json
 import os
-import pathlib
 import random
 
+from tqdm import tqdm
 
-def main(dataset_dir, num):
+
+def generate_random_config(ds_dir, num):
     """
         Instruments in the FolkFriend soundfont file are:
 
@@ -42,12 +41,12 @@ def main(dataset_dir, num):
     # Relative probabilities of sampling different instruments for melody
     melody_probs = {
         0: 1.,
-        1: 10.,
-        2: 8.,
+        1: 8.,
+        2: 4.,
         3: 3.,
         4: 3.,  # Recorder ~= Whistle (no good tin whistle sound-font)
-        5: 1.0,
-        6: 1.0,
+        5: 2.,
+        6: 2.,
         7: 0.3,
         8: 0.3,
         9: 0.3,
@@ -58,8 +57,8 @@ def main(dataset_dir, num):
     chord_probs = {
         0: 10.,
         2: 10.,
-        6: 1.,
-        10: 2.,
+        6: 2.,
+        10: 1.,
         40: 10.,
         41: 10.,
         42: 3.,
@@ -72,32 +71,32 @@ def main(dataset_dir, num):
         49: 1.5,
     }
 
-    melodies = random.choices(list(melody_probs.keys()),
-                              weights=melody_probs.values(), k=num)
-    chords = random.choices(list(chord_probs.keys()),
-                            weights=chord_probs.values(), k=num)
+    def random_melody_instrument():
+        return random.choices(list(melody_probs.keys()), k=1,
+                              weights=melody_probs.values())[0]
 
-    abcs_dir = os.path.join(dataset_dir, 'abcs')
+    def random_accompaniment():
+        return random.choices(list(chord_probs.keys()), k=1,
+                              weights=chord_probs.values())[0]
 
-    if not os.path.isdir(abcs_dir):
-        raise RuntimeError('Could not find path {}. Please ensure that you '
-                           'have run the extract_chorded_abcs.py script before'
-                           'trying to generate configs.'.format(abcs_dir))
+    tunes_with_chords_path = os.path.join(ds_dir, 'chords.json')
+    with open(tunes_with_chords_path, 'r') as f:
+        indices_with_chords = json.load(f)
 
-    abc_files = list(os.listdir(abcs_dir))
-
-    tune_paths = random.choices(abc_files, k=num)
     configs = []
 
-    # TODO lots of other parameters should go into these files
-    # TODO percussive accompaniments
-    for i, (tune_path, melody, chord) in enumerate(
-            zip(tune_paths, melodies, chords)):
+    for i in tqdm(range(num)):
+        # TODO lots of other audio parameters could go into these files
+        #   EQ, gain, reverb, etc
+        # TODO percussive accompaniments (drums)
+        # TODO background noise (pub chatter etc)
+
         config = {
             'index': i,
-            'tune': os.path.join(abcs_dir, tune_path),
-            'melody': melody,
-            'chord': chord,
+            # TODO allow other tunes if no chords
+            'tune': random.choice(indices_with_chords),
+            'melody': random_melody_instrument(),
+            'chord': random_accompaniment(),
             'tempo': get_random_tempo(),
             # We add a random transposition to reduce any key bias, and to
             #   improve the melodic range of the model.
@@ -106,7 +105,7 @@ def main(dataset_dir, num):
         }
         configs.append(config)
 
-    with open(os.path.join(dataset_dir, 'configs.json'), 'w') as f:
+    with open(os.path.join(ds_dir, 'configs.json'), 'w') as f:
         json.dump(configs, f)
     print(f'Generated {num} config files to configs.json')
 
@@ -116,16 +115,3 @@ def get_random_tempo():
         return random.choice(range(50, 100))
     else:
         return random.choice(range(100, 230))
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dir',
-                        default=os.path.join(str(pathlib.Path.home()),
-                                             'datasets/folkfriend'),
-                        help='Directory to contain the dataset files in')
-    parser.add_argument('--num', default=100, help='Number of config files to'
-                                                   'generate',
-                        type=int)
-    args = parser.parse_args()
-    main(args.dir, args.num)
