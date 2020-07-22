@@ -70,12 +70,12 @@ saved_model_prefix = '{epoch:03d}_{word_edit_distance:.4f}'
 val_ds, val_size = dataset_builder.build([val_path], False,
                                          args.batch_size)
 print('Num of val samples: {}'.format(val_size))
-saved_model_prefix = saved_model_prefix + '_{word_edit_distance:.4f}'
+saved_model_prefix = saved_model_prefix + '_{val_word_edit_distance:.4f}'
 
 saved_model_path = ('saved_models/{}/'.format(localtime) +
                     saved_model_prefix + '.h5')
 
-model = build_model(channels=args.img_channels)
+model = build_model()
 model.compile(optimizer=keras.optimizers.Adam(args.learning_rate),
               loss=CTCLoss(), metrics=[WordError()])
 

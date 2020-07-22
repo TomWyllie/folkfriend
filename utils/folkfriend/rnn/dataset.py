@@ -67,9 +67,10 @@ class DatasetBuilder:
     def decode_and_resize(self, filename, label):
         img = tf.io.read_file(filename)
         img = tf.io.decode_png(img, channels=self.img_channels)
+        img = tf.image.transpose(img)  # [bins, frames] -> [frames, bins]
         img = tf.image.convert_image_dtype(img, tf.float32)
-        img = tf.image.resize(img, (ff_config.RNN_CLASSES_NUM, self.img_width))
-        print('IMAGE SHAPE', img.shape)
+        img = tf.image.resize(img, (self.img_width, ff_config.MIDI_NUM))
+        img = tf.squeeze(img)  # [bins, frames, 1] -> [bins, frames]
         return img, label
 
     def tokenize(self, imgs, labels):
@@ -92,11 +93,19 @@ class DatasetBuilder:
         ds = ds.map(self.decode_and_resize,
                     num_parallel_calls=tf.data.experimental.AUTOTUNE)
         # Ignore the errors e.g. decode error or invalid data.
-        ds = ds.apply(tf.data.experimental.ignore_errors())
+
+        # for x, y in ds.take(10):
+        #     print(tf.math.reduce_max(x).numpy())      # 1.0
+        #     print(tf.math.reduce_min(x).numpy())      # 0.0
+        #     print(x.numpy().shape)                    # (375, 48)
+        # exit()
+
+        # ds = ds.apply(tf.data.experimental.ignore_errors())
         ds = ds.batch(batch_size)
         ds = ds.map(self.tokenize,
                     num_parallel_calls=tf.data.experimental.AUTOTUNE)
         ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
+
         return ds, size
 
 

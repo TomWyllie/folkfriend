@@ -29,16 +29,20 @@ def vgg_style(input_tensor):
     return x
 
 
-def build_model(image_width=None, channels=1):
+def build_model():
     """build CNN-RNN model"""
 
-    img_input = keras.Input(shape=(ff_config.MIDI_NUM, image_width, channels))
-    x = vgg_style(img_input)
-    x = layers.Reshape((-1, 64))(x)
+    # img_input = keras.Input(shape=(ff_config.MIDI_NUM, image_width, channels))
+    inputs = keras.Input(shape=(ff_config.SPEC_NUM_FRAMES, ff_config.MIDI_NUM))
+    # x = vgg_style(img_input)
+    # x = layers.Reshape((-1, 64))(x)
 
-    # x = layers.Bidirectional(layers.LSTM(units=64, return_sequences=True))(x)
-    # x = layers.Bidirectional(layers.LSTM(units=48, return_sequences=True))(x)
+    x = inputs
+    x = layers.Bidirectional(layers.LSTM(units=48, return_sequences=True))(x)
+    x = layers.Bidirectional(layers.LSTM(units=48, return_sequences=True))(x)
+    # x = layers.Bidirectional(layers.LSTM(units=16, return_sequences=True))(x)
+    # x = layers.Bidirectional(layers.LSTM(units=16, return_sequences=True))(x)
     # x = layers.Dropout(0.1)(x)
-    x = layers.Bidirectional(layers.LSTM(units=96, return_sequences=True))(x)
+    # x = layers.Bidirectional(layers.LSTM(units=96, return_sequences=True))(x)
     x = layers.Dense(units=ff_config.RNN_CLASSES_NUM)(x)
-    return keras.Model(inputs=img_input, outputs=x, name='CRNN')
+    return keras.Model(inputs=inputs, outputs=x, name='CRNN')
