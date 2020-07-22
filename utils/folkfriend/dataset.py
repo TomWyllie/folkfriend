@@ -20,14 +20,6 @@ logging.basicConfig(level=logging.DEBUG,
                     format='[%(name)s:%(lineno)s] %(message)s')
 log = logging.getLogger(os.path.basename(__file__))
 
-ABC_COMMANDS = (
-    'Q:1/4={tempo:d}\n'
-    '%%MIDI gchordon\n'
-    '%%MIDI chordprog {chord:d} octave={octave:d}\n'
-    '%%MIDI program {melody:d}\n'
-    '%%MIDI transpose {transpose:d}\n'
-)
-
 
 class DatasetSubDir:
     DS_DIR = os.path.join(str(pathlib.Path.home()), 'datasets/folkfriend')
@@ -59,11 +51,12 @@ class DatasetSubDir:
 
 
 class DatasetEntry:
-    def __init__(self, config, dirs, retain_audio):
+    def __init__(self, config, dirs, thesession_data, retain_audio):
         """Build a single entry in the folkfriend dataset"""
         self.config = config
         self._dirs = dirs
         self._retain_audio = retain_audio
+        self._thesession_data = thesession_data
 
         # Load in abcs from specified file
         self._abc_header, self._abc_body = self._load_abc()
@@ -107,26 +100,41 @@ class DatasetEntry:
 
     def _load_abc(self):
         """Load in the abc file contents for this dataset entry"""
-        with open(self.config['tune'], 'r') as f:
-            abc_lines = f.readlines()
+        # with open(self.config['tune'], 'r') as f:
+        #     abc_lines = f.readlines()
         # All ABC files are written out with exactly four lines of header
-        return abc_lines[:4], abc_lines[4:]
+        # return abc_lines[:4], abc_lines[4:]
+        tune = self._thesession_data[self.config['tune']]
+        abc_header = [
+            'X:1',
+            'T:',
+            f'M:{tune["meter"].strip()}',
+            f'K:{tune["mode"].strip()}'
+        ]
+        abc_body = tune['abc'].replace('\\', '').replace('\r', '').split('\n')
+        return abc_header, abc_body
 
     def _generate_midis(self):
         """Generate the midi files for this dataset entry."""
 
+        tempo = self.config['tempo']
+        chord = self.config['chord']
+        octave = self.config['chord_octave_shift']
+        melody = self.config['melody']
+        transpose = self.config['transpose']
+
         # Insert relevant ABC commands. See documentation at
         #   https://manpages.debian.org/stretch/abcmidi/abc2midi.1.en.html
         #   http://abc.sourceforge.net/standard/abc2midi.txt
-        abc_lines = self._abc_header + [ABC_COMMANDS.format(
-            tempo=self.config['tempo'],
-            chord=self.config['chord'],
-            octave=self.config['chord_octave_shift'],
-            melody=self.config['melody'],
-            transpose=self.config['transpose'],
-        )] + self._abc_body
+        abc_lines = self._abc_header + [
+            'Q:1/4={:d}'.format(tempo),
+            '%%MIDI gchordon',
+            '%%MIDI chordprog {:d} octave={:d}'.format(chord, octave),
+            '%%MIDI program {:d}'.format(melody),
+            '%%MIDI transpose {:d}'.format(transpose)
+        ] + self._abc_body
 
-        abc = ''.join(abc_lines)
+        abc = '\n'.join(abc_lines)
 
         self._abc_to_midi(abc, self._midi_x, chords=True)
         self._abc_to_midi(abc, self._midi_y, chords=False)

@@ -14,11 +14,6 @@ from folkfriend.rnn.metrics import WordError
 from folkfriend.rnn.model import build_model
 from folkfriend import ff_config
 
-# import tensorflow as tf
-# gpus = tf.config.experimental.list_physical_devices('GPU')
-# tf.config.experimental.set_virtual_device_configuration(gpus[0], [
-#     tf.config.experimental.VirtualDeviceConfiguration(memory_limit=1024)])
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--dir',
                     default=os.path.join(str(pathlib.Path.home()),
@@ -72,7 +67,7 @@ val_ds, val_size = dataset_builder.build([val_path], False,
 print('Num of val samples: {}'.format(val_size))
 saved_model_prefix = saved_model_prefix + '_{val_word_edit_distance:.4f}'
 
-saved_model_path = ('saved_models/{}/'.format(localtime) +
+saved_model_path = ('models/{}/'.format(localtime) +
                     saved_model_prefix + '.h5')
 
 model = build_model()
@@ -81,13 +76,13 @@ model.compile(optimizer=keras.optimizers.Adam(args.learning_rate),
 
 if args.auto_resume and os.path.exists(config_path):
     # TODO improve path handling
-    reload_path_glob = os.path.join('saved_models', localtime, '{:0>3}*'.format(initial_epoch))
+    reload_path_glob = os.path.join('models', localtime, '{:0>3}*'.format(initial_epoch))
     reload_path = glob.glob(reload_path_glob)[0]
     model.load_weights(reload_path)
     print('Training resume at {}'.format(localtime))
 else:
     model.summary()
-    os.makedirs('saved_models/{}'.format(localtime))
+    os.makedirs('models/{}'.format(localtime))
     print('Training start at {}'.format(localtime))
 
 if args.restore:

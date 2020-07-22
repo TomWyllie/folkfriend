@@ -30,9 +30,9 @@ class CNNDataset:
             for line in f:
                 d_img_path = line.strip().split()[0]  # "<img_path> <annotation>\n"
                 a_img_path = d_img_path.replace('d.png', 'a.png')
-                b_img_path = d_img_path.replace('d.png', 'c.png')
+                c_img_path = d_img_path.replace('d.png', 'c.png')
                 a_img_paths.append(os.path.join(self._dataset, a_img_path))
-                b_img_paths.append(os.path.join(self._dataset, b_img_path))
+                b_img_paths.append(os.path.join(self._dataset, c_img_path))
 
                 if self._size_cap and len(a_img_paths) >= self._size_cap:
                     break
@@ -57,19 +57,14 @@ class CNNDataset:
         samples = ff_config.CNN_DS_SAMPLES_PER_IMAGE * len(a_img_paths)
         batches_per_epoch = math.floor(samples / batch_size)
 
-        # for a, c in ds.take(10):
-        #     print(a.numpy().shape)
-        #     print(c.numpy().shape)
-        # exit(0)
-
         return ds.prefetch(tf.data.experimental.AUTOTUNE), batches_per_epoch
 
     def _load_paths(self, a_img_path, c_img_path):
-        return (self._load_image(a_img_path, pseudo=False),
-                self._load_image(c_img_path, pseudo=True))
+        return (self._load_image(a_img_path),
+                self._load_image(c_img_path))
 
     @staticmethod
-    def _load_image(path, pseudo):
+    def _load_image(path):
         """
             Pseudo: is this a pseudo-spectrogram ie have we summed over the
                 bins for each midi note.
@@ -77,10 +72,7 @@ class CNNDataset:
         img = tf.io.read_file(path)
         img = tf.io.decode_png(img, channels=1)
         img = tf.image.transpose(img)
-        # Shape is now (batch, 375, 240|48, 1)
         img = tf.image.convert_image_dtype(img, tf.float32)
-        # height = ff_config.MIDI_NUM if pseudo else ff_config.SPEC_NUM_BINS
-        # return tf.image.resize(img, (ff_config.SPEC_NUM_FRAMES, height))
         return img
 
     @staticmethod
