@@ -10,7 +10,8 @@ import sys
 import imageio
 import numpy as np
 import py_midicsv
-from folkfriend.sig_proc import spectrogram
+from folkfriend.sig_proc.spectrogram import (linearise_ac_spectrogram,
+                                             compute_ac_spectrogram)
 from folkfriend import ff_config
 from folkfriend.data.midi import CSVMidiNoteReader
 from folkfriend.data import data_ops
@@ -73,7 +74,7 @@ class DatasetEntry:
 
         # Input files
         sr, samples = self._generate_audio(self._midi_x)
-        spectrogram = self._generate_spectrogram(sr, samples)
+        spectrogram = self._generate_spectrogram(samples)
         self._save_spectral_image(spectrogram, 'a')
 
         # Label files
@@ -246,9 +247,9 @@ class DatasetEntry:
         return self.config['index']
 
     @staticmethod
-    def _generate_spectrogram(sr, samples):
-        spectrogram = spectrogram.compute_ac_spectrogram(samples)
-        spectrogram = spectrogram.linearise_ac_spectrogram(spectrogram)
+    def _generate_spectrogram(samples):
+        spectrogram = compute_ac_spectrogram(samples)
+        spectrogram = linearise_ac_spectrogram(spectrogram)
         spectrogram = np.asarray(255 * spectrogram / np.max(spectrogram),
                                  dtype=np.uint8)
         return spectrogram

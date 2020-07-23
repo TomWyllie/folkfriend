@@ -143,8 +143,8 @@ if __name__ == '__main__':
     DatasetSubDir.DS_SIZE = len(configs)
     DatasetSubDir.DS_DIR = args.dir
 
-    with open(os.path.join(args.dir, 'thesession-data.json')) as f:
-        thesession_data = json.load(f)
+    with open(os.path.join(args.dir, 'thesession-data.json')) as f_session:
+        thesession_data = json.load(f_session)
 
     midi_dir = DatasetSubDir('midis', purge=True)
     audio_dir = DatasetSubDir('audio', purge=True)

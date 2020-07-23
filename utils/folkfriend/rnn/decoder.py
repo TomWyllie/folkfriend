@@ -3,6 +3,7 @@ from folkfriend import ff_config
 
 from folkfriend.data.data_ops import load_pseudo_spec_png
 from folkfriend.rnn.model import build_model
+from folkfriend.data.abc import ABC_MAP
 
 
 class RNNDecoder:
@@ -30,4 +31,8 @@ class RNNDecoder:
         #   MIDI_NUM + 1.
         decoded = tf.sparse.to_dense(
             sparse_decoded[0], default_value=ff_config.MIDI_NUM).numpy()[0]
-        return ''.join(ff_config.MIDI_MAP[x] for x in decoded)
+
+        rnn_string = ''.join(ff_config.MIDI_MAP[x] for x in decoded)
+        abc_string = ' '.join(ABC_MAP[x] for x in decoded)
+
+        return rnn_string, abc_string

@@ -21,7 +21,7 @@ def main(model_path, images, out_file):
     out_lines = []
     for img_path in img_paths:
         decoded_output = decoder.decode(img_path)
-        line = '{:<36}{}'.format(img_path, decoded_output)
+        line = '{:<36}{}\t{}'.format(img_path, *decoded_output)
         print(line)
         out_lines.append(line)
 
