@@ -3,6 +3,7 @@ import re
 
 import tensorflow as tf
 from folkfriend import ff_config
+from folkfriend.data.data_ops import load_pseudo_spec_png
 
 
 class UnsupportedFormatError(Exception):
@@ -51,12 +52,12 @@ def read_annotations(paths):
 
 
 class DatasetBuilder:
-    def __init__(self, table_path, img_width, img_channels):
+    def __init__(self, table_path):
         self.table = tf.lookup.StaticHashTable(tf.lookup.TextFileInitializer(
             table_path, tf.string, tf.lookup.TextFileIndex.WHOLE_LINE,
             tf.int64, tf.lookup.TextFileIndex.LINE_NUMBER), -1)
-        self.img_width = img_width
-        self.img_channels = img_channels
+        self.img_width = ff_config.SPEC_NUM_FRAMES
+        self.img_channels = 1
         self.num_classes = self.table.size()
         if self.num_classes != ff_config.RNN_CLASSES_NUM:
             raise ValueError(f"{self.num_classes} is not equal to "
@@ -64,14 +65,9 @@ class DatasetBuilder:
 
         print('NUM_CLASSES', self.num_classes)
 
-    def decode_and_resize(self, filename, label):
-        img = tf.io.read_file(filename)
-        img = tf.io.decode_png(img, channels=self.img_channels)
-        img = tf.image.transpose(img)  # [bins, frames] -> [frames, bins]
-        img = tf.image.convert_image_dtype(img, tf.float32)
-        img = tf.image.resize(img, (self.img_width, ff_config.MIDI_NUM))
-        img = tf.squeeze(img)  # [bins, frames, 1] -> [bins, frames]
-        return img, label
+    @staticmethod
+    def decode_and_resize(filename, label):
+        return load_pseudo_spec_png(filename), label
 
     def tokenize(self, imgs, labels):
         chars = tf.strings.unicode_split(labels, 'UTF-8')
@@ -107,47 +103,3 @@ class DatasetBuilder:
         ds = ds.prefetch(tf.data.experimental.AUTOTUNE)
 
         return ds, size
-
-
-class Decoder:
-    def __init__(self, table, blank_index=-1, merge_repeated=True):
-        """
-        
-        Args:
-            table: list, char map
-            blank_index: int(default: num_classes - 1), the index of blank 
-        label.
-            merge_repeated: bool
-        """
-        self.table = table
-        if blank_index == -1:
-            blank_index = len(table) - 1
-        self.blank_index = blank_index
-        self.merge_repeated = merge_repeated
-
-    def map2string(self, inputs):
-        strings = []
-        for i in inputs:
-            text = [self.table[char_index] for char_index in i
-                    if char_index != self.blank_index]
-            strings.append(''.join(text))
-        return strings
-
-    def decode(self, inputs, from_pred=True, method='greedy'):
-        transposed_inputs = tf.transpose(inputs, perm=[1, 0, 2])
-        if from_pred:
-            logit_length = tf.fill([tf.shape(inputs)[0]], tf.shape(inputs)[1])
-            if method == 'greedy':
-                decoded, _ = tf.nn.ctc_greedy_decoder(
-                    inputs=transposed_inputs,
-                    sequence_length=logit_length,
-                    merge_repeated=self.merge_repeated)
-            elif method == 'beam_search':
-                decoded, _ = tf.nn.ctc_beam_search_decoder(
-                    inputs=transposed_inputs,
-                    sequence_length=logit_length)
-            inputs = decoded[0]
-        decoded = tf.sparse.to_dense(inputs,
-                                     default_value=self.blank_index).numpy()
-        decoded = self.map2string(decoded)
-        return decoded

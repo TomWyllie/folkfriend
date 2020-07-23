@@ -3,14 +3,14 @@ import os
 import pathlib
 
 import imageio
-from folkfriend.cnn.cnn_predictor import CNNPredictor
-from folkfriend.cnn import cnn_matrix_utils
+from folkfriend.cnn.denoiser import CNNDenoiser
+from folkfriend.data.data_ops import spec_to_pseudo
 import numpy as np
 
 
-def main(wav_path, model_dir, out_dir):
-    denoiser = CNNPredictor()
-    denoiser.load_model(model_dir)
+def main(model_path, wav_path, out_dir):
+    denoiser = CNNDenoiser()
+    denoiser.load_model(model_path)
     pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
 
     if os.path.isdir(args.wav):
@@ -24,23 +24,14 @@ def main(wav_path, model_dir, out_dir):
         print('No paths found!')
 
     for wav_path in wav_paths:
-        noisy_spectrogram = denoiser.load_spectrogram_from_wav(wav_path)
-        print(noisy_spectrogram.shape)
-        cleaned_spectrogram = denoiser.denoise(noisy_spectrogram)
-        print(cleaned_spectrogram.shape)
-
-        cleaned_spectrogram[cleaned_spectrogram > 0.5] = 1
-        cleaned_spectrogram[cleaned_spectrogram < 1] = 0
-        cleaned_spectrogram = cnn_matrix_utils.pseudo_spec_to_spec(
-            cleaned_spectrogram)
+        original = denoiser.load_spectrogram_from_wav(wav_path)
+        mask, denoised = denoiser.denoise(original)
+        pseudo_spec = spec_to_pseudo(denoised)
 
         img_label = os.path.basename(wav_path)[:-4]
+        stages = [original, mask, denoised, pseudo_spec]
 
-        for stage, spec in zip('abc', [
-            noisy_spectrogram,
-            cleaned_spectrogram,
-            noisy_spectrogram * cleaned_spectrogram
-        ]):
+        for stage, spec in zip('abcd', stages):
             out_path = os.path.join(out_dir, '{}_{}.png'.format(img_label, stage))
             img = np.asarray(255 * spec / np.max(spec), dtype=np.uint8).T
             imageio.imwrite(out_path, img)
@@ -55,4 +46,4 @@ if __name__ == '__main__':
                         default='img')
 
     args = parser.parse_args()
-    main(args.wav, args.model, args.out)
+    main(args.model, args.wav, args.out)

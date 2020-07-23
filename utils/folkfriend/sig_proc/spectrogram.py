@@ -2,7 +2,7 @@ import numpy as np
 import scipy.interpolate as interp
 
 from folkfriend import ff_config
-from folkfriend import note
+from folkfriend.sig_proc import note
 
 
 def compute_ac_spectrogram(signal, window_size=ff_config.SPEC_WINDOW_SIZE):
@@ -35,9 +35,9 @@ def compute_ac_spectrogram(signal, window_size=ff_config.SPEC_WINDOW_SIZE):
     return spectrogram
 
 
-def linearise_ac_spectrogram(spectrogram, sr):
+def linearise_ac_spectrogram(spectrogram):
     # Remember high bin = low frequency and vice versa
-    nc = note.NoteConverter(sr=sr)
+    nc = note.NoteConverter()
 
     # Remove DC bin as it has frequency = 0 = midi note -infinity.
     spectrogram = spectrogram[:, 1:]    # Keep all frames, remove first bin

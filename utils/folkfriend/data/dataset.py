@@ -10,10 +10,10 @@ import sys
 import imageio
 import numpy as np
 import py_midicsv
-from folkfriend import eac
+from folkfriend.sig_proc import spectrogram
 from folkfriend import ff_config
-from folkfriend.midi import CSVMidiNoteReader
-from folkfriend.cnn import cnn_matrix_utils
+from folkfriend.data.midi import CSVMidiNoteReader
+from folkfriend.data import data_ops
 from scipy.io import wavfile
 
 logging.basicConfig(level=logging.DEBUG,
@@ -81,7 +81,7 @@ class DatasetEntry:
 
         # Generate output labels for CNN denoiser
         spec_mask = self._midi_to_pseudo_spectrogram(midi_events)
-        expanded_mask = cnn_matrix_utils.pseudo_spec_to_spec(spec_mask)
+        expanded_mask = data_ops.pseudo_to_spec(spec_mask)
 
         # (b) Just for visual inspection that masks line up
         self._save_spectral_image(255 * expanded_mask, 'b')
@@ -247,8 +247,8 @@ class DatasetEntry:
 
     @staticmethod
     def _generate_spectrogram(sr, samples):
-        spectrogram = eac.compute_ac_spectrogram(samples)
-        spectrogram = eac.linearise_ac_spectrogram(spectrogram, sr)
+        spectrogram = spectrogram.compute_ac_spectrogram(samples)
+        spectrogram = spectrogram.linearise_ac_spectrogram(spectrogram)
         spectrogram = np.asarray(255 * spectrogram / np.max(spectrogram),
                                  dtype=np.uint8)
         return spectrogram
@@ -256,7 +256,7 @@ class DatasetEntry:
     @staticmethod
     def _denoise_spectrogram(spectrogram, spec_mask, salt=True):
         """Apply the computed mask to the computed spectrogram"""
-        spectrogram = cnn_matrix_utils.spec_to_pseudo_spec(spectrogram)
+        spectrogram = data_ops.spec_to_pseudo(spectrogram)
         spec_mask = np.asarray(spec_mask[:spectrogram.shape[0]], np.bool)
 
         if salt:

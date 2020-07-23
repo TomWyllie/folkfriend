@@ -5,35 +5,24 @@ import os
 import pathlib
 from datetime import datetime
 
-from tensorflow import keras
-
-from folkfriend.rnn.callbacks import TrainingConfigWriter
-from folkfriend.rnn.dataset import DatasetBuilder
-from folkfriend.rnn.losses import CTCLoss
-from folkfriend.rnn.metrics import WordError
+from folkfriend.data.rnn_dataset import DatasetBuilder
 from folkfriend.rnn.model import build_model
-from folkfriend import ff_config
+from folkfriend.train.ctc_loss import CTCLoss
+from folkfriend.train.training_config_writer import TrainingConfigWriter
+from folkfriend.train.word_error import WordError
+from tensorflow import keras
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dir',
                     default=os.path.join(str(pathlib.Path.home()),
                                          'datasets/folkfriend'),
                     help='Directory to contain the dataset files in')
-parser.add_argument('-w', '--img_width', type=int, default=ff_config.SPEC_NUM_FRAMES,
-                    help='Image width, this parameter will affect the output '
-                         'shape of the model, default is 100, so this model '
-                         'can only predict up to 24 characters.')
 parser.add_argument('-b', '--batch_size', type=int, default=256,
                     help='Batch size.')
 parser.add_argument('-lr', '--learning_rate', type=float, default=0.001,
                     help='Learning rate.')
 parser.add_argument('-e', '--epochs', type=int, default=30,
                     help='Num of epochs to train.')
-parser.add_argument('--img_channels', type=int, default=1,
-                    help='0: Use the number of channels in the image, '
-                         '1: Grayscale image, 3: RGB image')
-parser.add_argument('--ignore_case', action='store_true',
-                    help='Whether ignore case.(default false)')
 parser.add_argument('--restore', type=str,
                     help='The model for restore, even if the number of '
                          'characters is different')
@@ -55,8 +44,7 @@ if args.auto_resume and os.path.exists(config_path):
     localtime = previous_config['localtime']
     initial_epoch = previous_config['epoch'] + 1
 
-dataset_builder = DatasetBuilder(table_path, args.img_width,
-                                 args.img_channels)
+dataset_builder = DatasetBuilder(table_path)
 train_ds, train_size = dataset_builder.build([train_path], True,
                                              args.batch_size)
 print('Num of training samples: {}'.format(train_size))

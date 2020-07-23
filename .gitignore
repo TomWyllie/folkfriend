@@ -2,6 +2,7 @@
 scripts/*/logs/*
 scripts/*/models/*
 scripts/*/img/*
+scripts/*/decoded.txt
 
 # PyCharm
 .idea/*

@@ -26,7 +26,7 @@ import timeit
 from multiprocessing import Pool
 import collections
 from folkfriend import ff_config
-from folkfriend.dataset import ConfigError, DatasetEntry, DatasetSubDir
+from folkfriend.data.dataset import ConfigError, DatasetEntry, DatasetSubDir
 
 import download_abcs
 import random_config
