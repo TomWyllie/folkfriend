@@ -59,26 +59,38 @@ class DatasetEntry:
         self._retain_audio = retain_audio
         self._thesession_data = thesession_data
 
-        # Load in abcs from specified file
-        self._abc_header, self._abc_body = self._load_abc()
+        self._midi_a = self._dirs.midi_dir.chunk_path(self.index, '{:d}a.midi')
+        self._audio_a = self._dirs.audio_dir.chunk_path(self.index, '{:d}a.wav')
+        self._abc_a = self._dirs.abc_dir.chunk_path(self.index, '{:d}a.abc')
 
-        self._midi_x = self._dirs.midi_dir.chunk_path(self.index, '{:d}a.midi')
-        self._midi_y = self._dirs.midi_dir.chunk_path(self.index, '{:d}b.midi')
-        self._audio_x = self._dirs.audio_dir.chunk_path(self.index, '{:d}a.wav')
+        self._midi_b = self._dirs.midi_dir.chunk_path(self.index, '{:d}b.midi')
+        self._abc_b = self._dirs.abc_dir.chunk_path(self.index, '{:d}b.abc')
+
+        # Generate the midi files for this dataset entry.
 
         # Create two midi files; one which will be turned into audio to be used
-        #   as input for the model, and the other which will be used to
-        #   determine the output image mask for the CNN, and the label for the
-        #   RNN.
-        self._generate_midis()
+        # as input for the model, and the other which will be used to
+        # determine the output image mask for the CNN, and the label for the
+        # RNN.
+
+        # Non-clean input with chords and potentially extra voices included in
+        #   the midi file
+        abc_a = self._generate_abc(clean=False)
+        self._save_abc(abc_a, self._abc_a)
+        self._abc_to_midi(abc_a, self._midi_a, clean=False)
+
+        # Clean output
+        abc_b = self._generate_abc(clean=True)
+        self._save_abc(abc_b, self._abc_b)
+        self._abc_to_midi(abc_b, self._midi_b, clean=True)
 
         # Input files
-        sr, samples = self._generate_audio(self._midi_x)
+        sr, samples = self._generate_audio(self._midi_a)
         spectrogram = self._generate_spectrogram(samples)
         self._save_spectral_image(spectrogram, 'a')
 
         # Label files
-        midi_events = self._midi_as_csv(self._midi_y)
+        midi_events = self._midi_as_csv(self._midi_b)
 
         # Generate output labels for CNN denoiser
         spec_mask = self._midi_to_pseudo_spectrogram(midi_events)
@@ -99,12 +111,8 @@ class DatasetEntry:
         label = self._midi_to_note_contour(midi_events)
         self._save_label(label)
 
-    def _load_abc(self):
-        """Load in the abc file contents for this dataset entry"""
-        # with open(self.config['tune'], 'r') as f:
-        #     abc_lines = f.readlines()
-        # All ABC files are written out with exactly four lines of header
-        # return abc_lines[:4], abc_lines[4:]
+    def _generate_abc(self, clean):
+        """Generate abc file contents for this dataset entry"""
         tune = self._thesession_data[self.config['tune']]
         abc_header = [
             'X:1',
@@ -113,10 +121,6 @@ class DatasetEntry:
             f'K:{tune["mode"].strip()}'
         ]
         abc_body = tune['abc'].replace('\\', '').replace('\r', '').split('\n')
-        return abc_header, abc_body
-
-    def _generate_midis(self):
-        """Generate the midi files for this dataset entry."""
 
         tempo = self.config['tempo']
         chord = self.config['chord']
@@ -127,18 +131,15 @@ class DatasetEntry:
         # Insert relevant ABC commands. See documentation at
         #   https://manpages.debian.org/stretch/abcmidi/abc2midi.1.en.html
         #   http://abc.sourceforge.net/standard/abc2midi.txt
-        abc_lines = self._abc_header + [
+        abc_lines = abc_header + [
             'Q:1/4={:d}'.format(tempo),
             '%%MIDI gchordon',
             '%%MIDI chordprog {:d} octave={:d}'.format(chord, octave),
             '%%MIDI program {:d}'.format(melody),
             '%%MIDI transpose {:d}'.format(transpose)
-        ] + self._abc_body
+        ] + abc_body
 
-        abc = '\n'.join(abc_lines)
-
-        self._abc_to_midi(abc, self._midi_x, chords=True)
-        self._abc_to_midi(abc, self._midi_y, chords=False)
+        return '\n'.join(abc_lines)
 
     def _generate_audio(self, midi_path):
         """Convert the midi file with chords to a .wav file
@@ -173,7 +174,7 @@ class DatasetEntry:
         subprocess.run(
             ['fluidsynth', '-l',
              '-T', 'wav',
-             '-F', self._audio_x,
+             '-F', self._audio_a,
              '--reverb', 'no',
              '--sample-rate', str(ff_config.SAMPLE_RATE),
              '--gain', '1',
@@ -181,10 +182,10 @@ class DatasetEntry:
              '/home/tom/sounds/folk-friend.sf2',
              midi_path])
 
-        sample_rate, samples = wavfile.read(self._audio_x)
+        sample_rate, samples = wavfile.read(self._audio_a)
 
         if sample_rate != ff_config.SAMPLE_RATE:
-            raise RuntimeError(f'{self._audio_x} should have a sample rate of '
+            raise RuntimeError(f'{self._audio_a} should have a sample rate of '
                                f'{ff_config.SAMPLE_RATE}')
 
         samples = samples[sample_rate * ff_config.CNN_DS_SS:
@@ -196,20 +197,20 @@ class DatasetEntry:
         samples = samples[:, 0]
 
         if samples.size < sample_rate * 2:  # 2 seconds is chosen as limit
-            os.remove(self._audio_x)
+            os.remove(self._audio_a)
             raise ConfigError(f'Synthesized .wav file was too short '
                               f'({self.index}.json)')
 
         if self._retain_audio:
             # TODO use ffmpeg library for python
-            wavfile.write(self._audio_x, sample_rate, samples)
+            wavfile.write(self._audio_a, sample_rate, samples)
             subprocess.run(['ffmpeg', '-y', '-hide_banner',
                             '-loglevel', 'panic',
-                            '-i', self._audio_x,
+                            '-i', self._audio_a,
                             '-ac', '1',
-                            self._audio_x.replace('.wav', '.mp3')])
+                            self._audio_a.replace('.wav', '.mp3')])
 
-        os.remove(self._audio_x)
+        os.remove(self._audio_a)
 
         return sample_rate, samples
 
@@ -228,6 +229,11 @@ class DatasetEntry:
             start_seconds=ff_config.CNN_DS_SS,
             end_seconds=ff_config.CNN_DS_TO
         )
+
+    @staticmethod
+    def _save_abc(abc, path):
+        with open(path, 'w') as f:
+            f.write(abc)
 
     def _save_spectral_image(self, spec, stage):
         img_name = '{:d}' + f'{stage}.png'
@@ -282,14 +288,14 @@ class DatasetEntry:
         return [line.strip().replace(', ', ',') for line in midi_lines]
 
     @staticmethod
-    def _abc_to_midi(abc, midi_path, chords=True):
+    def _abc_to_midi(abc, midi_path, clean=True):
         """Convert ABC text into a midi file."""
 
         # Generate MIDI file with chords and actual instruments
         captured = subprocess.run([
             'abc2midi', '-',
             '-quiet', '-silent',
-            '' if chords else '-NGUI',
+            '-NGUI' if clean else '',
             '-o', midi_path
         ],
             input=abc.encode('utf-8'),

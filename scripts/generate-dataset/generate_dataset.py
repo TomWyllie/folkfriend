@@ -146,13 +146,14 @@ if __name__ == '__main__':
     with open(os.path.join(args.dir, 'thesession-data.json')) as f_session:
         thesession_data = json.load(f_session)
 
+    abc_dir = DatasetSubDir('abcs', purge=True)
     midi_dir = DatasetSubDir('midis', purge=True)
     audio_dir = DatasetSubDir('audio', purge=True)
     png_dir = DatasetSubDir('pngs', purge=True)
     label_dir = DatasetSubDir('labels', purge=True)
 
     Dirs = collections.namedtuple('dirs', field_names=[
-        'midi_dir', 'audio_dir', 'png_dir', 'label_dir'])
-    dirs = Dirs(midi_dir, audio_dir, png_dir, label_dir)
+        'abc_dir', 'midi_dir', 'audio_dir', 'png_dir', 'label_dir'])
+    dirs = Dirs(abc_dir, midi_dir, audio_dir, png_dir, label_dir)
 
     generate(configs)
