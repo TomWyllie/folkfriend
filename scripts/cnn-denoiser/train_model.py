@@ -5,6 +5,7 @@ from datetime import datetime
 
 from folkfriend.data.cnn_dataset import CNNDataset
 from folkfriend.cnn.model import assemble_model
+from folkfriend import ff_config
 from tensorflow import keras
 
 
@@ -51,9 +52,7 @@ if __name__ == '__main__':
     path_timestamp = datetime.now().strftime('%H%M%S-%d%m%Y')
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--dir',
-                        default=os.path.join(str(pathlib.Path.home()),
-                                             'datasets',
-                                             'folkfriend'),
+                        default=ff_config.DEFAULT_DS_DIR,
                         help='Path to dataset directory')
     parser.add_argument('-n', '--name',
                         help='A label to use for this training run. Models'

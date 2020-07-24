@@ -147,10 +147,10 @@ class DatasetEntry:
             else:
                 abc_lines.append('%%MIDI gchordoff')
             abc_lines.extend([
-                'V:{:d}'.format(i + 1),
-                '%%MIDI program {:d}'.format(melody),
-                '%%MIDI transpose {:d}'.format(transpositions[i])
-            ] + abc_body)
+                                 'V:{:d}'.format(i + 1),
+                                 '%%MIDI program {:d}'.format(melody),
+                                 '%%MIDI transpose {:d}'.format(transpositions[i])
+                             ] + abc_body)
 
         return '\n'.join(abc_lines)
 
@@ -265,13 +265,23 @@ class DatasetEntry:
     def index(self):
         return self.config['index']
 
-    @staticmethod
-    def _generate_spectrogram(samples):
+    def _generate_spectrogram(self, samples):
         spectrogram = compute_ac_spectrogram(samples)
         spectrogram = linearise_ac_spectrogram(spectrogram)
+        spectrogram = spectrogram / np.max(spectrogram)  # [0, 1]
+        spectrogram = self._noisify_spectrogram(spectrogram)
         spectrogram = np.asarray(255 * spectrogram / np.max(spectrogram),
                                  dtype=np.uint8)
         return spectrogram
+
+    @staticmethod
+    def _noisify_spectrogram(spectrogram):
+        noise = np.random.normal(loc=0,
+                                 scale=ff_config.CNN_NOISIFY_SCALE,
+                                 size=spectrogram.size
+                                 ).reshape(spectrogram.shape)
+        noise[noise < 0] = 0  # Because autocorrelation step does this too
+        return spectrogram + noise
 
     @staticmethod
     def _denoise_spectrogram(spectrogram, spec_mask, salt=True):

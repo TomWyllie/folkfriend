@@ -124,4 +124,5 @@ CNN_DS_TO = CNN_DS_SS + AUDIO_QUERY_SECS  # 8 second samples
 #   there will be a lot of data too, increasing training time for
 #   probably not much improvement in accuracy.
 CNN_DS_SAMPLES_PER_IMAGE = 200
+CNN_NOISIFY_SCALE = 0.1
 RNN_INPUT_SALTING = 0.01  # 1%

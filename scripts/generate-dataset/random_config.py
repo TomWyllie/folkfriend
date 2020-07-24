@@ -111,6 +111,7 @@ def generate_random_config(ds_dir, num):
         #   contain outlier notes at extreme melodic range).
         transpositions = [random.choice(range(-11, 12))]
 
+        # TODO pick the pitch closest to 440Hz as the lead (???)
         lo = transpositions[0] < 0
         for non_lead_melody in range(number_melodies - 1):
             shift = 0
@@ -118,6 +119,11 @@ def generate_random_config(ds_dir, num):
                 # Add or minus an octave to the other melody voices
                 shift = 12 if lo else -12
             transpositions.append(transpositions[0] + shift)
+
+        # Pick the highest transposed instrument as the 'lead'
+        #   the 'lead' is simply the first entry in the melody
+        #   list, and is used to generate the mask.
+        transpositions = sorted(transpositions, reverse=True)
 
         config = {
             'index': i,
