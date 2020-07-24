@@ -123,21 +123,33 @@ class DatasetEntry:
         abc_body = tune['abc'].replace('\\', '').replace('\r', '').split('\n')
 
         tempo = self.config['tempo']
-        chord = self.config['chord']
-        octave = self.config['chord_octave_shift']
-        melody = self.config['melody']
-        transpose = self.config['transpose']
+        chords = self.config['chords']
+        octaves = self.config['chord_octave_shifts']
+        melodies = self.config['melodies']
+        transpositions = self.config['transpositions']
+
+        chords = [None] if clean else chords
+        melodies = melodies[:1] if clean else melodies
+
+        if not clean:
+            chords += (len(melodies) - len(chords)) * [None]
 
         # Insert relevant ABC commands. See documentation at
         #   https://manpages.debian.org/stretch/abcmidi/abc2midi.1.en.html
         #   http://abc.sourceforge.net/standard/abc2midi.txt
-        abc_lines = abc_header + [
-            'Q:1/4={:d}'.format(tempo),
-            '%%MIDI gchordon',
-            '%%MIDI chordprog {:d} octave={:d}'.format(chord, octave),
-            '%%MIDI program {:d}'.format(melody),
-            '%%MIDI transpose {:d}'.format(transpose)
-        ] + abc_body
+        abc_lines = abc_header + ['Q:1/4={:d}'.format(tempo)]
+
+        for i, (melody, chord) in enumerate(zip(melodies, chords)):
+            if chord:
+                abc_lines.append('%%MIDI gchordon')
+                abc_lines.append('%%MIDI chordprog {:d} octave={:d}'.format(
+                    chord, octaves[i]))
+            else:
+                abc_lines.append('%%MIDI gchordoff')
+            abc_lines.extend([
+                '%%MIDI program {:d}'.format(melody),
+                '%%MIDI transpose {:d}'.format(transpositions[i])
+            ] + abc_body)
 
         return '\n'.join(abc_lines)
 

@@ -41,7 +41,7 @@ def generate_random_config(ds_dir, num):
     # Relative probabilities of sampling different instruments for melody
     melody_probs = {
         0: 1.,
-        1: 8.,
+        1: 6.,
         2: 4.,
         3: 3.,
         4: 3.,  # Recorder ~= Whistle (no good tin whistle sound-font)
@@ -71,13 +71,13 @@ def generate_random_config(ds_dir, num):
         49: 1.5,
     }
 
-    def random_melody_instrument():
-        return random.choices(list(melody_probs.keys()), k=1,
-                              weights=melody_probs.values())[0]
+    def random_melody_inst(k):
+        return random.choices(list(melody_probs.keys()), k=k,
+                              weights=melody_probs.values())
 
-    def random_accompaniment():
-        return random.choices(list(chord_probs.keys()), k=1,
-                              weights=chord_probs.values())[0]
+    def random_accomp(k):
+        return random.choices(list(chord_probs.keys()), k=k,
+                              weights=chord_probs.values())
 
     tunes_with_chords_path = os.path.join(ds_dir, 'chords.json')
     with open(tunes_with_chords_path, 'r') as f:
@@ -91,17 +91,42 @@ def generate_random_config(ds_dir, num):
         # TODO percussive accompaniments (drums)
         # TODO background noise (pub chatter etc)
 
+        # These weights are fairly arbitrary, but give a roughly realistic
+        #   distribution of instruments.
+        number_melodies = random.choices(range(1, 5), k=1,
+                                         weights=[0.4, 0.3, 0.15, 0.15])[0]
+        number_accomps = random.choices(range(0, 4), k=1,
+                                        weights=[0.5, 0.25, 0.15, 0.10])[0]
+
+        # We need at least one melody voice for each chord in the abc file
+        number_accomps = min(number_accomps, number_melodies)
+
+        # We only need to constrain ourselves to tunes with chords if we
+        #   want an accompaniment.
+        possible_tunes = (indices_with_chords if number_accomps >= 1
+                          else range(indices_with_chords[-1]))
+
+        # We add a random transposition to reduce any key bias, and to
+        #   improve the melodic range of the model (few tunes will naturally
+        #   contain outlier notes at extreme melodic range).
+        transpositions = [random.choice(range(-11, 12))]
+
+        lo = transpositions[0] < 0
+        for non_lead_melody in range(number_melodies - 1):
+            shift = 0
+            if random.random() > 0.75:
+                # Add or minus an octave to the other melody voices
+                shift = 12 if lo else -12
+            transpositions.append(transpositions[0] + shift)
+
         config = {
             'index': i,
-            # TODO allow other tunes if no chords
-            'tune': random.choice(indices_with_chords),
-            'melody': random_melody_instrument(),
-            'chord': random_accompaniment(),
+            'tune': random.choice(possible_tunes),
+            'melodies': random_melody_inst(number_melodies),
+            'chords': random_accomp(number_accomps),
+            'transpositions': transpositions,
             'tempo': get_random_tempo(),
-            # We add a random transposition to reduce any key bias, and to
-            #   improve the melodic range of the model.
-            'transpose': random.choice(range(-11, 12)),
-            'chord_octave_shift': random.choice((0, 1))
+            'chord_octave_shifts': random.choices((0, 1), k=number_accomps)
         }
         configs.append(config)
 
