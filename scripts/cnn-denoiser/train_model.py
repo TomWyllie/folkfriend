@@ -9,8 +9,8 @@ from tensorflow import keras
 
 
 def main(args):
-    train_ds = CNNDataset(args.dir, sub_dir='train', size_cap=1000)
-    val_ds = CNNDataset(args.dir, sub_dir='val', size_cap=100)
+    train_ds = CNNDataset(args.dir, sub_dir='train', size_cap=10000)
+    val_ds = CNNDataset(args.dir, sub_dir='val', size_cap=1000)
 
     train_data, train_steps = train_ds.build(args.batch_size)
     val_data, _ = val_ds.build(args.batch_size)

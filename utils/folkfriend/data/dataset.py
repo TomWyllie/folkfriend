@@ -147,6 +147,7 @@ class DatasetEntry:
             else:
                 abc_lines.append('%%MIDI gchordoff')
             abc_lines.extend([
+                'V:{:d}'.format(i + 1),
                 '%%MIDI program {:d}'.format(melody),
                 '%%MIDI transpose {:d}'.format(transpositions[i])
             ] + abc_body)

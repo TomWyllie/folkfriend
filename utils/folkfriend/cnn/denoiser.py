@@ -32,6 +32,8 @@ class CNNDenoiser:
         input_mat = spec_to_cnn_input(spectrogram)
         prediction = self.model(input_mat, training=False)
 
-        mask = pseudo_to_spec(np.round(prediction))
+        # mask = pseudo_to_spec(np.round(prediction))
+        mask = pseudo_to_spec(prediction.numpy())
+
         denoised = mask * spectrogram
         return mask, denoised
