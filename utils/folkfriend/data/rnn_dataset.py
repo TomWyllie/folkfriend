@@ -3,7 +3,7 @@ import re
 
 import tensorflow as tf
 from folkfriend import ff_config
-from folkfriend.data.data_ops import load_pseudo_spec_png
+from folkfriend.data.tf_data_ops import load_pseudo_spec_png
 
 
 class UnsupportedFormatError(Exception):

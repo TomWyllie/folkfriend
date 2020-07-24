@@ -1,7 +1,7 @@
 import tensorflow as tf
 from folkfriend import ff_config
 
-from folkfriend.data.data_ops import load_pseudo_spec_png
+from folkfriend.data.tf_data_ops import load_pseudo_spec_png
 from folkfriend.rnn.model import build_model
 from folkfriend.data.abc import ABC_MAP
 
