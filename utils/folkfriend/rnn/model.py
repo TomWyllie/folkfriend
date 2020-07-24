@@ -38,8 +38,8 @@ def build_model():
     # x = layers.Reshape((-1, 64))(x)
 
     x = inputs
-    x = layers.Bidirectional(layers.LSTM(units=48, return_sequences=True))(x)
-    x = layers.Bidirectional(layers.LSTM(units=48, return_sequences=True))(x)
+    x = layers.Bidirectional(layers.LSTM(units=72, return_sequences=True))(x)
+    x = layers.Bidirectional(layers.LSTM(units=72, return_sequences=True))(x)
     # x = layers.Bidirectional(layers.LSTM(units=16, return_sequences=True))(x)
     # x = layers.Bidirectional(layers.LSTM(units=16, return_sequences=True))(x)
     # x = layers.Dropout(0.1)(x)
