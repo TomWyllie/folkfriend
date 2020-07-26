@@ -110,25 +110,42 @@ def generate_random_config(ds_dir, num):
         #   improve the melodic range of the model (few tunes will naturally
         #   contain outlier notes at extreme melodic range).
         transpositions = [random.choice(range(-11, 12))]
-
-        # TODO pick the pitch closest to 440Hz as the lead (???)
         lo = transpositions[0] < 0
+        shifted = False
+
         for non_lead_melody in range(number_melodies - 1):
             shift = 0
-            if random.random() > 0.75:
+
+            # Sometimes add on a shifted octave if there's exactly two
+            #   melody instruments
+            if (non_lead_melody == 0 and number_melodies == 2
+                    and random.random() > 0.60):
                 # Add or minus an octave to the other melody voices
                 shift = 12 if lo else -12
+                shifted = True
+
             transpositions.append(transpositions[0] + shift)
 
-        # Pick the highest transposed instrument as the 'lead'
+        # Pick the lowest transposed instrument as the 'lead'
         #   the 'lead' is simply the first entry in the melody
         #   list, and is used to generate the mask.
-        transpositions = sorted(transpositions, reverse=True)
+        # We pick lowest because harmonics stack and there tends
+        #   to be more energy in lower bands. But the either
+        #   actually works and we've changed back and forth on this.
+        transpositions = sorted(transpositions)
+
+        melodies = random_melody_inst(number_melodies)
+
+        if shifted:
+            # Make sure we have an octave difference on the lead instrument.
+            #   Otherwise if the instrument an octave up is something much
+            #   quieter than the other instruments
+            melodies[-1] = melodies[0]
 
         config = {
             'index': i,
             'tune': random.choice(possible_tunes),
-            'melodies': random_melody_inst(number_melodies),
+            'melodies': melodies,
             'chords': random_accomp(number_accomps),
             'transpositions': transpositions,
             'tempo': get_random_tempo(),

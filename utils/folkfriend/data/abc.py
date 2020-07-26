@@ -37,5 +37,24 @@ def midi_to_abc(midi):
     return base + ',' * commas + "'" * apos
 
 
+def decoded_to_abc(decoded):
+    hold = 0
+    last_n = None
+    out = []
+
+    for n in decoded:
+        if n == last_n:
+            hold += 1
+            continue
+        elif hold:
+            out.append(str(hold + 1))
+            hold = 0
+
+        out.append(f' {midi_to_abc(ff_config.MIDI_LOW + n)}')
+        last_n = n
+
+    return ''.join(out)
+
+
 ABC_MAP = {i: midi_to_abc(ff_config.MIDI_LOW + i)
            for i in range(ff_config.MIDI_NUM)}
