@@ -1,8 +1,17 @@
 import csv
+import logging
 import math
+import os
+import subprocess
+import sys
 
 import numpy as np
+import py_midicsv
 from folkfriend import ff_config
+
+logging.basicConfig(level=logging.DEBUG,
+                    format='[%(name)s:%(lineno)s] %(message)s')
+log = logging.getLogger(os.path.basename(__file__))
 
 
 class CSVMidiNoteReader(csv.DictReader):
@@ -54,7 +63,7 @@ class CSVMidiNoteReader(csv.DictReader):
                 continue
 
             i = ff_config.MIDI_HIGH - note.pitch
-            pseudo_spectrogram[start_frame: end_frame, i: i+1] = 1
+            pseudo_spectrogram[start_frame: end_frame, i: i + 1] = 1
 
         return pseudo_spectrogram
 
@@ -86,7 +95,7 @@ class CSVMidiNoteReader(csv.DictReader):
 
         return notes
 
-    def to_note_contour(self, tempo, start_seconds, end_seconds=10):
+    def to_note_contour(self, tempo=125, start_seconds=None, end_seconds=None):
         """Quantise an arbitrary sequence of MIDI notes into all quavers.
 
         This results in some distortion of the melody but it should closely
@@ -112,11 +121,11 @@ class CSVMidiNoteReader(csv.DictReader):
             note.set_tempo(tempo)
 
             # Note occurs outwith range specified
-            if note.end < 1000 * start_seconds:
+            if start_seconds and note.end < 1000 * start_seconds:
                 music_time = note.end
                 output_time = note.end
                 continue
-            if note.start > 1000 * end_seconds:
+            if end_seconds and note.start > 1000 * end_seconds:
                 break
             else:
                 music_time += note.duration
@@ -189,3 +198,25 @@ class Note:
             pitch -= 12
 
         return ff_config.MIDI_MAP[pitch - ff_config.MIDI_LOW]
+
+
+def abc_to_midi(abc, midi_path, clean=True):
+    """Convert ABC text into a midi file."""
+
+    # Generate MIDI file with chords and actual instruments
+    captured = subprocess.run([
+        'abc2midi', '-',
+        '-quiet', '-silent',
+        '-NGUI' if clean else '',
+        '-o', midi_path
+    ],
+        input=abc.encode('utf-8'),
+        capture_output=True)
+    stderr = captured.stderr.decode('utf-8')
+    if stderr:
+        log.warning(stderr, file=sys.stderr)
+
+
+def midi_as_csv(midi_path):
+    midi_lines = py_midicsv.midi_to_csv(midi_path)
+    return [line.strip().replace(', ', ',') for line in midi_lines]
