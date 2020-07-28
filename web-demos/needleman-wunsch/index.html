@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+
+        <link rel="stylesheet" type="text/css" href="styles.css"/>
+
+        <script type="text/javascript" src="/js/nw.js"></script>
+        <script type="text/javascript" src="/js/simple-nw.js"></script>
+        <script type="text/javascript" src="/js/benchmark.js"></script>
+        <title>FolkFriend Benchmark</title>
+    </head>
+    <body>
+        <script>
+            window.onerror = function myErrorHandler(errorMsg, url, lineNumber) {
+                document.body.innerText += `<br>Error occurred: ${errorMsg}, ${url}:${lineNumber}`;
+                return false;
+            }
+        </script>
+        <h1 id="heading">Benchmark page v1.0</h1>
+        <table>
+            <thead>
+                <tr><th>Process</th><th>Duration (ms)</th></tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+        <p id="spinner">Benchmark in progress...</p>
+<!--        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" id="spinner">-->
+<!--            <circle cx="50" cy="50" r="45"/>-->
+<!--        </svg>-->
+    </body>
+</html>
