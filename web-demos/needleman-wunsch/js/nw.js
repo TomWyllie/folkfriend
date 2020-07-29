@@ -10,11 +10,6 @@
 
 let gl;
 
-// class NeedlemanWunschWebGL {
-//     constructor() {
-//         document.body.innerHTML += "constructed";
-//     }
-// }
 
 class NeedlemanWunschWebGL {
 // export class NeedlemanWunschWebGL {
@@ -192,6 +187,7 @@ class NeedlemanWunschWebGL {
     }
 
     initialiseStringTextures() {
+        console.time("initialiseStringTextures");
         for(let k = 0; k < this.partitions.length; k++) {
             const partition = this.partitions[k];
             const textureWidth = this.fragmentLength;
@@ -207,6 +203,7 @@ class NeedlemanWunschWebGL {
             const stringTexture = this.initialiseTexture(imgDataArray, textureWidth, textureHeight);
             this.partitions[k].texture = stringTexture;
         }
+        console.timeEnd("initialiseStringTextures");
     }
 
     initialisePingPongBuffers() {
@@ -330,6 +327,7 @@ class NeedlemanWunschWebGL {
     }
 
     executeSinglePartition(query, partition) {
+
         this.nextPartitionSize = partition.numPartitionedFragments;
 
         this.canvas.height = this.nextPartitionSize;
@@ -345,10 +343,14 @@ class NeedlemanWunschWebGL {
         // gl.bindTexture(gl.TEXTURE_2D, partition.texture);
         // gl.uniform1i(this.uStringsSampler, 1);
 
+        console.time("Binding texture partition");
+
         gl.activeTexture(gl.TEXTURE3 + partition.partitionNum);
         gl.bindTexture(gl.TEXTURE_2D, partition.texture);
         gl.uniform1i(this.uStringsSampler, 3 + partition.partitionNum);
         gl.activeTexture(gl.TEXTURE2);
+
+        console.timeEnd("Binding texture partition");
 
         const [ computeTextures, frameBuffers ] = this.initialisePingPongBuffers();
 
@@ -360,6 +362,8 @@ class NeedlemanWunschWebGL {
 
         // let debugPixels = new Uint8Array(4 * this.nextPartitionSize * this.diagWidth);
         // let debugPixels = new Uint8Array(4 * this.diagWidth);
+
+        console.time("Drawing buffers");
 
         for (let stage = 0; stage < this.indexData.length; stage++) {
             gl.uniform1i(this.uStage, stage);
@@ -393,14 +397,22 @@ class NeedlemanWunschWebGL {
 
         }
 
+
         // Avoid race condition - the gl.draw* commands are asynchronous.
         gl.finish();
+
+        console.timeEnd("Drawing buffers");
+
+        console.time("Reading data back from GPU");
 
         // let pixels = new Uint8Array(4 * this.nextPartitionSize * this.diagWidth);
         // gl.readPixels(0, 0, this.diagWidth, this.nextPartitionSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
         // console.log(pixels);
         let pixels = new Uint8Array(4 * this.nextPartitionSize);
         gl.readPixels(0, 0, 1, this.nextPartitionSize, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+        console.timeEnd("Reading data back from GPU");
+
         return pixels;
     }
 }

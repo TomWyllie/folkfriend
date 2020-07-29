@@ -5,6 +5,7 @@ function benchmark(shaderSources) {
     addResultsToPage(singleBenchmark(200, shaderSources));
     addResultsToPage(singleBenchmark(1000, shaderSources));
     addResultsToPage(singleBenchmark(10000, shaderSources));
+    addResultsToPage(singleBenchmark(100000, shaderSources));
 
     let spinner = document.querySelector("#spinner")
     document.body.removeChild(spinner);
@@ -43,12 +44,11 @@ function singleBenchmark(numFragments, shaderSources) {
 
     // TODO investigate failure cases for lengths larger then 120 or so
 
-    const query = random_array(80);
+    const query = random_array(64);
     let strings = [];
     for(let i = 0; i < numFragments; i++) {
-        strings.push(random_array(40));
+        strings.push(random_array(30));
     }
-
 
     // let query = [11, 4, 4, 6, 2, 4, 3, 10, 9, 6, 4, 5, 3, 5, 9, 4, 9, 11, 3, 10];
     // let strings = []
