@@ -9,6 +9,11 @@ function benchmark() {
             resources.fragmentShader,
             resources.fragment
         );
+
+        document.getElementById("execute").addEventListener("click", () => {
+            qe.execute();
+        });
+
         console.debug("initialise");
         qe.initialise();
     }).catch(console.error);

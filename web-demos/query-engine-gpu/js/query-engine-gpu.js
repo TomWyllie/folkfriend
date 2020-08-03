@@ -15,51 +15,59 @@ class QueryEngineGPU {
         this.vertexShaderSource = vertexShaderSource;
         this.fragmentShaderSource = fragmentShaderSource;
         this.fragment = fragment;
+
+        this.pingPongBuffers = [];
+        this.pingPongTextures = [];
+        this.pingPongState = false;
     }
 
     initialise() {
         this.canvas = document.createElement('canvas');
         this.canvas.width = this.fragment.width;
         this.canvas.height = this.fragment.height;
-        console.debug(this.fragment.width);
-        console.debug(this.fragment.height);
         this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
         const gl = this.gl;
-
-        // Debugging
-        document.body.appendChild(this.canvas);
 
         // Compile and initialise shaders and program from source GLSL files
         const vertexShader = this.createShader(gl.VERTEX_SHADER, this.vertexShaderSource);
         const fragmentShader = this.createShader(gl.FRAGMENT_SHADER, this.fragmentShaderSource);
         this.program = this.createProgram(vertexShader, fragmentShader);
-        const program = this.program;
 
         // Clear the canvas
-        // TODO clear more cleverly
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
-        // This is only needed if we actually view the ping-pong buffer,
-        //  ie only if debugging.
+        // Debugging
+        console.debug(this.fragment.width);
+        console.debug(this.fragment.height);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        document.body.appendChild(this.canvas);
 
-        gl.useProgram(program);
+        gl.useProgram(this.program);
 
         this.setupPositionBuffer();
+        this.setupPingPongBuffers();
+
         this.setUniform("fragmentSize", FRAGMENT_SIZE);
         this.setUniform("fragmentsX", this.canvas.width / FRAGMENT_SIZE);
         this.setUniform("fragmentsY", this.canvas.height);
 
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
-    execute(queryArray) {
+    execute() {
+        console.log("Execute");
+        const gl = this.gl;
 
         // before draw arrays
         // getShaderUniforms(...)
         // setShaderUniforms(...)
 
+        let i = this.pingPongState ? 1 : 0;
+        // gl.bindFramebuffer(gl.FRAMEBUFFER, this.pingPongBuffers[i]);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.bindTexture(gl.TEXTURE_2D, this.pingPongTextures[1 - i]);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        this.pingPongState = !this.pingPongState;
     }
 
     setupPositionBuffer() {
@@ -87,6 +95,37 @@ class QueryEngineGPU {
         gl.vertexAttribPointer(positionAttributeLocation, 2,
             gl.FLOAT, false, 0, 0);
 
+    }
+
+    setupPingPongBuffers() {
+        const gl = this.gl;
+        // Set up our ping-pong textures
+        for (let i = 0; i < 2; i++) {
+            let tex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            gl.texImage2D(
+                gl.TEXTURE_2D, 0, gl.RGBA,
+                this.canvas.width,
+                this.canvas.height,
+                0, gl.RGBA, gl.UNSIGNED_BYTE,
+                null    // No data to start with
+            );
+
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+            let fb = gl.createFramebuffer();
+            fb.width = this.canvas.width;
+            fb.height = this.canvas.height;
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            this.pingPongTextures.push(tex);
+            this.pingPongBuffers.push(fb);
+        }
     }
 
     getShaderUniforms(queryLength, fragmentLength, stage) {
