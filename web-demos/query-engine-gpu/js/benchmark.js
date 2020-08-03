@@ -16,7 +16,6 @@ function benchmark() {
     }).catch(console.error);
 }
 
-// Old iOS doesn't support async / await keywords ...
 function fetchShaderResources() {
     // TODO load in multiple fragments
     let fragmentPromise = loadFragmentsAsync("/small-data.png");
