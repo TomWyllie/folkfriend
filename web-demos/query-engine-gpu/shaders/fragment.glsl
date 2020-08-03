@@ -25,7 +25,7 @@ void main() {
   int fragmentIndex = fragmentYIndex * fragmentsX + fragmentXIndex;
 
   // View diagonal index values
-//   gl_FragColor = vec4(float(diagonalIndex) / float(fragmentSize), 0.0, 0.0, 1.0);
+   gl_FragColor = vec4(float(diagonalIndex) / float(fragmentSize), 0.0, 0.0, 1.0);
 
   // View fragment index values
 //   gl_FragColor = vec4(float(fragmentIndex) / float(fragmentsX * fragmentsY), 0.0, 0.0, 1.0);

@@ -11,8 +11,6 @@ function benchmark() {
         );
         console.debug("initialise");
         qe.initialise();
-
-
     }).catch(console.error);
 }
 
