@@ -21,6 +21,8 @@ class QueryEngineGPU {
         this.canvas = document.createElement('canvas');
         this.canvas.width = this.fragment.width;
         this.canvas.height = this.fragment.height;
+        console.debug(this.fragment.width);
+        console.debug(this.fragment.height);
         const gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
 
         // Debugging
@@ -43,6 +45,9 @@ class QueryEngineGPU {
         gl.useProgram(program);
 
         setupPositionBuffer(gl, program);
+        setUniform(gl, program, "fragmentSize", FRAGMENT_SIZE);
+        setUniform(gl, program, "fragmentsX", this.canvas.width / FRAGMENT_SIZE);
+        setUniform(gl, program, "fragmentsY", this.canvas.height);
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
@@ -57,7 +62,8 @@ function createShader(gl, type, source) {
     if (success) {
         return shader;
     }
-    console.error(gl.getShaderInfoLog(shader));
+    console.error(type === gl.VERTEX_SHADER ? "VERTEX" : "FRAGMENT",
+        gl.getShaderInfoLog(shader));
     gl.deleteShader(shader);
 }
 
@@ -73,6 +79,11 @@ function createProgram(gl, vertexShader, fragmentShader) {
     }
     console.error(gl.getProgramInfoLog(program));
     gl.deleteProgram(program);
+}
+
+function setUniform(gl, program, name, value) {
+    let loc = gl.getUniformLocation(program, name);
+    gl.uniform1i(loc, value);
 }
 
 function setupPositionBuffer(gl, program) {

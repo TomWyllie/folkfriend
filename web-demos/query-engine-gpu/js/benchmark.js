@@ -9,6 +9,7 @@ function benchmark() {
             resources.fragmentShader,
             resources.fragment
         );
+        console.debug("initialise");
         qe.initialise();
 
 
@@ -42,16 +43,9 @@ function loadShaderAsync(shader) {
 
 function loadFragmentsAsync(fragment) {
     // Fragment is a URL to a .png file
-    return fetch(fragment)
-        .then( r => r.arrayBuffer() )
-        .then( ab => URL.createObjectURL(
-            new Blob(
-                [ab],
-                {type: 'image/png'}
-            )
-        )).then( src => {
-            const img = document.createElement('img');
-            img.src = src;
-            return img;
-        }).catch(console.error);
+    let image = new Image();
+    return new Promise(resolve => {
+        image.src = fragment;
+        image.onload = () => resolve(image);
+    });
 }
