@@ -8,13 +8,21 @@
 //     }
 // };
 
-FRAGMENT_SIZE = 64;
+FRAGMENT_LENGTH = 64;
 
 class QueryEngineGPU {
+    // noinspection JSUnusedLocalSymbols
     constructor(vertexShaderSource, fragmentShaderSource, fragment) {
         this.vertexShaderSource = vertexShaderSource;
         this.fragmentShaderSource = fragmentShaderSource;
-        this.fragment = fragment;
+
+        // Dummy data of [1, 2, 3, ..., 63]
+        let dummyFragment = [];
+        for(let i = 0; i < FRAGMENT_LENGTH; i++) {
+            dummyFragment.push(i);
+        }
+        this.fragment = this.queryToImgData(dummyFragment);
+        // this.fragment = fragment;
 
         this.pingPongBuffers = [];
         this.pingPongTextures = [];
@@ -23,7 +31,8 @@ class QueryEngineGPU {
 
     initialise() {
         this.canvas = document.createElement('canvas');
-        this.canvas.width = this.fragment.width;
+        // this.canvas.width = this.fragment.width;
+        this.canvas.width = 4 * this.fragment.width;
         this.canvas.height = this.fragment.height;
         this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
         const gl = this.gl;
@@ -34,40 +43,108 @@ class QueryEngineGPU {
         this.program = this.createProgram(vertexShader, fragmentShader);
 
         // Clear the canvas
-        gl.clearColor(0, 0, 0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.clearColor(127.0/255.0, 127.0/255.0, 0, 0);
 
         // Debugging
-        console.debug(this.fragment.width);
-        console.debug(this.fragment.height);
-        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-        document.body.appendChild(this.canvas);
+        // console.debug(this.fragment.width);
+        // console.debug(this.fragment.height);
+        // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        // document.body.appendChild(this.canvas);
 
         gl.useProgram(this.program);
 
+        // Set up core WebGL components, including vertices and the ping
+        //  pong buffers.
         this.setupPositionBuffer();
-        this.setupPingPongBuffers();
+        this.setupPingPongTextures();
+        this.clearPingPongTextures();
 
-        this.setUniform("fragmentSize", FRAGMENT_SIZE);
-        this.setUniform("fragmentsX", this.canvas.width / FRAGMENT_SIZE);
+        // Load in some global constants
+        this.setUniform("fragmentLength", FRAGMENT_LENGTH);
+
+        if(this.canvas.width % FRAGMENT_LENGTH !== 0) {
+            throw `Canvas width / Fragment length mismatch (${this.canvas.width}, ${FRAGMENT_LENGTH})`
+        }
+
+        this.setUniform("fragmentsX", this.canvas.width / FRAGMENT_LENGTH);
         this.setUniform("fragmentsY", this.canvas.height);
 
+        // Set up samplers so we can access data from textures
+
+        // TEXTURE      ID
+        // Ping pong    0
+        // Query        1
+        // Fragments    2
+
+        gl.activeTexture(gl.TEXTURE0);
+        this.pingPongSampler = gl.getUniformLocation(this.program, "lastStage");
+        gl.uniform1i(this.pingPongSampler, 0);
+
+        this.setupDataTexture(this.fragment, "fragments", 2)
     }
 
-    execute() {
+    execute(query) {
         console.log("Execute");
         const gl = this.gl;
 
-        // before draw arrays
-        // getShaderUniforms(...)
-        // setShaderUniforms(...)
+        this.setUniform("queryLength", query.length);
+        const queryImgData = this.queryToImgData(query);
+        this.setUniform("queryImgDataLength", queryImgData.length);
+        this.setupDataTexture(queryImgData, "query", 1);
 
-        let i = this.pingPongState ? 1 : 0;
-        // gl.bindFramebuffer(gl.FRAMEBUFFER, this.pingPongBuffers[i]);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.bindTexture(gl.TEXTURE_2D, this.pingPongTextures[1 - i]);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        this.pingPongState = !this.pingPongState;
+        const numStages = query.length + FRAGMENT_LENGTH - 1;
+
+        gl.activeTexture(gl.TEXTURE0);
+        let uniforms;
+
+        for(let stage = 1; stage <= numStages; stage++) {
+            let i = this.pingPongState ? 1 : 0;
+
+            // Update various offsets that have changed on this iteration
+            uniforms = this.getShaderUniforms(query.length, FRAGMENT_LENGTH, stage);
+            console.log(uniforms);
+            this.setShaderUniforms(uniforms);
+
+            // Calculate next frame
+            gl.bindFramebuffer(gl.FRAMEBUFFER, this.pingPongBuffers[i]);
+            gl.bindTexture(gl.TEXTURE_2D, this.pingPongTextures[1 - i]);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            this.pingPongState = !this.pingPongState;
+
+
+            // Debugging
+            let pixels = new Uint8Array(uniforms.length * 4);
+            gl.readPixels(0, 0, uniforms.length, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+            // gl.readPixels(0, 0, 1, 256, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+            let rChannel = [];
+            for(let i = 0; i < pixels.length; i+=4) {
+                rChannel.push(pixels[i]);
+            }
+            console.log(rChannel);
+        }
+    }
+
+    queryToImgData(query) {
+        // Query is an array of values between the range of notes that
+        //  the FolkFriend backend can output.
+        // We'll store consecutive values as R,G,B,A,R,G,B,A,R,G,B...
+        // We'll also pad out with zeros to a power of two size
+        //  to keep WebGL happy
+
+        let numPixels = Math.max(1, Math.pow(2, Math.ceil(Math.log2(query.length / 4))));
+        let pixels = new Uint8ClampedArray(4 * numPixels);
+        pixels.fill(0);
+
+        for(let i = 0; i < query.length; i++) {
+            // This factor of four is unimportant.
+            //  TODO we should take it out, it just maxes the
+            //  range of values bigger and easier to see in the
+            //  input PNG file.
+            pixels[i] = 4 * query[i];
+        }
+
+        return new ImageData(pixels, numPixels, 1);
     }
 
     setupPositionBuffer() {
@@ -97,7 +174,7 @@ class QueryEngineGPU {
 
     }
 
-    setupPingPongBuffers() {
+    setupPingPongTextures() {
         const gl = this.gl;
         // Set up our ping-pong textures
         for (let i = 0; i < 2; i++) {
@@ -121,11 +198,34 @@ class QueryEngineGPU {
 
             gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
             gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-            gl.clear(gl.COLOR_BUFFER_BIT);
 
             this.pingPongTextures.push(tex);
             this.pingPongBuffers.push(fb);
         }
+    }
+
+    clearPingPongTextures() {
+        const gl = this.gl;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.pingPongBuffers[0]);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.pingPongBuffers[1]);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+
+    setupDataTexture(data, name, id) {
+        const gl = this.gl;
+        const tex = gl.createTexture();
+        const sampler = gl.getUniformLocation(this.program, name);
+        gl.activeTexture(gl.TEXTURE0 + id);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
+
+        gl.uniform1i(sampler, id);
+        return {tex: tex, sampler: sampler}
     }
 
     getShaderUniforms(queryLength, fragmentLength, stage) {
@@ -361,7 +461,7 @@ class QueryEngineGPU {
         let length, firstIndexTop, lastIndexBottom, tMinusOneOffset, tMinusTwoOffset, queryOffset, fragmentOffset;
 
         firstIndexTop = stage <= fragmentLength;
-        lastIndexBottom = stage <= queryLength;
+        lastIndexBottom = stage > queryLength;
 
         if(stage >= 1 && stage < min) {
             length = stage;
@@ -414,7 +514,6 @@ class QueryEngineGPU {
     }
 
     setUniform(name, value) {
-
         let loc = this.gl.getUniformLocation(this.program, name);
         this.gl.uniform1i(loc, value);
     }

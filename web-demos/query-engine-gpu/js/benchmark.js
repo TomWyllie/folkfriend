@@ -11,7 +11,7 @@ function benchmark() {
         );
 
         document.getElementById("execute").addEventListener("click", () => {
-            qe.execute();
+            qe.execute([4, 5, 6, 7, 8, 9, 10]);
         });
 
         console.debug("initialise");
