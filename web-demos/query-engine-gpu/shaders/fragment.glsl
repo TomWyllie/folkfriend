@@ -2,31 +2,30 @@ precision mediump float;
 precision mediump int;
 
 // This is how we know where we are in the texture
-varying vec2 pixelSpacePositionFloat;
+varying vec2 pos;
 
 // This is how we access texture data
 uniform sampler2D lastStage;// Load the data from the last stage
-uniform sampler2D fragments;
+uniform sampler2D shards;
 uniform sampler2D query;
 
 // Global constant ints
-uniform int fragmentLength;
-uniform int fragmentsX;// input texture width / fragmentSize
-uniform int fragmentsY;// input texture height
+uniform float shardLength;
+uniform float numShardsX;
 
 // Constant for duration of computation but need to 
 //  know query first.
-uniform int queryLength;
-uniform int queryImgDataLength;
+uniform float queryLength;
+uniform float queryImgDataLength;
 
 // These are updated on each step (but might not change every step)
 uniform int length;
 uniform bool firstIndexTop;
-uniform bool lastIndexBottom;
-uniform int tMinusOneOffset;
-uniform int tMinusTwoOffset;
-uniform int fragmentOffset;
-uniform int queryOffset;
+uniform bool lastIndexLeft;
+uniform float tMinusOneOffset;
+uniform float tMinusTwoOffset;
+uniform float shardColOffset;
+uniform float queryColOffset;
 
 /*
     Query texture (Really 1D, implemented as 2D):
@@ -73,160 +72,115 @@ uniform int queryOffset;
     */
 
 
-//ivec2 getTMinusOneScores(diagonalIndex, fragmentXIndex, fragmentYIndex) {
-//    int index = fragmentXIndex * fragmentLength + diagonalIndex + tMinusOneOffset;
-//    float fIndexXLeft = float(index) / float(fragmentXIndex * fragmentLength - 1);
-//    float fIndexXTop = float(index - 1) / float(fragmentXIndex * fragmentLength - 1);
-//    float fIndexY = float(fragmentYIndex) / float(fragmentsY);
-//    float pixelLeft = texture2D(lastStage, vec2(fIndexXLeft, fIndexY));
-//    float pixelTop = texture2D(lastStage, vec2(fIndexXTop, fIndexY));
-//    return ivec2(int(255.0 * pixelLeft.r), int(255.0 * pixelTop.r));
-//}
-
-int getTMinusTwoScore(int diagonalIndex, int fragmentXIndex, int fragmentYIndex) {
-    int index = fragmentXIndex * fragmentLength + diagonalIndex + tMinusTwoOffset;
-    float fIndexX = float(index) / float(fragmentXIndex * fragmentLength - 1);
-    float fIndexY = float(fragmentYIndex) / float(fragmentsY);
-    vec4 pixel = texture2D(lastStage, vec2(fIndexX, fIndexY));
-    return int(255.0 * pixel.g);
-}
-
-int getFragmentCharacter(int diagonalIndex, int fragmentXIndex, int fragmentYIndex) {
-    int index = fragmentXIndex * fragmentLength + fragmentOffset - diagonalIndex;
-    float fIndexX = float(index) / float(fragmentXIndex * fragmentLength - 1);
-    float fIndexY = float(fragmentYIndex) / float(fragmentsY);
-    vec4 fChar = texture2D(fragments, vec2(fIndexX, fIndexY));
-    int char = int(fChar.r * 255.0);
-    return char;
-}
-
-int getQueryCharacter(int diagonalIndex) {
-    int index = queryOffset + diagonalIndex;
-    int pixelType = int(mod(float(index), 4.0));
-    int pixelIndex = int(floor(float(index) / 4.0));
-
-    float fPixelIndex = float(pixelIndex) / float(queryImgDataLength - 1);
-    vec4 pixel = texture2D(query, vec2(fPixelIndex, 0.5));
-
-    // TODO investigate if this branching is worth the tiny memory efficiency
-    //  from stacking values into pixels
-    float fChar;
-    if (pixelType == 0) {
-        fChar = pixel.r;
-    } else if (pixelType == 1) {
-        fChar = pixel.g;
-    } else if (pixelType == 2) {
-        fChar = pixel.b;
-    } else if (pixelType == 3) {
-        fChar = pixel.a;
-    }
-
-    int char = int(fChar * 255.0);
-    return char;
-}
-
 float computeCell() {
-    // Pixel space position goes from range [0, 1] on X and Y
-    // We want to map this to [0, ping pong buffer width) on X
-    // We want to map this to [0, ping pong buffer height) on Y
-    ivec2 pixelSpacePosition = ivec2(
-        int(pixelSpacePositionFloat.x * (float(fragmentsX * fragmentLength) - 1.0)),
-        int(pixelSpacePositionFloat.y * (float(fragmentsY) - 1.0))
-    );
+    // Length refers to unnormalised, width refers to in the image buffer
+    float shardWidth = 1.0 / numShardsX;
 
-    // The number of entries in the alignment matrix separating
-    //  this pixel from the top or right edge, traversed in a
-    //  diagonal line (top right to / from bottom left)
-    int diagonalIndex = int(mod(float(pixelSpacePosition.x), float(fragmentLength)));
+    // One pixel in the X direction for shard textures
+    float px = shardWidth / shardLength;
 
-    if (diagonalIndex >= length) {
+    // One pixel in the X direction for the query texture
+    float pxq = 1.0 / queryImgDataLength;
+
+    float diagonalCols = mod(pos.x, shardWidth);    // X position contribution from progress through current shard
+    float shardCols = pos.x - diagonalCols;         // X position contribution from diagonalOffset complete shards
+
+    // Adjust penalties to handle edge cases
+    float leftGapPenalty = 1.0;
+    float aboveGapPenalty = 1.0;
+    float mismatchPenalty = 2.0;
+
+    // Cannot rely on diagonalCols being == 0.0 directly.
+    // For example if shardLength = 64, numShardsX = 1, then 64 values
+    //  exist. If we scale out this value as an 8-bit integer ie multiplying
+    //  by 255.0 then we see the values are 2, 6, 10, ..., as the sampler
+    //  chooses a central value. Use an integer instead (see below)
+
+    // Integer of how many diagonal entries we'd have to step over to get to
+    //  the TOP or RIGHT edge of the alignment matrix. If this is 0 or length - 1
+    //  then we have an edge case.
+    int diagonalEntriesToEdge = int(diagonalCols * shardLength * numShardsX);
+
+    // This entry isn't part of the alignment buffer at this stage.
+    if (diagonalEntriesToEdge >= length) {
         return 0.0;   // 0 = unused
     }
 
-    int leftGapPenalty = 1;
-    int topGapPenalty = 1;
-    int mismatchPenalty = 2;
+    // ========================================
+    // === Load in data from last iteration ===
+    // ========================================
 
-    if (diagonalIndex == length - 1) {
-        if (lastIndexBottom) {
-            leftGapPenalty = 0;
-        } else {
-//            return 127.0;     // 127 = origin
-            return 120.0;     // 127 = origin
-        }
+    // Note: these values can be assigned meaningless values if
+    //  we're at a buffer edge, in which the scores are handled
+    //  differently.
+
+    float cellLeftCol = tMinusOneOffset * px;
+    float cellAboveCol = (tMinusOneOffset - 1.0) * px;
+    float cellAboveLeftCol = tMinusTwoOffset * px;
+
+    vec4 cellLeft = texture2D(lastStage, vec2(pos.x + cellLeftCol, pos.y));
+    vec4 cellAbove = texture2D(lastStage, vec2(pos.x + cellAboveCol, pos.y));
+    vec4 cellAboveLeft = texture2D(lastStage, vec2(pos.x + cellAboveLeftCol, pos.y));
+
+    float scoreLeft = 255.0 * cellLeft.r;
+    float scoreAbove = 255.0 * cellAbove.r;
+    float scoreAboveleft = 255.0 * cellAboveLeft.g;
+
+    // ====================================================
+    // === Load in notes from query and shards textures ===
+    // ====================================================
+
+    // These columns are relative to the start of the shard / query.
+    float shardNoteColRel = float(shardColOffset) * px - diagonalCols;
+    float queryNoteColRel = (queryColOffset + float(diagonalEntriesToEdge)) * pxq;
+
+    vec4 pixelShardNote = texture2D(shards, vec2(shardCols + shardNoteColRel, pos.y));
+    vec4 pixelQueryNote = texture2D(query, vec2(queryNoteColRel, 0.5));     // 0.5 because only 1 row
+
+    if (pixelShardNote.r == pixelQueryNote.r) {
+        mismatchPenalty = -2.0;   // Negative penalty is reward
     }
 
-    if (diagonalIndex == 0) {
+    // ==========================================
+    // === Handle alignment buffer edge cases ===
+    // ==========================================
+
+    if (diagonalEntriesToEdge == 0) {
         if (firstIndexTop) {
-//            return 127.0;     // 127 = origin
-            return 130.0;     // 127 = origin
+            // No cell exists anywhere above, as we are on the top edge
+            scoreAbove = 127.0;         // 127 = origin
+            scoreAboveleft = 127.0;     // 127 = origin
         } else {
-            topGapPenalty = 0;
+            aboveGapPenalty = 0.0;
         }
     }
 
-    // Which fragment does this pixel correspond to?
-    int fragmentXIndex = int(floor(float(pixelSpacePosition.x) / float(fragmentLength)));
-    int fragmentYIndex = pixelSpacePosition.y;
-
-        int index = fragmentXIndex * fragmentLength + diagonalIndex + tMinusOneOffset;
-    float fIndexXLeft = float(index) / float(fragmentXIndex * fragmentLength - 1);
-    float fIndexXTop = float(index - 1) / float(fragmentXIndex * fragmentLength - 1);
-    float fIndexY = float(fragmentYIndex) / float(fragmentsY);
-    vec4 pixelLeft = texture2D(lastStage, vec2(fIndexXLeft, fIndexY));
-    vec4 pixelTop = texture2D(lastStage, vec2(fIndexXTop, fIndexY));
-    int leftScoreLast = int(255.0 * pixelLeft.r);
-    int topScoreLast = int(255.0 * pixelTop.r);
-
-
-    int tMinusTwoScore = getTMinusTwoScore(diagonalIndex, fragmentXIndex, fragmentYIndex);
-    int fragChar = getFragmentCharacter(diagonalIndex, fragmentXIndex, fragmentYIndex);
-    int queryChar = getQueryCharacter(diagonalIndex);
-
-    if (fragChar == queryChar) {
-        mismatchPenalty = -2;   // Negative penalty is reward
+    if (diagonalEntriesToEdge == length - 1) {
+        if (lastIndexLeft) {
+            // No cell exists anywhere to the left, as we are on the left edge
+            scoreLeft = 127.0;          // 127 = origin
+            scoreAboveleft = 127.0;     // 127 = origin
+        } else {
+            // Cells exist to the left and the top, but we need to set the
+            //  left gap penalty differently to allow high scores to
+            //  propagate.
+            leftGapPenalty = 0.0;
+        }
     }
 
-    int topScore = topScoreLast - topGapPenalty;
-    int leftScore = leftScoreLast - leftGapPenalty;
-    int topLeftScore = tMinusTwoScore - mismatchPenalty;
+    // Now that we have loaded in relevant scores and penalties,
+    //  apply the penalties to update the scores and return the
+    //  best value.
 
-    return max(max(float(topScore), float(leftScore)), float(topLeftScore));
+    scoreLeft -= leftGapPenalty;
+    scoreAbove -= aboveGapPenalty;
+    scoreAboveleft -= mismatchPenalty;
+
+    return max(max(scoreLeft, scoreAbove), scoreAboveleft);
 }
 
 void main() {
-    /*
-    //  // Pixel space position goes from range [0, 1] on X and Y
-    //  // We want to map this to [0, ping pong buffer width) on X
-    //  // We want to map this to [0, ping pong buffer height) on Y
-    //  ivec2 pixelSpacePosition = ivec2(
-    //    int(pixelSpacePositionFloat.x * (float(fragmentsX * fragmentSize) - 1.0)),
-    //    int(pixelSpacePositionFloat.y * (float(fragmentsY) - 1.0))
-    //  );
-    //
-    //  // The number of entries in the alignment matrix separating
-    //  //  this pixel from the top or right edge, traversed in a
-    //  //  diagonal line (top right to / from bottom left)
-    //  int diagonalIndex = int(mod(float(pixelSpacePosition.x), float(fragmentSize)));
-    //
-    //  // Which fragment does this pixel correspond to?
-    //  int fragmentXIndex = int(floor(float(pixelSpacePosition.x) / float(fragmentSize)));
-    //  int fragmentYIndex = pixelSpacePosition.y;
-
-    // Index from top left to right, then down to next row.
-    //  int fragmentIndex = fragmentYIndex * fragmentsX + fragmentXIndex;
-
-    // View diagonal index values
-    //   gl_FragColor = vec4(float(diagonalIndex) / float(fragmentSize), 0.0, 0.0, 1.0);
-
-    // View fragment index values
-    //   gl_FragColor = vec4(float(fragmentIndex) / float(fragmentsX * fragmentsY), 0.0, 0.0, 1.0);
-
-    //  gl_FragColor =  texture2D(lastStage, pixelSpacePositionFloat) + float(diagonalIndex) / 255.0;
-    //  gl_FragColor =  texture2D(lastStage, pixelSpacePositionFloat) + float(fragmentIndex) / 1024.0;
-    //  gl_FragColor =  texture2D(fragments, pixelSpacePositionFloat);
-*/
-    vec4 lastState = texture2D(lastStage, pixelSpacePositionFloat);
+    vec4 lastState = texture2D(lastStage, pos);
     float nextCell = computeCell();
-    gl_FragColor =  vec4(float(nextCell)/255.0, lastState.r, 0.0, 0.0);
+    gl_FragColor =  vec4(nextCell/255.0, lastState.r, 0.0, 0.0);
 }

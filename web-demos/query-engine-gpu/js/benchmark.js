@@ -11,7 +11,8 @@ function benchmark() {
         );
 
         document.getElementById("execute").addEventListener("click", () => {
-            qe.execute([4, 5, 6, 7, 8, 9, 10]);
+            let arrs = qe.execute([4, 5, 6, 7]);
+            console.debug(arrs);
         });
 
         console.debug("initialise");
@@ -21,7 +22,8 @@ function benchmark() {
 
 function fetchShaderResources() {
     // TODO load in multiple fragments
-    let fragmentPromise = loadFragmentsAsync("/small-data.png");
+    // let fragmentPromise = loadFragmentsAsync("/small-data.png");
+    let fragmentPromise = loadFragmentsAsync("/dummy_shards.png");
 
     return new Promise(resolve => {
         Promise.all([

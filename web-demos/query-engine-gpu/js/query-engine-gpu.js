@@ -8,21 +8,21 @@
 //     }
 // };
 
-FRAGMENT_LENGTH = 64;
+SHARD_LENGTH = 64;
 
 class QueryEngineGPU {
     // noinspection JSUnusedLocalSymbols
-    constructor(vertexShaderSource, fragmentShaderSource, fragment) {
+    constructor(vertexShaderSource, fragmentShaderSource, shard) {
         this.vertexShaderSource = vertexShaderSource;
         this.fragmentShaderSource = fragmentShaderSource;
 
         // Dummy data of [1, 2, 3, ..., 63]
-        let dummyFragment = [];
-        for(let i = 0; i < FRAGMENT_LENGTH; i++) {
-            dummyFragment.push(i);
-        }
-        this.fragment = this.queryToImgData(dummyFragment);
-        // this.fragment = fragment;
+        // let dummyShard = [];
+        // for(let i = 0; i < SHARD_LENGTH; i++) {
+        //     dummyShard.push(i);
+        // }
+        // this.shard = this.queryToImgData(dummyShard);
+        this.shard = shard;
 
         this.pingPongBuffers = [];
         this.pingPongTextures = [];
@@ -31,9 +31,8 @@ class QueryEngineGPU {
 
     initialise() {
         this.canvas = document.createElement('canvas');
-        // this.canvas.width = this.fragment.width;
-        this.canvas.width = 4 * this.fragment.width;
-        this.canvas.height = this.fragment.height;
+        this.canvas.width = this.shard.width;
+        this.canvas.height = this.shard.height;
         this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
         const gl = this.gl;
 
@@ -46,8 +45,8 @@ class QueryEngineGPU {
         gl.clearColor(127.0/255.0, 127.0/255.0, 0, 0);
 
         // Debugging
-        // console.debug(this.fragment.width);
-        // console.debug(this.fragment.height);
+        // console.debug(this.shard.width);
+        // console.debug(this.shard.height);
         // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         // document.body.appendChild(this.canvas);
 
@@ -60,27 +59,27 @@ class QueryEngineGPU {
         this.clearPingPongTextures();
 
         // Load in some global constants
-        this.setUniform("fragmentLength", FRAGMENT_LENGTH);
+        this.setUniform("shardLength", SHARD_LENGTH);
 
-        if(this.canvas.width % FRAGMENT_LENGTH !== 0) {
-            throw `Canvas width / Fragment length mismatch (${this.canvas.width}, ${FRAGMENT_LENGTH})`
+        if(this.canvas.width % SHARD_LENGTH !== 0) {
+            throw `Canvas width / Shard length mismatch (${this.canvas.width}, ${SHARD_LENGTH})`
         }
 
-        this.setUniform("fragmentsX", this.canvas.width / FRAGMENT_LENGTH);
-        this.setUniform("fragmentsY", this.canvas.height);
+        this.numShardsX = this.canvas.width / SHARD_LENGTH;
+        this.setUniform("numShardsX", this.numShardsX);
 
         // Set up samplers so we can access data from textures
 
         // TEXTURE      ID
         // Ping pong    0
         // Query        1
-        // Fragments    2
+        // shards    2
 
         gl.activeTexture(gl.TEXTURE0);
         this.pingPongSampler = gl.getUniformLocation(this.program, "lastStage");
         gl.uniform1i(this.pingPongSampler, 0);
 
-        this.setupDataTexture(this.fragment, "fragments", 2)
+        this.setupDataTexture(this.shard, "shards", 2)
     }
 
     execute(query) {
@@ -89,10 +88,10 @@ class QueryEngineGPU {
 
         this.setUniform("queryLength", query.length);
         const queryImgData = this.queryToImgData(query);
-        this.setUniform("queryImgDataLength", queryImgData.length);
+        this.setUniform("queryImgDataLength", queryImgData.width);
         this.setupDataTexture(queryImgData, "query", 1);
 
-        const numStages = query.length + FRAGMENT_LENGTH - 1;
+        const numStages = query.length + SHARD_LENGTH - 1;
 
         gl.activeTexture(gl.TEXTURE0);
         let uniforms;
@@ -101,7 +100,7 @@ class QueryEngineGPU {
             let i = this.pingPongState ? 1 : 0;
 
             // Update various offsets that have changed on this iteration
-            uniforms = this.getShaderUniforms(query.length, FRAGMENT_LENGTH, stage);
+            uniforms = this.getShaderUniforms(query.length, SHARD_LENGTH, stage);
             console.log(uniforms);
             this.setShaderUniforms(uniforms);
 
@@ -111,18 +110,40 @@ class QueryEngineGPU {
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             this.pingPongState = !this.pingPongState;
 
-
-            // Debugging
-            let pixels = new Uint8Array(uniforms.length * 4);
-            gl.readPixels(0, 0, uniforms.length, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-            // gl.readPixels(0, 0, 1, 256, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-
-            let rChannel = [];
-            for(let i = 0; i < pixels.length; i+=4) {
-                rChannel.push(pixels[i]);
-            }
-            console.log(rChannel);
+            // // Debugging
+            // // TODO uniforms.length is bad practice lol
+            // let pixels = new Uint8Array(uniforms.length[0] * 4);
+            // gl.readPixels(SHARD_LENGTH, 0, uniforms.length[0], 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+            // // gl.readPixels(0, 0, 1, 256, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+            //
+            // let rChannel = [];
+            // for(let i = 0; i < pixels.length; i+=4) {
+            //     rChannel.push(pixels[i]);
+            // }
+            // console.log(rChannel);
         }
+
+        // Now that the computation is finished we need to read out all the
+        //  final values. These are the bottom-right hand corner values of
+        //  the alignment matrix. As we have stacked shards vertically
+        //  and horizontally we have to take several reads to get this
+        //  data out. These are located in alignment buffer index 0
+        //  as the bottom corner has a diagonal length of 1.
+        let pixelArrs = [];
+        let pixels = new Uint8Array(this.canvas.height * 4);
+        for(let i = 0; i < this.numShardsX; i++) {
+            gl.readPixels(SHARD_LENGTH * i, 0, 1,
+                this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+            pixelArrs.push(pixels.slice());
+        }
+
+        let outputArr = [this.canvas.height * this.numShardsX];
+        for(let i = 0; i < this.numShardsX; i++) {
+            for(let j = 0; j < this.canvas.height; j++) {
+                outputArr[i*this.numShardsX + j] = pixelArrs[i][4*j] - 127;
+            }
+        }
+        return outputArr;
     }
 
     queryToImgData(query) {
@@ -132,16 +153,19 @@ class QueryEngineGPU {
         // We'll also pad out with zeros to a power of two size
         //  to keep WebGL happy
 
-        let numPixels = Math.max(1, Math.pow(2, Math.ceil(Math.log2(query.length / 4))));
+        // We store 1 query character per pixel. This is inefficient
+        //  from a memory point of view as we only have around 30-50
+        //  values but 32 bits per pixel. But it makes it much easier
+        //  in the shaders.
+        let numPixels = Math.max(1, Math.pow(2, Math.ceil(Math.log2(query.length))));
         let pixels = new Uint8ClampedArray(4 * numPixels);
         pixels.fill(0);
 
         for(let i = 0; i < query.length; i++) {
             // This factor of four is unimportant.
-            //  TODO we should take it out, it just maxes the
-            //  range of values bigger and easier to see in the
-            //  input PNG file.
-            pixels[i] = 4 * query[i];
+            //  It just maxes the range of values bigger
+            //  and easier to see in the input PNG file.
+            pixels[4*i] = 4 * query[i];
         }
 
         return new ImageData(pixels, numPixels, 1);
@@ -228,7 +252,7 @@ class QueryEngineGPU {
         return {tex: tex, sampler: sampler}
     }
 
-    getShaderUniforms(queryLength, fragmentLength, stage) {
+    getShaderUniforms(queryLength, shardLength, stage) {
         /*
         The only parameters that matter from the shader's point of view are
          - The length of the alignment buffer
@@ -244,17 +268,17 @@ class QueryEngineGPU {
          - The index offset for accessing a value from the alignment buffer
              that was calculated at time t-2 (the step before last).
          - The index offset for accessing a value from the query data
-         - The index offset for accessing a value from the fragment data
+         - The index offset for accessing a value from the shard data
 
         All of these parameters are a function only of the following parameters:
          - Query length
-         - Fragment length
+         - shard length
          - Alignment stage (which diagonal we are currently on)
 
         Let's take this slowly and look through a few examples.
 
         queryLength: 4
-        fragmentLength: 4
+        shardLength: 4
         stage: 2
 
         X = cells represented by the alignment buffer at this stage
@@ -292,13 +316,13 @@ class QueryEngineGPU {
 
         Every offset is the same for all values in a diagonal line.
 
-        The choice of which axis is the query and which is the fragment is
+        The choice of which axis is the query and which is the shard is
         insignificant as the final value will be taken as the bottom right
         entry either way, which remains the same under transposition. We
-        arbitrarily choose to run the fragment along the top and the query
+        arbitrarily choose to run the shard along the top and the query
         down the side;
 
-        <-- fragment length -->
+        <-- shard length -->
         /\
         |
         query length
@@ -306,9 +330,9 @@ class QueryEngineGPU {
         \/
 
         The cell in index 0 of the buffer shown therefore corresponds to
-        fragment array index 2 and query array index 0;
+        shard array index 2 and query array index 0;
 
-        fragmentOffset = 2      (and is always traversed negatively, ie step = -1)
+        shardOffset = 2      (and is always traversed negatively, ie step = -1)
         queryOffset = 0         (and is always traversed positively, ie step =  1)
 
 
@@ -317,7 +341,7 @@ class QueryEngineGPU {
         Let's look at the lengths first. Consider;
 
         queryLength: 5
-        fragmentLength: 9
+        shardLength: 9
 
         A B C D E F G H I
         B C D E F G H I J
@@ -330,20 +354,20 @@ class QueryEngineGPU {
             [1, 2, 3, 4, 5, 5, 5, 5, 5, 4, 3, 2, 1]
 
         Note that because each step right or down always moves us onto the next
-        diagonal, there are queryLength + fragmentLength - 1 steps required to
+        diagonal, there are queryLength + shardLength - 1 steps required to
         move from the first cell (the single A) to the last (the single M).
 
         If you like thinking about it like this, just assure yourself that
         M is the 13th letter of the alphabet and there are therefore 13
         diagonals, and thus 13 steps.
 
-        There are therefore queryLength + fragmentLength - 1 stages in total.
+        There are therefore queryLength + shardLength - 1 stages in total.
 
         In general, the rule for the lengths is as follows;
 
-        Denote min(query length, fragment length) as MIN
-        Denote max(query length, fragment length) as MAX
-        Denote query length + fragment length - 1
+        Denote min(query length, shard length) as MIN
+        Denote max(query length, shard length) as MAX
+        Denote query length + shard length - 1
             (or equivalently MIN + MAX - 1) as END
         Denote stage index as N, and this is ONE INDEXED
 
@@ -354,7 +378,7 @@ class QueryEngineGPU {
         Try this for a few of the values in the above matrix to convince yourself.
 
         Note that the middle stage may have a range of zero,
-            iff MIN = MAX iff query length = fragment length
+            iff MIN = MAX iff query length = shard length
 
         For example
 
@@ -369,7 +393,7 @@ class QueryEngineGPU {
 
         The "edge case flags" firstIndexTop and lastIndexBottom are fairly
         straightforward to devise rules for, the zero index is clearly in the top row
-        for all stages [1, fragment length], else it is on the right hand side.
+        for all stages [1, shard length], else it is on the right hand side.
         Similarly the last index (the index-value of which is determined as length - 1)
         is on the left side for all stages [1, query length], else it is on the
         bottom edge.
@@ -407,7 +431,7 @@ class QueryEngineGPU {
         Now consider the example
 
         queryLength: 7
-        fragmentLength: 3
+        shardLength: 3
 
         A B C
         B C D
@@ -424,14 +448,14 @@ class QueryEngineGPU {
         If these examples are clear to you, hopefully it should be clear that this
         generalises to
 
-        For stages [2, fragment length],    tMinusOneOffset = 0
-        For stages (fragment length, END],  tMinusOnfOffset = 1
+        For stages [2, shard length],    tMinusOneOffset = 0
+        For stages (shard length, END],  tMinusOnfOffset = 1
 
-        For stages [3, fragment length],                    tMinusTwoOffset = -1
-        For stage  (fragment length, fragment length + 1],  tMinusTwoOffset = 0
-        For stages (fragment length + 1, END]               tMinusTwoOffset = 1
+        For stages [3, shard length],                    tMinusTwoOffset = -1
+        For stage  (shard length, shard length + 1],  tMinusTwoOffset = 0
+        For stages (shard length + 1, END]               tMinusTwoOffset = 1
 
-        Finally we consider fragmentOffset and queryOffset.
+        Finally we consider shardOffset and queryOffset.
         Consider an alignment matrix of the same dimensions as earlier
 
         A B C D E F G H I
@@ -440,12 +464,12 @@ class QueryEngineGPU {
         D E F G H I J K L
         E F G H I J K L M
 
-        fragmentOffset: [0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 8, 8, 8]
+        shardOffset: [0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 8, 8, 8]
         queryOffset:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4]
 
         This generalises to
-            For all N: fragmentOffset = min(stage, fragment length)
-            For all N: queryOffset    = max(0, stage - fragment length)
+            For all N: shardOffset = min(stage, shard length)
+            For all N: queryOffset    = max(0, stage - shard length)
 
         And there we have it! We simply pass all of these variables into our
         parallel program at each stage and iterate the next alignment buffer
@@ -454,14 +478,15 @@ class QueryEngineGPU {
          */
 
 
-        const min = Math.min(queryLength, fragmentLength);
-        const max = Math.max(queryLength, fragmentLength);
+        const min = Math.min(queryLength, shardLength);
+        const max = Math.max(queryLength, shardLength);
         const end = min + max - 1;
 
-        let length, firstIndexTop, lastIndexBottom, tMinusOneOffset, tMinusTwoOffset, queryOffset, fragmentOffset;
+        let length, firstIndexTop, lastIndexLeft, tMinusOneOffset, tMinusTwoOffset, queryColOffset, shardColOffset;
 
-        firstIndexTop = stage <= fragmentLength;
-        lastIndexBottom = stage > queryLength;
+        firstIndexTop = stage <= shardLength;
+        // TODO document that this changed from >= to > (as it should)
+        lastIndexLeft = stage <= queryLength;
 
         if(stage >= 1 && stage < min) {
             length = stage;
@@ -473,58 +498,67 @@ class QueryEngineGPU {
             throw `Invalid Stage ${stage}`
         }
 
-        if(stage <= fragmentLength) {
+        if(stage <= shardLength) {
             tMinusOneOffset = 0;
-        } else if(stage > fragmentLength && stage <= end) {
+        } else if(stage > shardLength && stage <= end) {
             tMinusOneOffset = 1;
         } else {
             throw `Invalid Stage ${stage}`
         }
 
-        if(stage <= fragmentLength) {
+        if(stage <= shardLength) {
             tMinusTwoOffset = -1;
-        } else if(stage === fragmentLength + 1) {
+        } else if(stage === shardLength + 1) {
             tMinusTwoOffset = 0;
-        } else if(stage > fragmentLength + 1 && stage <= end) {
+        } else if(stage > shardLength + 1 && stage <= end) {
             tMinusTwoOffset = 1;
         } else {
             throw `Invalid Stage ${stage}`
         }
 
-                // For all N: fragmentOffset = min(stage, fragment length)
-            // For all N: queryOffset    = max(0, stage - fragment length)
-        fragmentOffset = Math.min(stage, fragmentLength);
-        queryOffset = Math.max(0, stage - fragmentLength);
+        // For all N: shardOffset = min(stage, shard length)
+        // For all N: queryOffset    = max(0, stage - shard length)
+        shardColOffset = Math.min(stage, shardLength);
+        queryColOffset = Math.max(0, stage - shardLength);
 
+        // Boolean parameter indicates 
+        //  false -> gl.uniform1f
+        //  true  -> gl.uniform1i
         return {
-            "length": length,
-            "firstIndexTop": firstIndexTop,
-            "lastIndexBottom": lastIndexBottom,
-            "tMinusOneOffset": tMinusOneOffset,
-            "tMinusTwoOffset": tMinusTwoOffset,
-            "fragmentOffset": fragmentOffset,
-            "queryOffset": queryOffset
+            "length": [length, true],
+            "firstIndexTop": [firstIndexTop, true],
+            "lastIndexLeft": [lastIndexLeft, true],
+            "tMinusOneOffset": [tMinusOneOffset, false],
+            "tMinusTwoOffset": [tMinusTwoOffset, false],
+            "shardColOffset": [shardColOffset, false],
+            "queryColOffset": [queryColOffset, false]
         }
     }
 
     setShaderUniforms(uniforms) {
         Object.keys(uniforms).forEach((key) => {
-            this.setUniform(key, uniforms[key]);
+            //              Name,  Value,          Type
+            this.setUniform(key, uniforms[key][0], uniforms[key][1]);
         });
     }
 
-    setUniform(name, value) {
-        let loc = this.gl.getUniformLocation(this.program, name);
-        this.gl.uniform1i(loc, value);
+    setUniform(name, value, useInt) {
+        const gl = this.gl;
+        const loc = gl.getUniformLocation(this.program, name);
+        if(useInt === true) {
+            gl.uniform1i(loc, value);
+        } else {
+            gl.uniform1f(loc, value);
+        }
     }
 
-    createProgram(vertexShader, fragmentShader) {
+    createProgram(vertexShader, shardShader) {
         // https://webglfundamentals.org/webgl/lessons/webgl-fundamentals.html
         const gl = this.gl;
         const program = gl.createProgram();
 
         gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
+        gl.attachShader(program, shardShader);
         gl.linkProgram(program);
         const success = gl.getProgramParameter(program, gl.LINK_STATUS);
         if (success) {
@@ -545,9 +579,8 @@ class QueryEngineGPU {
         if (success) {
             return shader;
         }
-        console.error(type === gl.VERTEX_SHADER ? "VERTEX" : "FRAGMENT",
+        console.error(type === gl.VERTEX_SHADER ? "VERTEX" : "shard",
             gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
-
     }
 }
