@@ -1,5 +1,12 @@
 window.addEventListener("load", benchmark);
 
+let cooley = [92,  84,  92,  84,  76, 104,  92,  92,  92,  96,
+       104, 112, 120, 124, 104,  92,  92,  92,  92,  84,  92,  84,  76,
+       112,  84,  84, 104,  92,  76,  84,  84, 112, 104,  92,  92,  92,
+        92,  84,  92,  84,  76, 104,  92,  92,  92,  96, 104, 112, 120,
+       124, 104,  92,  92,  92,  92,  84,  92];
+console.log(cooley.length);
+
 function benchmark() {
     fetchShaderResources().then(resources => {
         console.log(resources);
@@ -11,19 +18,25 @@ function benchmark() {
         );
 
         document.getElementById("execute").addEventListener("click", () => {
-            let arrs = qe.execute([4, 5, 6, 7]);
-            console.debug(arrs);
+            console.time('execute');
+            let arrs = qe.execute(cooley);
+            console.timeEnd('execute');
         });
 
-        console.debug("initialise");
+        console.time("initialise");
         qe.initialise();
+        console.timeEnd("initialise");
     }).catch(console.error);
 }
 
 function fetchShaderResources() {
     // TODO load in multiple fragments
     // let fragmentPromise = loadFragmentsAsync("/small-data.png");
-    let fragmentPromise = loadFragmentsAsync("/dummy_shards.png");
+    // let fragmentPromise = loadFragmentsAsync("/long-data.png");
+    // let fragmentPromise = loadFragmentsAsync("/64x64.png");
+    // let fragmentPromise = loadFragmentsAsync("/1024x1024.png");
+    let fragmentPromise = loadFragmentsAsync("/2048x2048.png");
+    // let fragmentPromise = loadFragmentsAsync("/dummy_shards.png");
 
     return new Promise(resolve => {
         Promise.all([

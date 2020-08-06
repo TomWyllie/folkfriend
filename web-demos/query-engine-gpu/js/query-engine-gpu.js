@@ -101,7 +101,7 @@ class QueryEngineGPU {
 
             // Update various offsets that have changed on this iteration
             uniforms = this.getShaderUniforms(query.length, SHARD_LENGTH, stage);
-            console.log(uniforms);
+            // console.log(uniforms);
             this.setShaderUniforms(uniforms);
 
             // Calculate next frame
@@ -165,7 +165,8 @@ class QueryEngineGPU {
             // This factor of four is unimportant.
             //  It just maxes the range of values bigger
             //  and easier to see in the input PNG file.
-            pixels[4*i] = 4 * query[i];
+            // pixels[4*i] = 4 * query[i];
+            pixels[4*i] = query[i];
         }
 
         return new ImageData(pixels, numPixels, 1);
