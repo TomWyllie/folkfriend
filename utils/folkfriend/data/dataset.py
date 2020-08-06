@@ -5,16 +5,14 @@ import os
 import pathlib
 import shutil
 import subprocess
-import sys
 
 import imageio
 import numpy as np
-import py_midicsv
+from folkfriend import ff_config
+from folkfriend.data import data_ops
+from folkfriend.data import midi
 from folkfriend.sig_proc.spectrogram import (linearise_ac_spectrogram,
                                              compute_ac_spectrogram)
-from folkfriend import ff_config
-from folkfriend.data.midi import CSVMidiNoteReader
-from folkfriend.data import data_ops
 from scipy.io import wavfile
 
 logging.basicConfig(level=logging.DEBUG,
@@ -77,12 +75,12 @@ class DatasetEntry:
         #   the midi file
         abc_a = self._generate_abc(clean=False)
         self._save_abc(abc_a, self._abc_a)
-        self._abc_to_midi(abc_a, self._midi_a, clean=False)
+        midi.abc_to_midi(abc_a, self._midi_a, clean=False)
 
         # Clean output
         abc_b = self._generate_abc(clean=True)
         self._save_abc(abc_b, self._abc_b)
-        self._abc_to_midi(abc_b, self._midi_b, clean=True)
+        midi.abc_to_midi(abc_b, self._midi_b, clean=True)
 
         # Input files
         sr, samples = self._generate_audio(self._midi_a)
@@ -90,7 +88,7 @@ class DatasetEntry:
         self._save_spectral_image(spectrogram, 'a')
 
         # Label files
-        midi_events = self._midi_as_csv(self._midi_b)
+        midi_events = midi.midi_as_csv(self._midi_b)
 
         # Generate output labels for CNN denoiser
         spec_mask = self._midi_to_pseudo_spectrogram(midi_events)
@@ -228,7 +226,7 @@ class DatasetEntry:
         return sample_rate, samples
 
     def _midi_to_pseudo_spectrogram(self, csv_lines):
-        midi_reader = CSVMidiNoteReader(csv_lines)
+        midi_reader = midi.CSVMidiNoteReader(csv_lines)
         return midi_reader.to_spectrogram_mask(
             tempo=self.config['tempo'],
             start_seconds=ff_config.CNN_DS_SS,
@@ -236,7 +234,7 @@ class DatasetEntry:
         )
 
     def _midi_to_note_contour(self, csv_lines):
-        midi_reader = CSVMidiNoteReader(csv_lines)
+        midi_reader = midi.CSVMidiNoteReader(csv_lines)
         return midi_reader.to_note_contour(
             tempo=self.config['tempo'],
             start_seconds=ff_config.CNN_DS_SS,
@@ -304,28 +302,6 @@ class DatasetEntry:
         denoised *= 255
         denoised = np.asarray(denoised, dtype=np.uint8)
         return denoised
-
-    @staticmethod
-    def _midi_as_csv(midi_path):
-        midi_lines = py_midicsv.midi_to_csv(midi_path)
-        return [line.strip().replace(', ', ',') for line in midi_lines]
-
-    @staticmethod
-    def _abc_to_midi(abc, midi_path, clean=True):
-        """Convert ABC text into a midi file."""
-
-        # Generate MIDI file with chords and actual instruments
-        captured = subprocess.run([
-            'abc2midi', '-',
-            '-quiet', '-silent',
-            '-NGUI' if clean else '',
-            '-o', midi_path
-        ],
-            input=abc.encode('utf-8'),
-            capture_output=True)
-        stderr = captured.stderr.decode('utf-8')
-        if stderr:
-            log.warning(stderr, file=sys.stderr)
 
 
 class ConfigError(Exception):

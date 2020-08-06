@@ -67,10 +67,3 @@ def download_thesession_data(tunes_path):
         # Store to temp in case we need it later
         shutil.copy(tunes_path, temp_tunes_path)
 
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--dir', default=ff_config.DEFAULT_DS_DIR,
-                        help='Directory to contain the dataset files in')
-    args = parser.parse_args()
-    download_abcs(args.dir)

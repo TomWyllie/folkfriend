@@ -28,7 +28,7 @@ import collections
 from folkfriend import ff_config
 from folkfriend.data.dataset import ConfigError, DatasetEntry, DatasetSubDir
 
-import download_abcs
+from folkfriend.data.download import download_abcs
 import random_config
 
 logging.basicConfig(level=logging.DEBUG,
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     val_fraction = args.val_fraction
     retain_audio = not args.no_audio
 
-    download_abcs.download_abcs(args.dir)
+    download_abcs(args.dir)
     random_config.generate_random_config(args.dir, args.num)
 
     with open(os.path.join(args.dir, 'configs.json')) as config_file:
