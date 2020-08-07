@@ -31,26 +31,31 @@ def main(cnn, rnn, dataset):
         dataset_sub_dir_path = os.path.join(out_dir, dataset_sub_dir_name)
         pathlib.Path(dataset_sub_dir_path).mkdir(parents=True, exist_ok=False)
 
+    from folkfriend import ff_config
+    audio_samples_per_query = (ff_config.SAMPLE_RATE *
+                               ff_config.AUDIO_QUERY_SECS)
     for dataset_entry in tqdm(recordings_data,
                               desc='Extracting features for RNN'):
         audio_path = os.path.join(dataset, dataset_entry['path'])
         signal, sample_rate = audio2numpy.open_audio(audio_path)
-        original_spec = denoiser.load_spectrogram_from_signal_data(
-            sample_rate, signal)
+        for i in range(signal.size // audio_samples_per_query):
+            original_spec = denoiser.load_spectrogram_from_signal_data(
+                sample_rate, signal[i * audio_samples_per_query:
+                                    (i + 1) * audio_samples_per_query]
+            )
 
-        mask, denoised = denoiser.denoise(original_spec)
+            mask, denoised = denoiser.denoise(original_spec)
 
-        base_img_path = os.path.join(dataset, dataset_entry['path'])
-        base_img_path = base_img_path[:-4] + '-{}.png'
+            base_img_path = os.path.join(dataset, dataset_entry['path'])
+            base_img_path = base_img_path[:-4] + '-{}-{:d}.png'
 
-        for path, img in (
-                (base_img_path.format('a-spec'), original_spec),
-                (base_img_path.format('b-mask'), mask),
-                (base_img_path.format('c-denoised'), denoised),
-        ):
-            imageio.imwrite(path, np.asarray(255 * img.T / np.max(img),
-                                             dtype=np.uint8))
-        # pseudo_spec = spec_to_pseudo(denoised)
+            for path, img in (
+                    (base_img_path.format('a-spec', i), original_spec),
+                    (base_img_path.format('b-mask', i), mask),
+                    (base_img_path.format('c-denoised', i), denoised),
+            ):
+                imageio.imwrite(path, np.asarray(255 * img.T / np.max(img),
+                                                 dtype=np.uint8))
 
     return
 
