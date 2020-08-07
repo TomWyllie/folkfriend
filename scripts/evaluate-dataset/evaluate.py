@@ -18,7 +18,7 @@ def main(cnn, rnn, dataset):
     denoiser = CNNDenoiser()
     denoiser.load_model(cnn)
 
-    out_dir = datetime.now().strftime('%d-%b-%Y-%H%M%S')
+    out_dir = datetime.now().strftime('%d-%b-%Y')
     pathlib.Path(out_dir).mkdir(parents=True, exist_ok=False)
 
     recordings_data_path = os.path.join(dataset, 'recordings.csv')
