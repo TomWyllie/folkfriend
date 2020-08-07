@@ -53,3 +53,6 @@ urllib3==1.25.8
 webencodings==0.5.1
 Werkzeug==1.0.1
 wrapt==1.12.1
+
+setuptools~=49.2.0
+audio2numpy~=0.1.2
