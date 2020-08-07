@@ -28,7 +28,7 @@ def main(cnn, rnn, dataset):
                         for d in recordings_data}
 
     for dataset_sub_dir_name in dataset_sub_dirs:
-        dataset_sub_dir_path = os.path.join(dataset, dataset_sub_dir_name)
+        dataset_sub_dir_path = os.path.join(out_dir, dataset_sub_dir_name)
         pathlib.Path(dataset_sub_dir_path).mkdir(parents=True, exist_ok=False)
 
     for dataset_entry in tqdm(recordings_data,
