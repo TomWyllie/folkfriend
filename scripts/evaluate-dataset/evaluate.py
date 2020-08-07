@@ -70,8 +70,8 @@ def main(cnn, rnn, dataset):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('cnn', help='Path to trained CNN model', default='cnn.h5')
-    parser.add_argument('rnn', help='Path to trained RNN model', default='rnn.h5')
     parser.add_argument('dataset', help='Path to dataset wav file or directory')
+    parser.add_argument('--cnn', help='Path to trained CNN model', default='cnn.h5')
+    parser.add_argument('--rnn', help='Path to trained RNN model', default='rnn.h5')
     args = parser.parse_args()
     main(args.cnn, args.rnn, args.dataset)
