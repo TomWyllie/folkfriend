@@ -5,6 +5,7 @@ import os
 import pathlib
 from datetime import datetime
 from tqdm import tqdm
+import json
 
 import imageio
 import numpy as np
@@ -34,40 +35,54 @@ def main(cnn, rnn, dataset):
 
     audio_samples_per_query = (ff_config.SAMPLE_RATE *
                                ff_config.AUDIO_QUERY_SECS)
-    for dataset_entry in tqdm(recordings_data,
-                              desc='Extracting features for RNN'):
+    for i, dataset_entry in tqdm(enumerate(recordings_data),
+                                 desc='Extracting features for RNN'):
         audio_path = os.path.join(dataset, dataset_entry['path'])
         signal, sample_rate = audio2numpy.open_audio(audio_path)
-        for i in range(signal.size // audio_samples_per_query):
+        for j in range(signal.size // audio_samples_per_query):
             base_img_path = os.path.join(out_dir, dataset_entry['path'])
+            # TODO change order of number and stage
             base_img_path = base_img_path[:-4] + '-{}-{:d}.png'
 
             stage_labels = [
-                base_img_path.format('a-spec', i),
-                base_img_path.format('b-mask', i),
-                base_img_path.format('c-denoised', i)
+                base_img_path.format('a-spec', j),
+                base_img_path.format('b-mask', j),
+                base_img_path.format('c-denoised', j),
+                base_img_path.format('d-rnn-input', j)
             ]
+
+            # Track this path so we can load it back in when we iterate
+            #   over the list again.
+            recordings_data[i]['rnn-input'] = stage_labels[-1]
 
             if os.path.exists(stage_labels[-1]):
                 print(f'Found pre-existing path {stage_labels[-1]}')
                 continue
 
             original_spec = denoiser.load_spectrogram_from_signal_data(
-                sample_rate, signal[i * audio_samples_per_query:
-                                    (i + 1) * audio_samples_per_query]
+                sample_rate, signal[j * audio_samples_per_query:
+                                    (j + 1) * audio_samples_per_query]
             )
 
             mask, denoised = denoiser.denoise(original_spec)
+            rnn_input = spec_to_pseudo(denoised)
 
             for path, img in zip(stage_labels,
-                                 (original_spec, mask, denoised)):
+                                 (original_spec, mask, denoised, rnn_input)):
                 imageio.imwrite(path, np.asarray(
                     255 * img.T / np.max(img), dtype=np.uint8))
 
-    return
+    decoder = RNNDecoder()
+    decoder.load_model(rnn)
 
-    # decoder = RNNDecoder()
-    # decoder.load_model(model_path)
+    for i, dataset_entry in tqdm(enumerate(recordings_data),
+                                 desc='Decoding with RNN'):
+        decoded_output = decoder.decode(dataset_entry['rnn-input'])
+        recordings_data[i]['decoded'] = decoded_output
+
+    print(recordings_data)
+    with open('output.json', 'w') as f:
+        json.dumps(recordings_data, f)
 
     # out_lines = []
     # for img_path in img_paths:
