@@ -83,19 +83,9 @@ def main(cnn, rnn, dataset):
         decoded_output = decoder.decode(dataset_entry['rnn-input'])
         rnn_input_data[i]['decoded'] = decoded_output
 
-    print(recordings_data)
+    print(rnn_input_data)
     with open('output.json', 'w') as f:
-        json.dump(recordings_data, f)
-
-    # out_lines = []
-    # for img_path in img_paths:
-    #     decoded_output = decoder.decode(img_path)
-    #     line = '{:<36}{}\t{}'.format(img_path, *decoded_output)
-    #     print(line)
-    #     out_lines.append(line)
-
-    # with open(out_file, 'w') as f:
-    #     f.write('\n'.join(out_lines))
+        json.dump(rnn_input_data, f)
 
 
 if __name__ == '__main__':
