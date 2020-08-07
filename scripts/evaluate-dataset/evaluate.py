@@ -20,7 +20,7 @@ def main(cnn, rnn, dataset):
     denoiser.load_model(cnn)
 
     out_dir = datetime.now().strftime('%d-%b-%Y')
-    pathlib.Path(out_dir).mkdir(parents=True, exist_ok=False)
+    pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
 
     recordings_data_path = os.path.join(dataset, 'recordings.csv')
     with open(recordings_data_path) as f:
@@ -31,8 +31,9 @@ def main(cnn, rnn, dataset):
 
     for dataset_sub_dir_name in dataset_sub_dirs:
         dataset_sub_dir_path = os.path.join(out_dir, dataset_sub_dir_name)
-        pathlib.Path(dataset_sub_dir_path).mkdir(parents=True, exist_ok=False)
+        pathlib.Path(dataset_sub_dir_path).mkdir(parents=True, exist_ok=True)
 
+    rnn_input_data = []
     audio_samples_per_query = (ff_config.SAMPLE_RATE *
                                ff_config.AUDIO_QUERY_SECS)
     for i, dataset_entry in tqdm(enumerate(recordings_data),
@@ -53,7 +54,9 @@ def main(cnn, rnn, dataset):
 
             # Track this path so we can load it back in when we iterate
             #   over the list again.
-            recordings_data[i]['rnn-input'] = stage_labels[-1]
+            rnn_input_entry = recordings_data[i].copy()
+            rnn_input_entry['rnn-input'] = stage_labels[-1]
+            rnn_input_data.append(rnn_input_entry)
 
             if os.path.exists(stage_labels[-1]):
                 print(f'Found pre-existing path {stage_labels[-1]}')
@@ -75,14 +78,14 @@ def main(cnn, rnn, dataset):
     decoder = RNNDecoder()
     decoder.load_model(rnn)
 
-    for i, dataset_entry in tqdm(enumerate(recordings_data),
+    for i, dataset_entry in tqdm(enumerate(rnn_input_data),
                                  desc='Decoding with RNN'):
         decoded_output = decoder.decode(dataset_entry['rnn-input'])
-        recordings_data[i]['decoded'] = decoded_output
+        rnn_input_data[i]['decoded'] = decoded_output
 
     print(recordings_data)
     with open('output.json', 'w') as f:
-        json.dumps(recordings_data, f)
+        json.dump(recordings_data, f)
 
     # out_lines = []
     # for img_path in img_paths:
