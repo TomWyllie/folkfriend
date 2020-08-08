@@ -14,10 +14,14 @@ class CNNDenoiser:
 
     @staticmethod
     def load_spectrogram_from_wav(wav_path):
-        sr, samples = wavfile.read(wav_path)
-        if sr != ff_config.SAMPLE_RATE:
+        return CNNDenoiser.load_spectrogram_from_signal_data(
+            *wavfile.read(wav_path))
+
+    @staticmethod
+    def load_spectrogram_from_signal_data(sample_rate, samples):
+        if sample_rate != ff_config.SAMPLE_RATE:
             raise RuntimeError('Sample rate should be {:d} not {:d}'.format(
-                ff_config.SAMPLE_RATE, sr
+                ff_config.SAMPLE_RATE, sample_rate
             ))
 
         spectrogram = compute_ac_spectrogram(samples)
