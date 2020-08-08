@@ -99,6 +99,8 @@ CONTEXT_FRAMES = 16
 BLANK_CHARACTER = '-'
 MIDI_MAP = string.ascii_letters[:MIDI_NUM] + BLANK_CHARACTER
 RNN_CLASSES_NUM = len(MIDI_MAP)  # Includes blank character
+MIDI_UNMAP = {c: i for (i, c)
+              in enumerate(string.ascii_letters[:MIDI_NUM])}
 
 # Applying RNN model gives
 # [2D spectrum (num_frames, NUM_MIDI)] -> [1D array (num_frames)]
@@ -109,6 +111,13 @@ RNN_CLASSES_NUM = len(MIDI_MAP)  # Includes blank character
 # During training this is converted to a string to compute metrics such as
 #   word edit distance, but the array can also be used directly for search
 #   queries.
+
+# ===============================
+# === QUERY ENGINE PARAMETERS ===
+# ===============================
+
+QUERY_SHARD_SIZE = 64
+QUERY_TEXTURE_EDGE_LENGTH = 2048
 
 # =================================
 # === NON-PRODUCTION PARAMETERS ===

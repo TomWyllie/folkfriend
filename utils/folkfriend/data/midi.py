@@ -15,6 +15,7 @@ log = logging.getLogger(os.path.basename(__file__))
 
 
 class CSVMidiNoteReader(csv.DictReader):
+    # TODO re-work this class, it probably shouldn't subclass csv.DictReader
     def __init__(self, *posargs, **kwargs):
         kwargs['fieldnames'] = ['track', 'time', 'type', 'channel',
                                 'note', 'velocity']
@@ -150,6 +151,10 @@ class CSVMidiNoteReader(csv.DictReader):
                 label.append(note.char() * rounded_int)
 
         return ''.join(label)
+
+    def to_midi_contour(self, *args, **kwargs):
+        string_contour = self.to_note_contour(*args, **kwargs)
+        return tuple(ff_config.MIDI_UNMAP[c] for c in string_contour)
 
 
 class Note:
