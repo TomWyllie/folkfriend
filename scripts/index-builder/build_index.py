@@ -132,7 +132,6 @@ def build_index(ds_dir):
                          / ff_config.QUERY_SHARD_SIZE)
     num_partitions = math.ceil(len(shards) / shards_per_partition)
     num_padding_shards = num_partitions * shards_per_partition - len(shards)
-    meta_lines = []
 
     # The shards are stacked in vertical columns indexed
     #   [0, ff_config.QUERY_TEXTURE_EDGE_LENGTH - 1]
@@ -157,13 +156,10 @@ def build_index(ds_dir):
         print(f'Writing {path}')
         imageio.imwrite(path, 4 * img_data[img_partition])
 
-    # print(f'Writing {index_path}')
-    # with open(index_path, 'w') as f:
-    #     f.writelines('\n'.join(shard_lines))
-
-    # print(f'Writing {index_meta_path}')
-    # with open(index_meta_path, 'w') as f:
-    #     json.dump(shard_meta, f)
+    meta_info = [s[1] for s in shards]
+    print(f'Writing {index_meta_path}')
+    with open(index_meta_path, 'w') as f:
+        json.dump(meta_info, f)
 
 
 def partition_x_into_n(x, n):
