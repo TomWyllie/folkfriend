@@ -144,8 +144,6 @@ def build_index(ds_dir):
     img_data = img_data.reshape((-1, shards_per_row,
                                  ff_config.QUERY_TEXTURE_EDGE_LENGTH,
                                  ff_config.QUERY_SHARD_SIZE))
-    print(img_data)
-    print(img_data.shape)
     img_data = np.transpose(img_data, (0, 2, 1, 3))
     img_data = np.reshape(img_data, (-1,
                                      ff_config.QUERY_TEXTURE_EDGE_LENGTH,
