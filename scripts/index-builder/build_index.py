@@ -33,7 +33,6 @@ def build_index(ds_dir):
 
     contours = []
 
-    thesession_data = thesession_data[:5000]
     for setting in tqdm(thesession_data,
                         desc='Converting ABC text to contour string'):
         # break
@@ -106,7 +105,7 @@ def build_index(ds_dir):
             if len(shard) != ff_config.QUERY_SHARD_SIZE:
                 raise RuntimeError(shard)
 
-            shards[shard].append(setting_id)
+            shards[shard].append(int(setting_id))
             next_s += shard_size
             next_s -= overlaps[i]
 
