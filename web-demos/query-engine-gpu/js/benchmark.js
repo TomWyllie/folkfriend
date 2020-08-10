@@ -1,68 +1,54 @@
 window.addEventListener("load", benchmark);
 
-let cooley = [92,  84,  92,  84,  76, 104,  92,  92,  92,  96,
-       104, 112, 120, 124, 104,  92,  92,  92,  92,  84,  92,  84,  76,
-       112,  84,  84, 104,  92,  76,  84,  84, 112, 104,  92,  92,  92,
-        92,  84,  92,  84,  76, 104,  92,  92,  92,  96, 104, 112, 120,
-       124, 104,  92,  92,  92,  92,  84,  92];
-console.log(cooley.length);
+let farFraeHame = [120, 124, 112, 112, 84, 92, 84, 72, 76, 76, 76, 28, 76, 28, 28, 28, 76, 84, 92, 92, 84, 92, 96, 104, 104, 76, 76, 28, 76, 76, 76, 84, 92, 84, 76, 84, 92, 84, 76, 72, 56, 76, 28, 56, 28, 76, 84];
 
 function benchmark() {
-    fetchShaderResources().then(resources => {
+    fetchShardData().then(resources => {
         console.log(resources);
-        // document.body.appendChild(resources.fragment);
         const qe = new QueryEngineGPU(
-            resources.vertexShader,
-            resources.fragmentShader,
-            resources.fragment
+            resources.shardData,
+            resources.shardMeta,
         );
 
         document.getElementById("execute").addEventListener("click", () => {
-            console.time('execute');
-            let arrs = qe.execute(cooley);
-            console.timeEnd('execute');
+            qe.query(farFraeHame).catch(console.error);
         });
 
-        console.time("initialise");
-        qe.initialise();
-        console.timeEnd("initialise");
+        qe.initialise().catch(console.error);
     }).catch(console.error);
 }
 
-function fetchShaderResources() {
-    // TODO load in multiple fragments
-    // let fragmentPromise = loadFragmentsAsync("/small-data.png");
-    // let fragmentPromise = loadFragmentsAsync("/long-data.png");
-    // let fragmentPromise = loadFragmentsAsync("/64x64.png");
-    // let fragmentPromise = loadFragmentsAsync("/1024x1024.png");
-    let fragmentPromise = loadFragmentsAsync("/2048x2048.png");
-    // let fragmentPromise = loadFragmentsAsync("/dummy_shards.png");
+function fetchShardData() {
+    let shards = loadShardPartitions(2);
 
     return new Promise(resolve => {
         Promise.all([
-            loadShaderAsync("shaders/vertex.glsl"),
-            loadShaderAsync("shaders/fragment.glsl"),
-            fragmentPromise
-        ]).then(responses => {
+            shards,
+            fetch("query-data/query-meta-data.json").then(r => {
+                return r.json();
+            })
+        ]).then(([shardData, shardMeta]) => {
             resolve({
-                vertexShader: responses[0],
-                fragmentShader: responses[1],
-                fragment: responses[2]
+                shardData: shardData,
+                shardMeta: shardMeta
             });
         }).catch(console.error);
     });
 }
 
-function loadShaderAsync(shader) {
-    return fetch(shader)
-        .then(value => value.text());
+function loadShardPartitions(numPartitions) {
+    let partitionPromises = [];
+    for(let i = 0; i < numPartitions; i++) {
+        partitionPromises.push(loadShardPartition(i))
+    }
+    return Promise.all(partitionPromises);
 }
 
-function loadFragmentsAsync(fragment) {
+function loadShardPartition(partitionNum) {
     // Fragment is a URL to a .png file
     let image = new Image();
     return new Promise(resolve => {
-        image.src = fragment;
+        image.src = `/query-data/query-data-${partitionNum}.png`;
         image.onload = () => resolve(image);
     });
 }

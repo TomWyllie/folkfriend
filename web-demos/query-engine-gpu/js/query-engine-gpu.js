@@ -8,31 +8,76 @@
 //     }
 // };
 
-SHARD_LENGTH = 64;
+QUERY_SHARD_SIZE = 64;
 
-class QueryEngineGPU {
-    // noinspection JSUnusedLocalSymbols
-    constructor(vertexShaderSource, fragmentShaderSource, shard) {
-        this.vertexShaderSource = vertexShaderSource;
-        this.fragmentShaderSource = fragmentShaderSource;
+class QueryEngine {
+    constructor(shardData, shardMeta) {
+        this.shardData = shardData;
+        this.shardMeta = shardMeta;
+    }
 
-        // Dummy data of [1, 2, 3, ..., 63]
-        // let dummyShard = [];
-        // for(let i = 0; i < SHARD_LENGTH; i++) {
-        //     dummyShard.push(i);
-        // }
-        // this.shard = this.queryToImgData(dummyShard);
-        this.shard = shard;
+    execute(query) {
+        // Return an array of scores of same size and corresponding
+        //  to the shards of partitionMeta
+        throw {name : "NotImplementedError"};
+    }
+
+    async query(query) {
+        console.time('query');
+
+        console.time('execute');
+        let shardScores = await this.execute(query);
+        console.timeEnd('execute');
+
+        // Extract the top N settings and their scores
+        let settingsScores = {};
+        for(let i = 0; i < this.shardMeta.length; i++) {
+            let settings = this.shardMeta[i];
+            for(let j = 0; j < settings.length; j++) {
+                settingsScores[settings[j]] = Math.max(settingsScores[settings[j]] || 0, shardScores[i]);
+            }
+        }
+
+        let props = Object.keys(settingsScores).map(function(key) {
+          return { key: key, value: this[key] };
+        }, settingsScores);
+        props.sort(function(p1, p2) { return p2.value - p1.value; });
+        let bestN = props.slice(0, 100);
+
+        console.log(bestN);
+        console.timeEnd('query');
+    }
+}
+
+class QueryEngineGPU extends QueryEngine {
+    constructor(shardData, shardMeta) {
+        super(shardData, shardMeta);
+
+        let loadVertexShader = fetch("shaders/vertex.glsl")
+            .then(value => value.text())
+            .then(text => {this.vertexShaderSource = text;});
+        let loadFragmentShader = fetch("shaders/fragment.glsl")
+            .then(value => value.text())
+            .then(text => {this.fragmentShaderSource = text;});
+        this.loadShaders = Promise.all([loadVertexShader, loadFragmentShader]);
+
+        // This promise is resolved by this.initialise();
+        this.initialised = new Promise(resolve => {
+            this.finishInitialising = resolve;
+        });
 
         this.pingPongBuffers = [];
         this.pingPongTextures = [];
         this.pingPongState = false;
     }
 
-    initialise() {
+    async initialise() {
+        await this.loadShaders;
+        console.time("initialise");
+
         this.canvas = document.createElement('canvas');
-        this.canvas.width = this.shard.width;
-        this.canvas.height = this.shard.height;
+        this.canvas.width = this.shardData[0].width;
+        this.canvas.height = this.shardData[0].height;
         this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
         const gl = this.gl;
 
@@ -59,13 +104,13 @@ class QueryEngineGPU {
         this.clearPingPongTextures();
 
         // Load in some global constants
-        this.setUniform("shardLength", SHARD_LENGTH);
+        this.setUniform("shardLength", QUERY_SHARD_SIZE);
 
-        if(this.canvas.width % SHARD_LENGTH !== 0) {
-            throw `Canvas width / Shard length mismatch (${this.canvas.width}, ${SHARD_LENGTH})`
+        if(this.canvas.width % QUERY_SHARD_SIZE !== 0) {
+            throw `Canvas width / Shard length mismatch (${this.canvas.width}, ${QUERY_SHARD_SIZE})`
         }
 
-        this.numShardsX = this.canvas.width / SHARD_LENGTH;
+        this.numShardsX = this.canvas.width / QUERY_SHARD_SIZE;
         this.setUniform("numShardsX", this.numShardsX);
 
         // Set up samplers so we can access data from textures
@@ -73,17 +118,26 @@ class QueryEngineGPU {
         // TEXTURE      ID
         // Ping pong    0
         // Query        1
-        // shards    2
+        // Partition 0  2
+        // Partition 1  3
+        // ...
+        // Partition N  N + 1
 
         gl.activeTexture(gl.TEXTURE0);
         this.pingPongSampler = gl.getUniformLocation(this.program, "lastStage");
         gl.uniform1i(this.pingPongSampler, 0);
 
-        this.setupDataTexture(this.shard, "shards", 2)
+        this.partitionTextureObjects = this.setupPartitionTextures();
+
+        console.timeEnd("initialise");
+        this.finishInitialising();
     }
 
-    execute(query) {
+    async execute(query) {
+        await this.initialised;
+
         console.log("Execute");
+        // console.time("execute pre-draw");
         const gl = this.gl;
 
         this.setUniform("queryLength", query.length);
@@ -91,58 +145,79 @@ class QueryEngineGPU {
         this.setUniform("queryImgDataLength", queryImgData.width);
         this.setupDataTexture(queryImgData, "query", 1);
 
-        const numStages = query.length + SHARD_LENGTH - 1;
-
-        gl.activeTexture(gl.TEXTURE0);
-        let uniforms;
-
-        for(let stage = 1; stage <= numStages; stage++) {
-            let i = this.pingPongState ? 1 : 0;
-
-            // Update various offsets that have changed on this iteration
-            uniforms = this.getShaderUniforms(query.length, SHARD_LENGTH, stage);
-            // console.log(uniforms);
-            this.setShaderUniforms(uniforms);
-
-            // Calculate next frame
-            gl.bindFramebuffer(gl.FRAMEBUFFER, this.pingPongBuffers[i]);
-            gl.bindTexture(gl.TEXTURE_2D, this.pingPongTextures[1 - i]);
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-            this.pingPongState = !this.pingPongState;
-
-            // // Debugging
-            // // TODO uniforms.length is bad practice lol
-            // let pixels = new Uint8Array(uniforms.length[0] * 4);
-            // gl.readPixels(SHARD_LENGTH, 0, uniforms.length[0], 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-            // // gl.readPixels(0, 0, 1, 256, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-            //
-            // let rChannel = [];
-            // for(let i = 0; i < pixels.length; i+=4) {
-            //     rChannel.push(pixels[i]);
-            // }
-            // console.log(rChannel);
-        }
-
-        // Now that the computation is finished we need to read out all the
-        //  final values. These are the bottom-right hand corner values of
-        //  the alignment matrix. As we have stacked shards vertically
-        //  and horizontally we have to take several reads to get this
-        //  data out. These are located in alignment buffer index 0
-        //  as the bottom corner has a diagonal length of 1.
+        const numStages = query.length + QUERY_SHARD_SIZE - 1;
         let pixelArrs = [];
-        let pixels = new Uint8Array(this.canvas.height * 4);
-        for(let i = 0; i < this.numShardsX; i++) {
-            gl.readPixels(SHARD_LENGTH * i, 0, 1,
-                this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-            pixelArrs.push(pixels.slice());
+
+        // console.timeEnd("execute pre-draw");
+        for(let p = 0; p < this.partitionTextureObjects.length; p++) {
+            // console.time("partition");
+
+            gl.uniform1i(this.partitionTextureObjects[p].sampler, 2 + p);
+
+            gl.activeTexture(gl.TEXTURE0);
+            let uniforms;
+
+            for(let stage = 1; stage <= numStages; stage++) {
+                let i = this.pingPongState ? 1 : 0;
+
+                // Update various offsets that have changed on this iteration
+                uniforms = this.getShaderUniforms(query.length, QUERY_SHARD_SIZE, stage);
+                // console.log(uniforms);
+                this.setShaderUniforms(uniforms);
+
+                // Calculate next frame
+                gl.bindFramebuffer(gl.FRAMEBUFFER, this.pingPongBuffers[i]);
+                gl.bindTexture(gl.TEXTURE_2D, this.pingPongTextures[1 - i]);
+                // console.time("draw");
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                // console.timeEnd("draw");
+                this.pingPongState = !this.pingPongState;
+
+                // // Debugging
+                // // TODO uniforms.length is bad practice lol
+                // let pixels = new Uint8Array(uniforms.length[0] * 4);
+                // gl.readPixels(SHARD_LENGTH, 0, uniforms.length[0], 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                // // gl.readPixels(0, 0, 1, 256, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                //
+                // let rChannel = [];
+                // for(let i = 0; i < pixels.length; i+=4) {
+                //     rChannel.push(pixels[i]);
+                // }
+                // console.log(rChannel);
+            }
+
+            // console.time("texture-read-alt");
+            // let pixelsAlt = new Uint8Array(this.canvas.width * this.canvas.height * 4);
+            // gl.readPixels(0, 0, this.canvas.width, this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixelsAlt);
+            // console.timeEnd("texture-read-alt");
+
+
+            // console.time("texture-read");
+
+            // Now that the computation is finished we need to read out all the
+            //  final values. These are the bottom-right hand corner values of
+            //  the alignment matrix. As we have stacked shards vertically
+            //  and horizontally we have to take several reads to get this
+            //  data out. These are located in alignment buffer index 0
+            //  as the bottom corner has a diagonal length of 1.
+            let pixels = new Uint8Array(this.canvas.height * 4);
+            for(let i = 0; i < this.numShardsX; i++) {
+                gl.readPixels(QUERY_SHARD_SIZE * i, 0, 1,
+                    this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                pixelArrs.push(pixels.slice());
+            }
+
+            // console.timeEnd("texture-read");
+            // console.timeEnd("partition");
         }
 
-        let outputArr = [this.canvas.height * this.numShardsX];
-        for(let i = 0; i < this.numShardsX; i++) {
+        let outputArr = new Int16Array(this.shardMeta.length);
+        for(let i = 0; i < pixelArrs.length; i++) {
             for(let j = 0; j < this.canvas.height; j++) {
-                outputArr[i*this.numShardsX + j] = pixelArrs[i][4*j] - 127;
+                outputArr[i * this.canvas.height + j] = pixelArrs[i][4*j] - 127;
             }
         }
+
         return outputArr;
     }
 
@@ -251,6 +326,15 @@ class QueryEngineGPU {
 
         gl.uniform1i(sampler, id);
         return {tex: tex, sampler: sampler}
+    }
+
+    setupPartitionTextures() {
+        let partitionTextureObjects = []
+        for(let i = 0; i < this.shardData.length; i++) {
+            let pto = this.setupDataTexture(this.shardData[i], "shards", 2 + i);
+            partitionTextureObjects.push(pto);
+        }
+        return partitionTextureObjects;
     }
 
     getShaderUniforms(queryLength, shardLength, stage) {
