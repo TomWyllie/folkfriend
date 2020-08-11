@@ -11,9 +11,8 @@
 QUERY_SHARD_SIZE = 64;
 
 class QueryEngine {
-    constructor(shardData, shardMeta) {
-        this.shardData = shardData;
-        this.shardMeta = shardMeta;
+    constructor() {
+        this.loadShards = this.fetchShardData();
     }
 
     execute(query) {
@@ -47,6 +46,33 @@ class QueryEngine {
         console.log(bestN);
         console.timeEnd('query');
     }
+
+    async fetchShardData() {
+        this.shardMeta = await fetch("query-data/query-meta-data.json")
+            .then(r => r.json());
+
+        // TODO store number of shard partitions in the meta file and use that
+        await this.loadShardPartitions(2);
+    }
+
+    loadShardPartitions(numPartitions) {
+        let partitionPromises = [];
+        for(let i = 0; i < numPartitions; i++) {
+            partitionPromises.push(this.loadShardPartition(i))
+        }
+        return Promise.all(partitionPromises).then(values => {
+            this.shardData = values;
+        });
+    }
+
+    loadShardPartition(partitionNum) {
+        // Fragment is a URL to a .png file
+        let image = new Image();
+        return new Promise(resolve => {
+            image.src = `/query-data/query-data-${partitionNum}.png`;
+            image.onload = () => resolve(image);
+        });
+    }
 }
 
 class QueryEngineGPU extends QueryEngine {
@@ -73,6 +99,7 @@ class QueryEngineGPU extends QueryEngine {
 
     async initialise() {
         await this.loadShaders;
+        await this.loadShards;
         console.time("initialise");
 
         this.canvas = document.createElement('canvas');
@@ -135,6 +162,8 @@ class QueryEngineGPU extends QueryEngine {
 
     async execute(query) {
         await this.initialised;
+
+        console.log(this);
 
         console.log("Execute");
         // console.time("execute pre-draw");
@@ -668,4 +697,8 @@ class QueryEngineGPU extends QueryEngine {
             gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
     }
+}
+
+class QueryEngineCPU extends QueryEngine {
+    // TODO
 }
