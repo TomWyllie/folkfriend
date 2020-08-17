@@ -69,6 +69,7 @@ LINEAR_MIDI_BINS = np.linspace(
     num=SPEC_NUM_BINS,
     endpoint=True
 )
+LINEAR_MIDI_BINS = [round(x, 2) for x in LINEAR_MIDI_BINS]
 
 # Applying spectrogram resampling
 # [2D spectrum (num_frames, 512)] -> [2D spectrum (num_frames, SPEC_NUM_BINS)]
@@ -95,10 +96,14 @@ CONTEXT_FRAMES = 16
 # === RNN PARAMETERS ===
 # ======================
 
+# Note these are dev-only parameters because the string conversion
+#   is only carried out when training
+#   TODO we should omit the string conversion step it's unnecessary
+
 # abc...ABC
-BLANK_CHARACTER = '-'
-MIDI_MAP = string.ascii_letters[:MIDI_NUM] + BLANK_CHARACTER
-RNN_CLASSES_NUM = len(MIDI_MAP)  # Includes blank character
+BLANK_CHARACTER_ = '-'
+MIDI_MAP_ = string.ascii_letters[:MIDI_NUM] + BLANK_CHARACTER_
+RNN_CLASSES_NUM_ = len(MIDI_MAP_)  # Includes blank character
 
 # Applying RNN model gives
 # [2D spectrum (num_frames, NUM_MIDI)] -> [1D array (num_frames)]
@@ -110,9 +115,9 @@ RNN_CLASSES_NUM = len(MIDI_MAP)  # Includes blank character
 #   word edit distance, but the array can also be used directly for search
 #   queries.
 
-# =================================
-# === NON-PRODUCTION PARAMETERS ===
-# =================================
+# =======================================
+# === OTHER NON-PRODUCTION PARAMETERS ===
+# =======================================
 
 # Dataset parameters. End these variables with a _ to denote dev only
 THESESSION_DATA_URL_ = 'https://raw.githubusercontent.com/adactio/TheSession-data/main/json/tunes.json'

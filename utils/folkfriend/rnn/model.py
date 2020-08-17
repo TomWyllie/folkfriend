@@ -12,5 +12,5 @@ def build_model():
     x = inputs
     x = layers.Bidirectional(layers.LSTM(units=72, return_sequences=True))(x)
     x = layers.Bidirectional(layers.LSTM(units=72, return_sequences=True))(x)
-    x = layers.Dense(units=ff_config.RNN_CLASSES_NUM)(x)
+    x = layers.Dense(units=ff_config.RNN_CLASSES_NUM_)(x)
     return keras.Model(inputs=inputs, outputs=x, name='RNN')

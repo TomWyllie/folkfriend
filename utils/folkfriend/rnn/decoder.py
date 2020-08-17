@@ -32,7 +32,7 @@ class RNNDecoder:
         decoded = tf.sparse.to_dense(
             sparse_decoded[0], default_value=ff_config.MIDI_NUM).numpy()[0]
 
-        rnn_string = ''.join(ff_config.MIDI_MAP[x] for x in decoded)
+        rnn_string = ''.join(ff_config.MIDI_MAP_[x] for x in decoded)
         abc_string = decoded_to_abc(decoded)
 
         return rnn_string, abc_string

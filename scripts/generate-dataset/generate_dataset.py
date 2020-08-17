@@ -112,7 +112,7 @@ def build_meta_files(config_files):
         f.writelines(annotations[-val_index:])
 
     with open(table, 'w') as f:
-        f.write('\n'.join(ff_config.MIDI_MAP))
+        f.write('\n'.join(ff_config.MIDI_MAP_))
 
 
 if __name__ == '__main__':
