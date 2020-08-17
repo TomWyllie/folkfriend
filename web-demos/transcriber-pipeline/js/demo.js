@@ -7,6 +7,7 @@ function demo() {
         const file = e.target.files[0];
         const url = URL.createObjectURL(file);
         audioURLPipeline.input([url]);
+        audioURLPipeline.finish();
         audioURLPipeline.finisher.then(() => {
             console.log(audioURLPipeline);
         })

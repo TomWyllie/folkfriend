@@ -35,7 +35,7 @@ SPEC_WINDOW_SIZE = 1024
 # Applying FFT gives
 # [2D windowed samples (num_frames, 1024)] -> [2D spectrum (num_frames, 1024)]
 
-# Spectrum is then magnitude compressed with an exponent (k = 0.67, see
+# Spectrum is then magnitude compressed with an exponent (k = 0.33, see
 #   https://labrosa.ee.columbia.edu/~dpwe/papers/ToloK2000-mupitch.pdf)
 
 # Applying second FFT (RFFT) and extracting the real part only gives

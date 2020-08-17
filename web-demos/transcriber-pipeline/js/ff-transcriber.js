@@ -3,7 +3,8 @@ window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
 function getAudioURLPipeline() {
     return new Pipeline([
-        AudioURLNode
+        AudioURLNode,
+        AutocorrelationNode
     ]);
 }
 
@@ -52,6 +53,10 @@ class PipelineNode {
 
         this.queueMinSize = queueMinSize;
         this.queueStride = queueStride;
+
+        if(!this.queueStride) {
+            throw `Invalid queue stride ${this.queueStride}`
+        }
     }
 
     flush() {
@@ -103,39 +108,43 @@ class PipelineNode {
 
     async propagate() {
         // Propagate flow of data through the pipeline.
+        const initialLength = this.inputQueue.length;
 
-        if(this.inputQueue.length < this.queueMinSize) {
-            // The first node in a online pipeline can never know if there
-            //  will be any more inputs until finish() has been called.
-            // Every other child node can work out whether or not it's
-            //  finished based on its parent and itself.
-            if(this.parentNode && this.parentNode.hasFinished) {
-                this.finish();
+        while(this.canProceed) {
+
+            // Extract next slice of input
+            const inputSlice = this.inputQueue.slice(0, this.queueMinSize);
+            const result = await this.process(inputSlice);
+
+            // Remove input
+            this.inputQueue.splice(0, this.queueStride);
+
+            // Only the last node will use the output queue but it is also
+            //  useful when debugging.
+            if(this.outputQueue.length) {
+                this.outputQueue.push(...result);
+            } else {
+                // Saves us spreading when using URL -> [TensorFrequencyData]
+                this.outputQueue = result;
             }
-            return;
+
+            if(this.childNode) {
+                this.childNode.input(result);
+            }
         }
 
-        // Extract next slice of input
-        const inputSlice = this.inputQueue.slice(0, this.queueMinSize);
-        const result = await this.process(inputSlice);
-
-        // Remove input
-        this.inputQueue.splice(0, this.queueStride);
-
-        // Only the last node will use the output queue but it is also
-        //  useful when debugging.
-        if(this.outputQueue.length) {
-            this.outputQueue.push(...result);
-        } else {
-            // Saves us spreading when using URL -> [TensorFrequencyData]
-            this.outputQueue = result;
-        }
-
-        if(this.childNode) {
-            this.childNode.input(result);
+        // The first node in a online pipeline can never know if there
+        //  will be any more inputs until finish() has been called.
+        // Every other child node can work out whether or not it's
+        //  finished based on its parent and itself.
+        if(this.parentNode && this.parentNode.hasFinished) {
+            this.finish();
         }
     }
 
+    get canProceed() {
+        return (this.inputQueue.length && this.inputQueue.length >= this.queueMinSize)
+    }
 }
 
 class AudioURLNode extends PipelineNode {
@@ -165,7 +174,7 @@ class AudioURLNode extends PipelineNode {
         // Create WebAudio objects
         const audioContext = new OfflineAudioContext(1, offlineNumSamples, FFConfig.SAMPLE_RATE);
         const source = audioContext.createBufferSource();
-        const analyser = audioContext.createAnalyser();
+        const analyser = new AnalyserNode(audioContext, {fftSize: FFConfig.SPEC_WINDOW_SIZE, smoothingTimeConstant: 0});
         const processor = audioContext.createScriptProcessor(FFConfig.SPEC_WINDOW_SIZE, 1, 1);
 
         // Load data into source
@@ -192,4 +201,96 @@ class AudioURLNode extends PipelineNode {
 
         return result;
     }
+}
+
+class AutocorrelationNode extends PipelineNode {
+    // The frequency data from AudioURLNode or AudioMicrophoneNode is
+    //  raw Float32 FFT data in tensors. BUT this data is in decibels
+    //  and has also been "absolute valued" already.
+    //  See https://www.w3.org/TR/webaudio/#fft-windowing-and-smoothing-over-time
+
+    // The absolute value part isn't clear (you might be left wondering where
+    //  the imaginary part goes!) but note the equation:
+    //          Then the smoothed value, X^[k], is computed by
+    //              X^[k] = \tau X^−1[k] + (1 − \tau) |X[k]|
+
+    //  If we set smoothing constant (\tau) to zero then the data in each
+    //  tensor is just the magnitude |X[k]|.
+
+    // TODO investigate using decibels as range compression rather than raising to a power.
+    //  it would make some steps in this node redundant and save compute.
+
+    constructor(parent) {
+        super(parent);
+
+        // Corresponds to k = 1/3. See process().
+        this.kFactor = Math.log(Math.cbrt(10)) / 20;
+    }
+
+    inputValidator(input) {
+        for(let i = 0; i < input.length; i++) {
+            if(input[i].constructor.name !== "t" || input[i].size !== FFConfig.SPEC_WINDOW_SIZE / 2) {
+                return false
+            }
+        }
+        return true;
+    }
+
+    async process(input) {
+        let frame = input[0];
+
+        // Maths incoming...
+
+        // Decimal -> Decibel conversion is 20 * log10(x)
+        // So we want to do 10^(x/20)
+        // But remember we are using a "k" value (see ff_config.py) of 1/3.
+        // So we want to do
+        //      (10^(x/20))^(1/3)
+        //  Which is equal to
+        //      cbrt(10)^(x/20)
+        //  Except TF only gives us exp(), So all together we need to use
+        //      (e^ln(cbrt(10)))^(x/20)
+        //    = exp( x * ln(cbrt(10))/20 )
+
+        frame = tf.exp(tf.mul(frame, this.kFactor));
+
+        // Also, browser FFT implementation halves length of signal
+        //  (it only returns one of the two symmetrical sides; FFT of
+        //  a real signal is always conjugate-symmetric ie X[-k] = X[k]*
+        //  and browser audio data must always be real)
+
+        frame = tf.concat([frame, tf.reverse(frame)])
+
+        // So now frame is now a 1024 long FFT of a 1024-sample window,
+        //  and we've scaled the absolute value of each real-imaginary
+        //  with a power of 1/3.
+
+        frame = tf.real(tf.spectral.rfft(frame));
+        frame = tf.maximum(frame, 0);
+
+        // Now frame is 513 long
+        //  (https://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.rfft.html)
+
+        // Remove DC bin as it has frequency = 0 = midi note -infinity.
+        frame = tf.slice(frame, 1);  // remove first bin
+
+        // Resample to linearly spaced (in musical notes)
+        const binMidiValues = binsTensorToMidis(tf.range(1, frame.size));
+
+        // TODO use binsTensorMidis and the other list from ff_config to create
+        //  a 2xsomething matrix that does the linear interpolation for us
+        //  (plus a slice) because tensorflowJS doesn't have a 1D interp op :(
+        
+        return [frame];
+    }
+}
+
+
+function binsTensorToMidis(indices) {
+    // Convert frequency bins into MIDI notes, according to equation
+    // {midi notes relative to A4} = log_base[2^1/12](sampleRate / (440Hz * freq))
+    //  and                   freq = sampleRate / index
+    // Which simplifies to midi note values of autocorrelation index =
+    //  69 + log_base[2^1/12](index / 440)
+    return tf.add(69, tf.div(tf.log(tf.div(indices, 440.0)), Math.log(Math.pow(2, 1/12.))));
 }
