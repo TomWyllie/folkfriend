@@ -8,9 +8,17 @@
     <script type="text/javascript" src="/js/ff-config.js"></script>
     <script type="text/javascript" src="/js/ff-transcriber.js"></script>
     <script type="text/javascript" src="/js/demo.js"></script>
+
+    <style>
+        #output-canvas {
+            image-rendering: pixelated;
+            display: block;
+        }
+    </style>
 </head>
 <body>
     <h1>Transcriber Pipeline</h1>
     <input type="file" accept="audio/*" capture id="recorder">
+    <canvas id="output-canvas"></canvas>
 </body>
 </html>

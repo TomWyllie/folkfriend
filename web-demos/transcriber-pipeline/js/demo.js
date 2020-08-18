@@ -10,6 +10,11 @@ function demo() {
         audioURLPipeline.finish();
         audioURLPipeline.finisher.then(() => {
             console.log(audioURLPipeline);
+
+            const canvas = document.getElementById("output-canvas");
+            let img = tf.concat(audioURLPipeline.outputQueue);
+            img = tf.div(img, tf.max(img));
+            tf.browser.toPixels(tf.transpose(img), canvas);
         })
     });
 }

@@ -39,6 +39,10 @@ class Pipeline {
         // Start at the beginning
         this.nodes[0].input(input);
     }
+
+    get outputQueue() {
+        return this.nodes[this.nodes.length - 1].outputQueue;
+    }
 }
 
 class PipelineNode {
@@ -261,7 +265,7 @@ class AutocorrelationNode extends PipelineNode {
         //  a real signal is always conjugate-symmetric ie X[-k] = X[k]*
         //  and browser audio data must always be real)
 
-        frame = tf.concat([frame, tf.reverse(frame)])
+        frame = tf.concat([frame, tf.expandDims(frame.min()), tf.reverse(tf.slice(frame, 1))]);
 
         // So now frame is now a 1024 long FFT of a 1024-sample window,
         //  and we've scaled the absolute value of each real-imaginary
@@ -340,7 +344,7 @@ function getInterpMatrix(midiValues) {
         interpData[i * nonLinearBins.length + lo - 1] = x2;
     }
 
-    return tf.tensor2d(interpData, [midiValues.size, lmb]);
+    return tf.transpose(tf.tensor2d(interpData, [lmb, midiValues.size]));
 }
 
 function binsTensorToMidis(indices) {
