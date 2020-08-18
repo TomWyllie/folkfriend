@@ -225,6 +225,8 @@ class AutocorrelationNode extends PipelineNode {
 
         // Corresponds to k = 1/3. See process().
         this.kFactor = Math.log(Math.cbrt(10)) / 20;
+
+        this.interpMatrix = null;
     }
 
     inputValidator(input) {
@@ -272,25 +274,80 @@ class AutocorrelationNode extends PipelineNode {
         //  (https://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.rfft.html)
 
         // Remove DC bin as it has frequency = 0 = midi note -infinity.
-        frame = tf.slice(frame, 1);  // remove first bin
+        frame = tf.slice(frame, [0, 1]);  // remove first bin
 
-        // Resample to linearly spaced (in musical notes)
-        const binMidiValues = binsTensorToMidis(tf.range(1, frame.size));
+        if(this.interpMatrix === null) {
+            // Resample to linearly spaced (in musical notes)
+            const binMidiValues = binsTensorToMidis(tf.range(1, frame.size + 1));
 
-        // TODO use binsTensorMidis and the other list from ff_config to create
-        //  a 2xsomething matrix that does the linear interpolation for us
-        //  (plus a slice) because tensorflowJS doesn't have a 1D interp op :(
-        
-        return [frame];
+            // There is no 1D interpolation built into TF-JS (as of 2.1.0) but we
+            //  can quite easily represent it as a matrix operation.
+            this.interpMatrix = getInterpMatrix(binMidiValues);
+        }
+
+        return [tf.matMul(frame, this.interpMatrix)];
     }
 }
 
+function getInterpMatrix(midiValues) {
+    /*
+        Let LMB = FFConfig.LINEAR_MIDI_BINS.size
+
+        [<-- frame.size -->] [<-      LMB       ->]   /\
+                             |                    |
+                             |                    |  frame.size
+                             |                    |
+                             [                    ]   \/
+
+        Frame: 1x512            Interp: 512xLMB
+
+        Result: 1xLMB
+
+     */
+
+    const lmb = FFConfig.LINEAR_MIDI_BINS.length;
+    const interpData = new Float32Array(midiValues.size * lmb);
+
+    const nonLinearBins = midiValues.dataSync();
+
+    for(let i = 0; i < lmb; i++) {
+        // Each linear midi bin is a linear combination of two bins from
+        //  the spectrogram
+        const linearBinMidiValue = FFConfig.LINEAR_MIDI_BINS[i];
+
+        if(linearBinMidiValue < nonLinearBins[nonLinearBins.length - 2]) {
+            throw "Linear bin goes too low";
+        }
+
+        // Note both arrays are monotonically decreasing in value
+        let lo = 0;
+        for(let j = 0; j < nonLinearBins.length; j++) {
+            if(linearBinMidiValue > nonLinearBins[j]) {
+                lo = j;
+                break;
+            }
+        }
+
+        let delta = nonLinearBins[lo - 1] - nonLinearBins[lo];
+        let x1 = (nonLinearBins[lo - 1] - linearBinMidiValue) / delta;
+        let x2 = -(nonLinearBins[lo] - linearBinMidiValue) / delta;
+
+        if(x1 > 1 || x1 < 0 || x2 > 1 || x2 < 0) {
+            throw `Invalid x1: ${x1}, x2: ${x2}`;
+        }
+
+        interpData[i * nonLinearBins.length + lo] = x1;
+        interpData[i * nonLinearBins.length + lo - 1] = x2;
+    }
+
+    return tf.tensor2d(interpData, [midiValues.size, lmb]);
+}
 
 function binsTensorToMidis(indices) {
     // Convert frequency bins into MIDI notes, according to equation
-    // {midi notes relative to A4} = log_base[2^1/12](sampleRate / (440Hz * freq))
+    // {midi notes relative to A4} = log_base[2^1/12](frequency / 440Hz)
     //  and                   freq = sampleRate / index
     // Which simplifies to midi note values of autocorrelation index =
     //  69 + log_base[2^1/12](index / 440)
-    return tf.add(69, tf.div(tf.log(tf.div(indices, 440.0)), Math.log(Math.pow(2, 1/12.))));
+    return tf.add(69, tf.div(tf.log(tf.div(FFConfig.SAMPLE_RATE / 440.0, indices)), Math.log(Math.pow(2, 1/12.))));
 }
