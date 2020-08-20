@@ -1,20 +1,22 @@
 // noinspection JSValidateTypes,JSUnresolvedVariable
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
-function getAudioURLPipeline() {
+async function getAudioURLPipeline() {
+    await tf.ready();
     return new Pipeline([
         AudioURLNode,
         AutocorrelationNode,
-        CNNNode,
-        RNNNode
+        CNNPadNode,
+        // CNNNode,
+        // RNNNode
     ]);
 }
 
 class Pipeline {
     constructor(nodeClasses) {
         this.nodes = [null];    // Placeholder null entry
-        for(let i = 0; i < nodeClasses.length; i++) {
-            if(!(nodeClasses[i]) instanceof PipelineNode) {
+        for (let i = 0; i < nodeClasses.length; i++) {
+            if (!(nodeClasses[i]) instanceof PipelineNode) {
                 throw `Invalid node class ${nodeClasses[i]}`;
             }
 
@@ -28,101 +30,111 @@ class Pipeline {
 
         // Ready all the nodes
         this.flush();
-
-    }
-
-    flush() {
-        this.nodes.forEach(node => node.flush());
-        this.finisher = this.nodes[this.nodes.length - 1].finisher;
-        this.finish = this.nodes[0].finish;
     }
 
     input(input) {
-        // Start at the beginning
         this.nodes[0].input(input);
+        this.propagate().catch(console.error);
     }
 
-    get outputQueue() {
-        return this.nodes[this.nodes.length - 1].outputQueue;
+    async propagate() {
+        // Now wait for all the nodes to catch up. BUT whilst this is
+        //  happening another input may well asynchronously come in.
+        //  we don't want to have multiple calls to the same pipeline
+        //  object running simultaneously so block any further
+        //  processing until the last node is caught up with this input.
+
+        // Queue up a request for the future (even if it is executed immediately)
+        this.propagateRequests++;
+
+        if(!this.propagating) {
+            // Handle the request
+            this.propagating = true;
+
+            // This has to be a while loop, because as we process
+            //  a request that came through as we were just propagating,
+            //  another request could come through, ad infinitum
+            while(this.propagateRequests > 0) {
+                for(let i = 0; i < this.nodes.length; i++) {
+                    await this.nodes[i].proceed();
+                }
+                this.propagateRequests--;
+            }
+            this.propagating = false
+
+        }
     }
+
+    flush() {
+        this.propagating = false;
+        this.propagateRequests = 0;
+        this.nodes.forEach(node => node.flush());
+    }
+
+    finish() {
+        this.nodes[0].finish();
+    }
+
+    get finished() {
+        return this.nodes[this.nodes.length - 1].finished;
+    }
+
 }
 
 class PipelineNode {
-    constructor(parentNode, queueMinSize=1, queueStride=1) {
+    constructor(parentNode) {
         this.childNode = null;
         this.parentNode = parentNode;
-        try {
-            this.parentNode.childNode = this;
-        } catch (e) {
-            if(!(e instanceof TypeError)) {throw e;}
-        }
-
-        this.queueMinSize = queueMinSize;
-        this.queueStride = queueStride;
-
-        if(!this.queueStride) {
-            throw `Invalid queue stride ${this.queueStride}`
-        }
-
-        // This queue ensure that promises are resolved in the order they
-        //  were created in, so we can't simultaneously try and run multiple
-        //  sets of data through the same model object. This prevents a race
-        //  condition.
-        this.propagateQueue = [new Promise(resolve => {resolve()})];
+        this.parentNode.childNode = this;
     }
 
     flush() {
         // Flush any existing queued objects and reset ready for another set
         //  of original inputs.
-        this.inputQueue = [];
         this.outputQueue = [];
+        this.processedItems = 0;
 
-        // In the pipeline class we can await this.finisher on the final node
+        /*
+          this.finish:      function that tells this node that it's parent's
+                              outputQueue will not be updated any further
+
+          this.finished:    promise that resolves once this node will no longer
+                              update its outputQueue
+
+          this.hasFinished: boolean indicating whether or not this.finished
+                              has resolved
+        */
+
         this.hasFinished = false;
-        this.finisher = new Promise(resolve => {
+        this.finished = new Promise(resolve => {
             this.finish = () => {
-                // If we can't begin any more new calls to this.process,
-                //  we had still better wait for any existing calls to
-                //  finish before marking ourselves as finished.
-                Promise.all(this.propagateQueue).then(() => {
-                    this.onFinish();
-                    resolve();
-                });
+                console.debug(`${this.constructor.name} is finishing`);
+                this.onFinish();
+                this.hasFinished = true;
+                resolve();
             };
         });
     }
 
     onFinish() {
-        this.hasFinished = true;
+        // Implemented by sub-classes
     }
 
-    inputValidator(input) {
-        throw {name: "NotImplementedError"};
-    }
-
-    input(input) {
+    async proceed() {
+        /* Proceed as much as possible */
         if(this.hasFinished) {
-            console.error(new Error().stack);
-            throw `Node ${this.constructor.name} has already finished`;
+            console.warn(new Error().stack);
+            console.warn(`Node ${this.constructor.name} has already finished`);
+            return;
         }
 
-        // Input should be an array of objects
-        if(!this.inputValidator(input)) {
-            throw `Invalid input: ${input}`;
-        }
+        await this.process();
 
-        if(this.inputQueue.length) {
-            this.inputQueue.push(...input);
-        } else {
-            // Saves us spreading when using URL -> [TensorFrequencyData]
-            this.inputQueue = input;
+        if(this.parentNode && this.parentNode.hasFinished &&
+            this.processedItems === this.parentNode.outputQueue.length) {
+            // Then this node is finished.
+            this.finish();
         }
-
-        // Don't propagate next entry until last one is complete.
-        this.propagateQueue[this.propagateQueue.length - 1].then(() => {
-            let asyncPropagate = this.propagate().catch(console.error);
-            this.propagateQueue.push(asyncPropagate);
-        });
     }
 
     async process(input) {
@@ -131,53 +143,25 @@ class PipelineNode {
         //  length queueMinSize, and outputs an array of objects
         throw {name: "NotImplementedError"};
     }
+}
 
-    async propagate() {
-        // Propagate flow of data through the pipeline.
-        let results = [];
-
-        while(this.canProceed) {
-
-            // Extract next slice of input
-            const inputSlice = this.inputQueue.slice(0, this.queueMinSize);
-
-            // Remove input
-            this.inputQueue.splice(0, this.queueStride);
-
-            const result = await this.process(inputSlice);
-            results.push(...result);
-
-            // Only the last node will use the output queue but it is also
-            //  useful when debugging.
-            if(this.outputQueue.length) {
-                this.outputQueue.push(...result);
-            } else {
-                // Saves us spreading when using URL -> [TensorFrequencyData]
-                this.outputQueue = result.slice();
-            }
-
-        }
-
-        if(this.childNode) {
-            this.childNode.input(results);
-        }
-
-        // The first node in a online pipeline can never know if there
-        //  will be any more inputs until finish() has been called.
-        // Every other child node can work out whether or not it's
-        //  finished based on its parent and itself.
-        if(this.parentNode && this.parentNode.hasFinished) {
-            console.info(`${this.constructor.name} is finishing`);
-            this.finish();
-        }
+class PipelineInputNode extends PipelineNode {
+    constructor() {
+        super({});
+        this.inputQueue = [];
     }
 
-    get canProceed() {
-        return (this.inputQueue.length && this.inputQueue.length >= this.queueMinSize)
+    input(input) {
+        this.inputQueue.push(...input);
+    }
+
+    flush() {
+        super.flush();
+        this.inputQueue = [];
     }
 }
 
-class AudioURLNode extends PipelineNode {
+class AudioURLNode extends PipelineInputNode {
     // Convert audio data from a given URL file into frequency data.
     //  TensorflowJS does more or less exactly this under the hood
     //  in iterators/microphone_iterator.ts, but with microphone
@@ -187,16 +171,20 @@ class AudioURLNode extends PipelineNode {
         super();
     }
 
-    inputValidator(input) {
-        return (input.length === 1 && typeof input[0] === "string");
-    }
+    async process() {
+        // Although the AudioURLNode should really only take
+        //  one URL before calling pipeline.finish() and
+        //  the pipeline being flushed.
+        if(this.processedItems >= this.inputQueue.length) {
+            return;
+        }
 
-    async process(input) {
-        const url = input[0];
+        const inputURL = this.inputQueue[this.processedItems];
+        this.processedItems++;
 
         // Get duration of audio file
         const audio = new Audio();
-        audio.src = url;
+        audio.src = inputURL;
         await new Promise(resolve => {audio.onloadedmetadata = resolve});
         const offlineNumSamples = audio.duration * FFConfig.SAMPLE_RATE;
         audio.removeAttribute('src'); // Don't yet load in the rest of the file
@@ -208,11 +196,9 @@ class AudioURLNode extends PipelineNode {
         const processor = audioContext.createScriptProcessor(FFConfig.SPEC_WINDOW_SIZE, 1, 1);
 
         // Load data into source
-        const response = await fetch(url);
+        const response = await fetch(inputURL);
         const arrayBuffer = await response.arrayBuffer();
         source.buffer = await audioContext.decodeAudioData(arrayBuffer);
-
-        let result = [];
 
         // Connect things up
         source.connect(analyser);
@@ -222,14 +208,11 @@ class AudioURLNode extends PipelineNode {
         processor.onaudioprocess = () => {
             analyser.getFloatFrequencyData(frequencyData)
             // console.debug(frequencyData);
-            result.push(tf.tensor(frequencyData.slice(0)));
+            this.outputQueue.push(tf.tensor(frequencyData.slice(0)));
         };
 
-        audioContext.oncomplete = this.finish;
         source.start(0);
         await audioContext.startRendering();
-
-        return result;
     }
 }
 
@@ -247,75 +230,129 @@ class AutocorrelationNode extends PipelineNode {
     //  If we set smoothing constant (\tau) to zero then the data in each
     //  tensor is just the magnitude |X[k]|.
 
-    // TODO investigate using decibels as range compression rather than raising to a power.
-    //  it would make some steps in this node redundant and save compute.
-
     constructor(parent) {
         super(parent);
 
         // Corresponds to k = 1/3. See process().
         this.kFactor = Math.log(Math.cbrt(10)) / 20;
-
         this.interpMatrix = null;
     }
 
-    inputValidator(input) {
-        for(let i = 0; i < input.length; i++) {
-            if(input[i].constructor.name !== "t" || input[i].size !== FFConfig.SPEC_WINDOW_SIZE / 2) {
-                return false
+    async process() {
+        let numInputs = this.parentNode.outputQueue.length;
+        for(let i = this.processedItems; i < numInputs; i++) {
+            let frame = this.parentNode.outputQueue[i];
+
+            // Maths incoming...
+
+            // Decimal -> Decibel conversion is 20 * log10(x)
+            // So we want to do 10^(x/20)
+            // But remember we are using a "k" value (see ff_config.py) of 1/3.
+            // So we want to do
+            //      (10^(x/20))^(1/3)
+            //  Which is equal to
+            //      cbrt(10)^(x/20)
+            //  Except TF only gives us exp(), So all together we need to use
+            //      (e^ln(cbrt(10)))^(x/20)
+            //    = exp( x * ln(cbrt(10))/20 )
+
+            frame = tf.exp(tf.mul(frame, this.kFactor));
+
+            // Also, browser FFT implementation halves length of signal
+            //  (it only returns one of the two symmetrical sides; FFT of
+            //  a real signal is always conjugate-symmetric ie X[-k] = X[k]*
+            //  and browser audio data must always be real)
+
+            frame = tf.concat([frame, tf.expandDims(frame.min()), tf.reverse(tf.slice(frame, 1))]);
+
+            // So now frame is now a 1024 long FFT of a 1024-sample window,
+            //  and we've scaled the absolute value of each complex value
+            //  with a power of 1/3.
+
+            let webAssemblyDebugging = false;
+
+            if(webAssemblyDebugging) {
+                // Pretend FFT. Gets shape right so can proceed.
+                frame = tf.expandDims(frame);
+                frame = tf.slice(frame, 513);
+            } else {
+                frame = tf.real(tf.spectral.rfft(frame));
+                frame = tf.maximum(frame, 0);
             }
+
+            // Now frame is 513 long
+            //  (https://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.rfft.html)
+
+            // Remove DC bin as it has frequency = 0 = midi note -infinity.
+            frame = tf.slice(frame, [0, 1]);  // remove first bin
+
+            if(this.interpMatrix === null) {
+                // Resample to linearly spaced (in musical notes)
+                const binMidiValues = binsTensorToMidis(tf.range(1, frame.size + 1));
+
+                // There is no 1D interpolation built into TF-JS (as of 2.1.0) but we
+                //  can quite easily represent it as a matrix operation.
+                this.interpMatrix = getInterpMatrix(binMidiValues);
+            }
+
+            this.outputQueue.push(tf.matMul(frame, this.interpMatrix));
         }
-        return true;
+        this.processedItems = numInputs;
     }
+}
 
-    async process(input) {
-        let frame = input[0];
+class CNNPadNode extends PipelineNode {
+    async process() {
+        let q = this.parentNode.outputQueue;
+        let n = q.length;
+        let context = FFConfig.CONTEXT_FRAMES;
+        let padding = context / 2;
 
-        // Maths incoming...
-
-        // Decimal -> Decibel conversion is 20 * log10(x)
-        // So we want to do 10^(x/20)
-        // But remember we are using a "k" value (see ff_config.py) of 1/3.
-        // So we want to do
-        //      (10^(x/20))^(1/3)
-        //  Which is equal to
-        //      cbrt(10)^(x/20)
-        //  Except TF only gives us exp(), So all together we need to use
-        //      (e^ln(cbrt(10)))^(x/20)
-        //    = exp( x * ln(cbrt(10))/20 )
-
-        frame = tf.exp(tf.mul(frame, this.kFactor));
-
-        // Also, browser FFT implementation halves length of signal
-        //  (it only returns one of the two symmetrical sides; FFT of
-        //  a real signal is always conjugate-symmetric ie X[-k] = X[k]*
-        //  and browser audio data must always be real)
-
-        frame = tf.concat([frame, tf.expandDims(frame.min()), tf.reverse(tf.slice(frame, 1))]);
-
-        // So now frame is now a 1024 long FFT of a 1024-sample window,
-        //  and we've scaled the absolute value of each real-imaginary
-        //  with a power of 1/3.
-
-        frame = tf.real(tf.spectral.rfft(frame));
-        frame = tf.maximum(frame, 0);
-
-        // Now frame is 513 long
-        //  (https://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.rfft.html)
-
-        // Remove DC bin as it has frequency = 0 = midi note -infinity.
-        frame = tf.slice(frame, [0, 1]);  // remove first bin
-
-        if(this.interpMatrix === null) {
-            // Resample to linearly spaced (in musical notes)
-            const binMidiValues = binsTensorToMidis(tf.range(1, frame.size + 1));
-
-            // There is no 1D interpolation built into TF-JS (as of 2.1.0) but we
-            //  can quite easily represent it as a matrix operation.
-            this.interpMatrix = getInterpMatrix(binMidiValues);
+        if(n < padding) {
+            // Need more frames
+            return;
         }
 
-        return [tf.matMul(frame, this.interpMatrix)];
+        for(let i = this.processedItems; i < n; i++) {
+
+            let paddedFrame;
+            let rightEdge = this.processedItems + padding > n;
+
+            if(this.processedItems < padding) {
+                // We have not yet processed enough frames to no longer require
+                //  any padding. So we require some padding.
+
+                const numZeroFrames = context - this.processedItems;
+                const unpadded = tf.concat(q.slice(0, padding + this.processedItems))
+                paddedFrame = tf.pad(unpadded, [[0, 0], [0, 0]]);
+
+                console.debug(1);
+            } else if(!rightEdge) {
+                // We're not too close to the right edge or the left edge.
+                //  No padding will be applied.
+
+                // No padding case
+                paddedFrame = tf.concat(q.slice(this.processedItems - padding, this.processedItems + padding));
+                console.debug(2);
+
+            } else if(this.parentNode.hasFinished) {
+                // Parent finished but we're close to the right edge, add padding to the right edge.
+                console.debug(3);
+
+                const numZeroFrames = n + padding - this.processedItems;
+                const unpadded = tf.concat(q.slice(this.processedItems - padding, n));
+                paddedFrame = tf.pad(unpadded, [[0, 0], [0, 0]]);
+            } else {
+                // We've reached as far as we can. We need more data on the queue
+                //  to proceed further.
+                return;
+            }
+
+            console.debug(paddedFrame.shape);
+
+            this.outputQueue.push(paddedFrame);
+            this.processedItems++;
+        }
     }
 }
 
@@ -328,8 +365,7 @@ class CNNNode extends PipelineNode {
         //  edge padding as it finishes, to pad our data on the right
         //  hand side.
         parent.onFinish = () => {
-            parent.hasFinished = true;
-            parent.childNode.input(this.edgePadding());
+            this.input(this.edgePadding());
         }
     }
 
@@ -350,15 +386,6 @@ class CNNNode extends PipelineNode {
 
     async loadModel() {
         this.model = await tf.loadLayersModel("models/cnn/model.json");
-    }
-
-    inputValidator(input) {
-        for(let i = 0; i < input.length; i++) {
-            if(input[i].constructor.name !== "t" || input[i].size !== FFConfig.SPEC_NUM_BINS) {
-                return false
-            }
-        }
-        return true;
     }
 
     async process(input) {
@@ -400,15 +427,6 @@ class RNNNode extends PipelineNode {
         this.model = await tf.loadLayersModel("models/rnn/model.json");
     }
 
-    inputValidator(input) {
-        for(let i = 0; i < input.length; i++) {
-            if(input[i].constructor.name !== "t" || input[i].size !== FFConfig.MIDI_NUM) {
-                return false
-            }
-        }
-        return true;
-    }
-
     greedyDecoder(prediction) {
         // Greedy decode RNN predictions to melody contour
         let argMaxes = tf.argMax(prediction, 2).squeeze();
@@ -430,7 +448,6 @@ class RNNNode extends PipelineNode {
         return [prediction];
     }
 }
-
 
 function getInterpMatrix(midiValues) {
     /*
