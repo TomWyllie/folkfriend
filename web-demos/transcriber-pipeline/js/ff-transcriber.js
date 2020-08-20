@@ -4,7 +4,9 @@ window.AudioContext = window.AudioContext || window.webkitAudioContext;
 function getAudioURLPipeline() {
     return new Pipeline([
         AudioURLNode,
-        AutocorrelationNode
+        AutocorrelationNode,
+        CNNNode,
+        RNNNode
     ]);
 }
 
@@ -61,6 +63,12 @@ class PipelineNode {
         if(!this.queueStride) {
             throw `Invalid queue stride ${this.queueStride}`
         }
+
+        // This queue ensure that promises are resolved in the order they
+        //  were created in, so we can't simultaneously try and run multiple
+        //  sets of data through the same model object. This prevents a race
+        //  condition.
+        this.propagateQueue = [new Promise(resolve => {resolve()})];
     }
 
     flush() {
@@ -73,10 +81,19 @@ class PipelineNode {
         this.hasFinished = false;
         this.finisher = new Promise(resolve => {
             this.finish = () => {
-                this.hasFinished = true;
-                resolve();
+                // If we can't begin any more new calls to this.process,
+                //  we had still better wait for any existing calls to
+                //  finish before marking ourselves as finished.
+                Promise.all(this.propagateQueue).then(() => {
+                    this.onFinish();
+                    resolve();
+                });
             };
         });
+    }
+
+    onFinish() {
+        this.hasFinished = true;
     }
 
     inputValidator(input) {
@@ -85,7 +102,8 @@ class PipelineNode {
 
     input(input) {
         if(this.hasFinished) {
-            throw `Node has already finished`
+            console.error(new Error().stack);
+            throw `Node ${this.constructor.name} has already finished`;
         }
 
         // Input should be an array of objects
@@ -100,7 +118,11 @@ class PipelineNode {
             this.inputQueue = input;
         }
 
-        this.propagate().catch(console.error);
+        // Don't propagate next entry until last one is complete.
+        this.propagateQueue[this.propagateQueue.length - 1].then(() => {
+            let asyncPropagate = this.propagate().catch(console.error);
+            this.propagateQueue.push(asyncPropagate);
+        });
     }
 
     async process(input) {
@@ -112,16 +134,18 @@ class PipelineNode {
 
     async propagate() {
         // Propagate flow of data through the pipeline.
-        const initialLength = this.inputQueue.length;
+        let results = [];
 
         while(this.canProceed) {
 
             // Extract next slice of input
             const inputSlice = this.inputQueue.slice(0, this.queueMinSize);
-            const result = await this.process(inputSlice);
 
             // Remove input
             this.inputQueue.splice(0, this.queueStride);
+
+            const result = await this.process(inputSlice);
+            results.push(...result);
 
             // Only the last node will use the output queue but it is also
             //  useful when debugging.
@@ -129,12 +153,13 @@ class PipelineNode {
                 this.outputQueue.push(...result);
             } else {
                 // Saves us spreading when using URL -> [TensorFrequencyData]
-                this.outputQueue = result;
+                this.outputQueue = result.slice();
             }
 
-            if(this.childNode) {
-                this.childNode.input(result);
-            }
+        }
+
+        if(this.childNode) {
+            this.childNode.input(results);
         }
 
         // The first node in a online pipeline can never know if there
@@ -142,6 +167,7 @@ class PipelineNode {
         // Every other child node can work out whether or not it's
         //  finished based on its parent and itself.
         if(this.parentNode && this.parentNode.hasFinished) {
+            console.info(`${this.constructor.name} is finishing`);
             this.finish();
         }
     }
@@ -292,6 +318,119 @@ class AutocorrelationNode extends PipelineNode {
         return [tf.matMul(frame, this.interpMatrix)];
     }
 }
+
+class CNNNode extends PipelineNode {
+    constructor(parent) {
+        super(parent, FFConfig.CONTEXT_FRAMES, 1);
+        this.modelLoaded = this.loadModel();
+
+        // We need to tell the parent node of this node to pass in the
+        //  edge padding as it finishes, to pad our data on the right
+        //  hand side.
+        parent.onFinish = () => {
+            parent.hasFinished = true;
+            parent.childNode.input(this.edgePadding());
+        }
+    }
+
+    flush() {
+        super.flush();
+
+        // Add edge padding on left side
+        this.inputQueue = this.edgePadding();
+    }
+
+    edgePadding() {
+        // But we pad the input buffer with zeros so we don't lose any frames
+        const zeroFrame = tf.zeros([1, FFConfig.SPEC_NUM_BINS], 'float32');
+        let zeroFrames = new Array(FFConfig.CONTEXT_FRAMES / 2)
+        zeroFrames.fill(zeroFrame);
+        return zeroFrames;
+    }
+
+    async loadModel() {
+        this.model = await tf.loadLayersModel("models/cnn/model.json");
+    }
+
+    inputValidator(input) {
+        for(let i = 0; i < input.length; i++) {
+            if(input[i].constructor.name !== "t" || input[i].size !== FFConfig.SPEC_NUM_BINS) {
+                return false
+            }
+        }
+        return true;
+    }
+
+    async process(input) {
+        await this.modelLoaded;
+
+        let batch = tf.expandDims(tf.expandDims(tf.concat2d(input)), 3);
+        batch = tf.div(batch, tf.max(batch));
+        let prediction = this.model.predict(batch);
+
+        // Instead of scaling up the prediction, we scale down the original
+        //  input, resulting in fewer operations. But this makes the output
+        //  less visually intuitive so for debugging the code to return the
+        //  prediction only is kept below.
+
+        // 1 bin per midi note -> BINS_PER_MIDI bins per midi note
+        // prediction = tf.squeeze(prediction);
+        // prediction = prediction.reshape([prediction.size, 1]);
+        // prediction = tf.tile(prediction, [1, FFConfig.SPEC_BINS_PER_MIDI]);
+        // prediction = prediction.reshape([1, FFConfig.SPEC_NUM_BINS]);
+        // return [prediction];
+
+        // Extract the central frame that the prediction corresponds to
+        let centralFrame = input[FFConfig.CONTEXT_FRAMES / 2];
+        centralFrame = tf.reshape(centralFrame, [1, FFConfig.MIDI_NUM, FFConfig.SPEC_BINS_PER_MIDI]);
+        centralFrame = tf.sum(centralFrame, 2);
+
+        const denoisedFrame = tf.mul(centralFrame, prediction);
+        return [denoisedFrame];
+    }
+}
+
+class RNNNode extends PipelineNode {
+    constructor(parent) {
+        super(parent, FFConfig.SPEC_NUM_FRAMES, FFConfig.SPEC_NUM_FRAMES);
+        this.modelLoaded = this.loadModel();
+    }
+
+    async loadModel() {
+        this.model = await tf.loadLayersModel("models/rnn/model.json");
+    }
+
+    inputValidator(input) {
+        for(let i = 0; i < input.length; i++) {
+            if(input[i].constructor.name !== "t" || input[i].size !== FFConfig.MIDI_NUM) {
+                return false
+            }
+        }
+        return true;
+    }
+
+    greedyDecoder(prediction) {
+        // Greedy decode RNN predictions to melody contour
+        let argMaxes = tf.argMax(prediction, 2).squeeze();
+
+        console.debug(argMaxes.dataSync());
+    }
+
+    async process(input) {
+        await this.modelLoaded;
+
+        let batch = tf.expandDims(tf.concat2d(input));
+        // batch = tf.div(batch, tf.max(batch));
+        batch = tf.mul(batch, tf.div(255, tf.max(batch)));
+        let prediction = this.model.predict(batch);
+        prediction = tf.sub(prediction, tf.min(prediction));
+
+        this.greedyDecoder(prediction);
+
+        return [prediction];
+    }
+}
+
 
 function getInterpMatrix(midiValues) {
     /*

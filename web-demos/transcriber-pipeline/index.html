@@ -4,21 +4,29 @@
     <meta charset="UTF-8">
     <title>Transcriber Pipeline</title>
 
+    <!-- TensorFlow JS -->
     <script src="js/tf.min.js"></script>
+
+    <!-- Adds the WASM backend for TF-JS to the global backend registry -->
+    <script src="js/tf-backend-wasm.js"></script>
+
     <script type="text/javascript" src="/js/ff-config.js"></script>
     <script type="text/javascript" src="/js/ff-transcriber.js"></script>
     <script type="text/javascript" src="/js/demo.js"></script>
 
     <style>
-        #output-canvas {
+        canvas {
             image-rendering: pixelated;
             display: block;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
     <h1>Transcriber Pipeline</h1>
     <input type="file" accept="audio/*" capture id="recorder">
-    <canvas id="output-canvas"></canvas>
+    <canvas id="ac-canvas"></canvas>
+    <canvas id="cnn-canvas"></canvas>
+    <canvas id="rnn-canvas"></canvas>
 </body>
 </html>
