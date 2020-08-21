@@ -142,7 +142,7 @@ def partition_x_into_n(x, n):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir',
-                        default=ff_config.DEFAULT_DS_DIR,
+                        default=ff_config.DEFAULT_DS_DIR_,
                         help='Directory to contain the dataset files in')
     args = parser.parse_args()
     build_index(args.dir)

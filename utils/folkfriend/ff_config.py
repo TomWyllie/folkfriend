@@ -35,7 +35,7 @@ SPEC_WINDOW_SIZE = 1024
 # Applying FFT gives
 # [2D windowed samples (num_frames, 1024)] -> [2D spectrum (num_frames, 1024)]
 
-# Spectrum is then magnitude compressed with an exponent (k = 0.67, see
+# Spectrum is then magnitude compressed with an exponent (k = 0.33, see
 #   https://labrosa.ee.columbia.edu/~dpwe/papers/ToloK2000-mupitch.pdf)
 
 # Applying second FFT (RFFT) and extracting the real part only gives
@@ -69,6 +69,7 @@ LINEAR_MIDI_BINS = np.linspace(
     num=SPEC_NUM_BINS,
     endpoint=True
 )
+LINEAR_MIDI_BINS = [round(x, 2) for x in LINEAR_MIDI_BINS]
 
 # Applying spectrogram resampling
 # [2D spectrum (num_frames, 512)] -> [2D spectrum (num_frames, SPEC_NUM_BINS)]
@@ -95,10 +96,14 @@ CONTEXT_FRAMES = 16
 # === RNN PARAMETERS ===
 # ======================
 
+# Note these are dev-only parameters because the string conversion
+#   is only carried out when training
+#   TODO we should omit the string conversion step it's unnecessary
+
 # abc...ABC
-BLANK_CHARACTER = '-'
-MIDI_MAP = string.ascii_letters[:MIDI_NUM] + BLANK_CHARACTER
-RNN_CLASSES_NUM = len(MIDI_MAP)  # Includes blank character
+BLANK_CHARACTER_ = '-'
+MIDI_MAP_ = string.ascii_letters[:MIDI_NUM] + BLANK_CHARACTER_
+RNN_CLASSES_NUM_ = len(MIDI_MAP_)  # Includes blank character
 
 # Applying RNN model gives
 # [2D spectrum (num_frames, NUM_MIDI)] -> [1D array (num_frames)]
@@ -110,19 +115,19 @@ RNN_CLASSES_NUM = len(MIDI_MAP)  # Includes blank character
 #   word edit distance, but the array can also be used directly for search
 #   queries.
 
-# =================================
-# === NON-PRODUCTION PARAMETERS ===
-# =================================
+# =======================================
+# === OTHER NON-PRODUCTION PARAMETERS ===
+# =======================================
 
-# Dataset parameters
-THESESSION_DATA_URL = 'https://raw.githubusercontent.com/adactio/TheSession-data/main/json/tunes.json'
-DEFAULT_DS_DIR = os.path.join(str(pathlib.Path.home()), 'datasets/folkfriend')
-CNN_DS_SS = 2  # Start seconds
-CNN_DS_TO = CNN_DS_SS + AUDIO_QUERY_SECS  # 8 second samples
+# Dataset parameters. End these variables with a _ to denote dev only
+THESESSION_DATA_URL_ = 'https://raw.githubusercontent.com/adactio/TheSession-data/main/json/tunes.json'
+DEFAULT_DS_DIR_ = os.path.join(str(pathlib.Path.home()), 'datasets/folkfriend')
+CNN_DS_SS_ = 2  # Start seconds
+CNN_DS_TO_ = CNN_DS_SS_ + AUDIO_QUERY_SECS  # 8 second samples
 # This value can be as high as liked, but over SPECTROGRAM_IMG_WIDTH
 #   and it will simply cause data to start repeating. At that value
 #   there will be a lot of data too, increasing training time for
 #   probably not much improvement in accuracy.
-CNN_DS_SAMPLES_PER_IMAGE = 100
-CNN_NOISIFY_SCALE = 0.1
-RNN_INPUT_SALTING = 0.01  # 1%
+CNN_DS_SAMPLES_PER_IMAGE_ = 100
+CNN_NOISIFY_SCALE_ = 0.1
+RNN_INPUT_SALTING_ = 0.01  # 1%

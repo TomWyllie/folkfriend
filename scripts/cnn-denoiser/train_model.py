@@ -52,7 +52,7 @@ if __name__ == '__main__':
     path_timestamp = datetime.now().strftime('%H%M%S-%d%m%Y')
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--dir',
-                        default=ff_config.DEFAULT_DS_DIR,
+                        default=ff_config.DEFAULT_DS_DIR_,
                         help='Path to dataset directory')
     parser.add_argument('-n', '--name',
                         help='A label to use for this training run. Models'

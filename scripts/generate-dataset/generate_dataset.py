@@ -112,13 +112,13 @@ def build_meta_files(config_files):
         f.writelines(annotations[-val_index:])
 
     with open(table, 'w') as f:
-        f.write('\n'.join(ff_config.MIDI_MAP))
+        f.write('\n'.join(ff_config.MIDI_MAP_))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir',
-                        default=ff_config.DEFAULT_DS_DIR,
+                        default=ff_config.DEFAULT_DS_DIR_,
                         help='Directory to contain the dataset files in')
     parser.add_argument('--no-audio', action='store_true')
     parser.add_argument('--num', default=100, help='Number of entries in dataset', type=int)

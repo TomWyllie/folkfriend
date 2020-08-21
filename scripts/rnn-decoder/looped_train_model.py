@@ -7,7 +7,7 @@ def main():
     # If it fails 100 times something is really badly wrong.
     for _ in range(100):
         subprocess.run(['python', 'train_model.py',
-                        '--dir', ff_config.DEFAULT_DS_DIR,
+                        '--dir', ff_config.DEFAULT_DS_DIR_,
                         '-ar',
                         '-w', f'{ff_config.SPEC_NUM_FRAMES}',
                         '-b', '256',

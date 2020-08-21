@@ -4,6 +4,9 @@ import scipy.interpolate as interp
 from folkfriend import ff_config
 from folkfriend.sig_proc import note
 
+# This keeps ff_config serialisable for export to JS
+NP_LINEAR_MIDI_BINS = np.asarray(ff_config.LINEAR_MIDI_BINS)
+
 
 def compute_ac_spectrogram(signal, window_size=ff_config.SPEC_WINDOW_SIZE):
     # 1024 / 48000 = 21.33 ms
@@ -40,7 +43,7 @@ def linearise_ac_spectrogram(spectrogram):
     nc = note.NoteConverter()
 
     # Remove DC bin as it has frequency = 0 = midi note -infinity.
-    spectrogram = spectrogram[:, 1:]    # Keep all frames, remove first bin
+    spectrogram = spectrogram[:, 1:]  # Keep all frames, remove first bin
 
     # Resample to linearly spaced (in musical notes)
     bin_midi_values = nc.bin_to_midi_arr(
@@ -48,4 +51,4 @@ def linearise_ac_spectrogram(spectrogram):
     )
 
     return interp.interp1d(bin_midi_values,
-                           spectrogram)(ff_config.LINEAR_MIDI_BINS)
+                           spectrogram)(NP_LINEAR_MIDI_BINS)

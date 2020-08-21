@@ -59,9 +59,9 @@ class DatasetBuilder:
         self.img_width = ff_config.SPEC_NUM_FRAMES
         self.img_channels = 1
         self.num_classes = self.table.size()
-        if self.num_classes != ff_config.RNN_CLASSES_NUM:
+        if self.num_classes != ff_config.RNN_CLASSES_NUM_:
             raise ValueError(f"{self.num_classes} is not equal to "
-                             f"{ff_config.RNN_CLASSES_NUM}")
+                             f"{ff_config.RNN_CLASSES_NUM_}")
 
         print('NUM_CLASSES', self.num_classes)
 
