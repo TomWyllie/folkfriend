@@ -2,6 +2,7 @@
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
 async function getAudioURLPipeline() {
+    await tf.ready();
     return new Pipeline([
         AudioURLNode,
         AutocorrelationNode,
@@ -35,7 +36,8 @@ class Pipeline {
 
     input(input) {
         this.nodes[0].input(input);
-        this.propagate().catch(console.error);
+        // this.propagate().catch(console.error);
+        this.propagate();
     }
 
     async propagate() {
@@ -312,39 +314,40 @@ class AutocorrelationNode extends PipelineNode {
             //  a real signal is always conjugate-symmetric ie X[-k] = X[k]*
             //  and browser audio data must always be real)
 
-            // console.time("ac-concat");
-            frame = tf.concat([frame, tf.expandDims(frame.min()), tf.reverse(tf.slice(frame, 1))]);
-            // console.timeEnd("ac-concat");
-
-            // So now frame is now a 1024 long FFT of a 1024-sample window,
-            //  and we've scaled the absolute value of each complex value
-            //  with a power of 1/3.
-
-
             let webAssemblyDebugging = false;
             if(webAssemblyDebugging) {
                 // Pretend FFT. Gets shape right so can proceed.
+                // console.debug(frame.shape);
                 frame = tf.expandDims(frame);
-                frame = tf.slice(frame, 513);
+                // console.debug(frame.shape);
             } else {
+                // console.time("ac-concat");
+                frame = tf.concat([frame, tf.expandDims(frame.min()), tf.reverse(tf.slice(frame, 1))]);
+                // console.timeEnd("ac-concat");
+
+                // So now frame is now a 1024 long FFT of a 1024-sample window,
+                //  and we've scaled the absolute value of each complex value
+                //  with a power of 1/3.
+
                 // console.time("ac-fft");
                 frame = tf.real(tf.spectral.rfft(frame));
                 // console.timeEnd("ac-fft");
                 // console.time("ac-max");
                 frame = tf.maximum(frame, 0);
                 // console.timeEnd("ac-max");
+
+                // Now frame is 513 long
+                //  (https://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.rfft.html)
+
+                // Remove DC bin as it has frequency = 0 = midi note -infinity.
+                // console.time("remove-first");
+                frame = tf.slice(frame, [0, 1]);  // remove first bin
+                // console.timeEnd("remove-first");
             }
-
-            // Now frame is 513 long
-            //  (https://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.rfft.html)
-
-            // Remove DC bin as it has frequency = 0 = midi note -infinity.
-            // console.time("remove-first");
-            frame = tf.slice(frame, [0, 1]);  // remove first bin
-            // console.timeEnd("remove-first");
 
             // console.time("ac-resample");
             const linearlyResampled = tf.matMul(frame, this.getInterpMatrix());
+            frame.dispose();
             // console.timeEnd("ac-resample");
 
             this.outputQueue.push(linearlyResampled);
@@ -398,6 +401,10 @@ class CNNPadNode extends PipelineNode {
                 return;
             }
 
+            if(this.processedItems >= padding) {
+                q[this.processedItems - padding].dispose();
+            }
+
             this.outputQueue.push(paddedFrame);
             this.processedItems++;
         }
@@ -416,17 +423,30 @@ class CNNNode extends PipelineNode {
 
     async loadModel() {
         this.model = await tf.loadLayersModel("models/cnn/model.json");
+
+        let warmupResult = this.model.predict(tf.zeros([1, FFConfig.CONTEXT_FRAMES, FFConfig.SPEC_NUM_BINS, 1]));
+        await warmupResult.data();
+        warmupResult.dispose();
     }
 
     async process() {
         await this.modelLoaded;
+
+        // TODO batch by eg 16
 
         let numInputs = this.parentNode.outputQueue.length;
         for(let i = this.processedItems; i < numInputs; i++) {
             let frame = this.parentNode.outputQueue[i];
             let batch = tf.expandDims(tf.expandDims(frame), 3);
             batch = tf.div(batch, tf.max(batch));
-            let prediction = this.model.predict(batch);
+
+            // console.debug('here');
+
+            // let prediction = this.model.predict(tf.zerosLike(batch), {batchSize: 1});
+            let prediction = this.model.predict(batch, {batchSize: 1});
+
+            // console.debug('here2');
+            batch.dispose();
 
             // Instead of scaling up the prediction, we scale down the original
             //  input, resulting in fewer operations. But this makes the output
@@ -442,10 +462,15 @@ class CNNNode extends PipelineNode {
 
             // Extract the central frame that the prediction corresponds to
             let centralFrame = tf.slice(frame, [FFConfig.CONTEXT_FRAMES / 2, 0], [1, FFConfig.SPEC_NUM_BINS]);
+            frame.dispose();
+
             centralFrame = tf.reshape(centralFrame, [1, FFConfig.MIDI_NUM, FFConfig.SPEC_BINS_PER_MIDI]);
             centralFrame = tf.sum(centralFrame, 2);
 
             const denoisedFrame = tf.mul(centralFrame, prediction);
+
+            prediction.dispose();
+            centralFrame.dispose();
 
             this.outputQueue.push(denoisedFrame);
         }
@@ -461,6 +486,10 @@ class RNNNode extends PipelineNode {
 
     async loadModel() {
         this.model = await tf.loadLayersModel("models/rnn/model.json");
+
+        let warmupResult = this.model.predict(tf.zeros([1, FFConfig.SPEC_NUM_FRAMES, FFConfig.MIDI_NUM]));
+        await warmupResult.data();
+        warmupResult.dispose();
     }
 
     async greedyDecoder(prediction) {
@@ -517,13 +546,18 @@ class RNNNode extends PipelineNode {
 
     async melodyFromFrames(frames, rpad=null) {
         let batch = tf.expandDims(tf.concat2d(frames));
+
+        for(let i = 0; i < frames.length; i++) {
+            frames[i].dispose();
+        }
+
         batch = tf.mul(batch, tf.div(255, tf.max(batch)));
 
         if(rpad !== null) {
             batch = tf.pad(batch, [[0, 0], [0, rpad], [0, 0]]);
         }
 
-        let prediction = this.model.predict(batch);
+        let prediction = this.model.predict(batch, {batchSize: 1});
         return await this.greedyDecoder(prediction);
     }
 }
