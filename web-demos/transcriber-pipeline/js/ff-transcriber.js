@@ -2,13 +2,12 @@
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 
 async function getAudioURLPipeline() {
-    await tf.ready();
     return new Pipeline([
         AudioURLNode,
         AutocorrelationNode,
         CNNPadNode,
-        // CNNNode,
-        // RNNNode
+        CNNNode,
+        RNNNode
     ]);
 }
 
@@ -30,6 +29,8 @@ class Pipeline {
 
         // Ready all the nodes
         this.flush();
+
+        this.ready = this.readyAll();
     }
 
     input(input) {
@@ -56,7 +57,9 @@ class Pipeline {
             //  another request could come through, ad infinitum
             while(this.propagateRequests > 0) {
                 for(let i = 0; i < this.nodes.length; i++) {
+                    console.time(`${this.nodes[i].constructor.name}`);
                     await this.nodes[i].proceed();
+                    console.timeEnd(`${this.nodes[i].constructor.name}`);
                 }
                 this.propagateRequests--;
             }
@@ -69,10 +72,29 @@ class Pipeline {
         this.propagating = false;
         this.propagateRequests = 0;
         this.nodes.forEach(node => node.flush());
+
+
     }
 
     finish() {
         this.nodes[0].finish();
+    }
+
+    async result() {
+        await this.nodes[this.nodes.length - 1].finished;
+        return this.nodes[this.nodes.length - 1].outputQueue;
+    }
+
+    async readyAll() {
+        await tf.ready();
+        for(let i = 0; i < this.nodes; i++) {
+            if(n.hasOwnProperty("ready")) {
+                await this.nodes[i].ready;
+            }
+            if(n.hasOwnProperty("modelLoaded")) {
+                await this.nodes[i].modelLoaded;
+            }
+        }
     }
 
     get finished() {
@@ -108,7 +130,7 @@ class PipelineNode {
         this.hasFinished = false;
         this.finished = new Promise(resolve => {
             this.finish = () => {
-                console.debug(`${this.constructor.name} is finishing`);
+                // console.debug(`${this.constructor.name} is finishing`);
                 this.onFinish();
                 this.hasFinished = true;
                 resolve();
@@ -134,6 +156,11 @@ class PipelineNode {
             this.processedItems === this.parentNode.outputQueue.length) {
             // Then this node is finished.
             this.finish();
+
+            // Make sure this.finished has actually resolved before moving on.
+            //  Otherwise the it might not have resolved before reaching
+            //  the child node.
+            await this.finished;
         }
     }
 
@@ -235,10 +262,30 @@ class AutocorrelationNode extends PipelineNode {
 
         // Corresponds to k = 1/3. See process().
         this.kFactor = Math.log(Math.cbrt(10)) / 20;
-        this.interpMatrix = null;
+
+        this.ready = new Promise((resolve) => {
+            this.interpMatrix = null;
+            this.getInterpMatrix();
+            resolve();
+        });
+    }
+
+    getInterpMatrix() {
+        if(this.interpMatrix === null) {
+            // Resample to linearly spaced (in musical notes)
+            const frameSize = 1 + Math.floor(FFConfig.SPEC_WINDOW_SIZE / 2);
+            const binMidiValues = binsTensorToMidis(tf.range(1, frameSize));
+
+            // There is no 1D interpolation built into TF-JS (as of 2.1.0) but we
+            //  can quite easily represent it as a matrix operation.
+            this.interpMatrix = computeInterpMatrix(binMidiValues);
+        }
+        return this.interpMatrix;
     }
 
     async process() {
+        await this.ready;
+
         let numInputs = this.parentNode.outputQueue.length;
         for(let i = this.processedItems; i < numInputs; i++) {
             let frame = this.parentNode.outputQueue[i];
@@ -256,46 +303,51 @@ class AutocorrelationNode extends PipelineNode {
             //      (e^ln(cbrt(10)))^(x/20)
             //    = exp( x * ln(cbrt(10))/20 )
 
+            // console.time("ac-exp");
             frame = tf.exp(tf.mul(frame, this.kFactor));
+            // console.timeEnd("ac-exp");
 
             // Also, browser FFT implementation halves length of signal
             //  (it only returns one of the two symmetrical sides; FFT of
             //  a real signal is always conjugate-symmetric ie X[-k] = X[k]*
             //  and browser audio data must always be real)
 
+            // console.time("ac-concat");
             frame = tf.concat([frame, tf.expandDims(frame.min()), tf.reverse(tf.slice(frame, 1))]);
+            // console.timeEnd("ac-concat");
 
             // So now frame is now a 1024 long FFT of a 1024-sample window,
             //  and we've scaled the absolute value of each complex value
             //  with a power of 1/3.
 
-            let webAssemblyDebugging = false;
 
+            let webAssemblyDebugging = false;
             if(webAssemblyDebugging) {
                 // Pretend FFT. Gets shape right so can proceed.
                 frame = tf.expandDims(frame);
                 frame = tf.slice(frame, 513);
             } else {
+                // console.time("ac-fft");
                 frame = tf.real(tf.spectral.rfft(frame));
+                // console.timeEnd("ac-fft");
+                // console.time("ac-max");
                 frame = tf.maximum(frame, 0);
+                // console.timeEnd("ac-max");
             }
 
             // Now frame is 513 long
             //  (https://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.rfft.html)
 
             // Remove DC bin as it has frequency = 0 = midi note -infinity.
+            // console.time("remove-first");
             frame = tf.slice(frame, [0, 1]);  // remove first bin
+            // console.timeEnd("remove-first");
 
-            if(this.interpMatrix === null) {
-                // Resample to linearly spaced (in musical notes)
-                const binMidiValues = binsTensorToMidis(tf.range(1, frame.size + 1));
+            // console.time("ac-resample");
+            const linearlyResampled = tf.matMul(frame, this.getInterpMatrix());
+            // console.timeEnd("ac-resample");
 
-                // There is no 1D interpolation built into TF-JS (as of 2.1.0) but we
-                //  can quite easily represent it as a matrix operation.
-                this.interpMatrix = getInterpMatrix(binMidiValues);
-            }
-
-            this.outputQueue.push(tf.matMul(frame, this.interpMatrix));
+            this.outputQueue.push(linearlyResampled);
         }
         this.processedItems = numInputs;
     }
@@ -316,39 +368,35 @@ class CNNPadNode extends PipelineNode {
         for(let i = this.processedItems; i < n; i++) {
 
             let paddedFrame;
-            let rightEdge = this.processedItems + padding > n;
+            let rightEdge = 1 + this.processedItems + padding > n;
 
             if(this.processedItems < padding) {
+
                 // We have not yet processed enough frames to no longer require
                 //  any padding. So we require some padding.
+                const numZeroFrames = padding - this.processedItems;
+                const unpadded = tf.concat(q.slice(0, padding + this.processedItems));
+                paddedFrame = tf.pad(unpadded, [[numZeroFrames, 0], [0, 0]]);
 
-                const numZeroFrames = context - this.processedItems;
-                const unpadded = tf.concat(q.slice(0, padding + this.processedItems))
-                paddedFrame = tf.pad(unpadded, [[0, 0], [0, 0]]);
-
-                console.debug(1);
             } else if(!rightEdge) {
+
                 // We're not too close to the right edge or the left edge.
                 //  No padding will be applied.
-
-                // No padding case
                 paddedFrame = tf.concat(q.slice(this.processedItems - padding, this.processedItems + padding));
-                console.debug(2);
 
             } else if(this.parentNode.hasFinished) {
-                // Parent finished but we're close to the right edge, add padding to the right edge.
-                console.debug(3);
 
-                const numZeroFrames = n + padding - this.processedItems;
-                const unpadded = tf.concat(q.slice(this.processedItems - padding, n));
-                paddedFrame = tf.pad(unpadded, [[0, 0], [0, 0]]);
+                // Parent finished but we're close to the right edge, add padding to the right edge.
+                const numZeroFrames = padding + 1 + this.processedItems - n;
+                const unpadded = tf.concat(q.slice(1 + this.processedItems - padding, n));
+                paddedFrame = tf.pad(unpadded, [[0, numZeroFrames], [0, 0]]);
+
             } else {
+
                 // We've reached as far as we can. We need more data on the queue
                 //  to proceed further.
                 return;
             }
-
-            console.debug(paddedFrame.shape);
 
             this.outputQueue.push(paddedFrame);
             this.processedItems++;
@@ -358,68 +406,56 @@ class CNNPadNode extends PipelineNode {
 
 class CNNNode extends PipelineNode {
     constructor(parent) {
-        super(parent, FFConfig.CONTEXT_FRAMES, 1);
+        super(parent);
         this.modelLoaded = this.loadModel();
-
-        // We need to tell the parent node of this node to pass in the
-        //  edge padding as it finishes, to pad our data on the right
-        //  hand side.
-        parent.onFinish = () => {
-            this.input(this.edgePadding());
-        }
     }
 
     flush() {
         super.flush();
-
-        // Add edge padding on left side
-        this.inputQueue = this.edgePadding();
-    }
-
-    edgePadding() {
-        // But we pad the input buffer with zeros so we don't lose any frames
-        const zeroFrame = tf.zeros([1, FFConfig.SPEC_NUM_BINS], 'float32');
-        let zeroFrames = new Array(FFConfig.CONTEXT_FRAMES / 2)
-        zeroFrames.fill(zeroFrame);
-        return zeroFrames;
     }
 
     async loadModel() {
         this.model = await tf.loadLayersModel("models/cnn/model.json");
     }
 
-    async process(input) {
+    async process() {
         await this.modelLoaded;
 
-        let batch = tf.expandDims(tf.expandDims(tf.concat2d(input)), 3);
-        batch = tf.div(batch, tf.max(batch));
-        let prediction = this.model.predict(batch);
+        let numInputs = this.parentNode.outputQueue.length;
+        for(let i = this.processedItems; i < numInputs; i++) {
+            let frame = this.parentNode.outputQueue[i];
+            let batch = tf.expandDims(tf.expandDims(frame), 3);
+            batch = tf.div(batch, tf.max(batch));
+            let prediction = this.model.predict(batch);
 
-        // Instead of scaling up the prediction, we scale down the original
-        //  input, resulting in fewer operations. But this makes the output
-        //  less visually intuitive so for debugging the code to return the
-        //  prediction only is kept below.
+            // Instead of scaling up the prediction, we scale down the original
+            //  input, resulting in fewer operations. But this makes the output
+            //  less visually intuitive so for debugging the code to return the
+            //  prediction only is kept below.
 
-        // 1 bin per midi note -> BINS_PER_MIDI bins per midi note
-        // prediction = tf.squeeze(prediction);
-        // prediction = prediction.reshape([prediction.size, 1]);
-        // prediction = tf.tile(prediction, [1, FFConfig.SPEC_BINS_PER_MIDI]);
-        // prediction = prediction.reshape([1, FFConfig.SPEC_NUM_BINS]);
-        // return [prediction];
+            // 1 bin per midi note -> BINS_PER_MIDI bins per midi note
+            // prediction = tf.squeeze(prediction);
+            // prediction = prediction.reshape([prediction.size, 1]);
+            // prediction = tf.tile(prediction, [1, FFConfig.SPEC_BINS_PER_MIDI]);
+            // prediction = prediction.reshape([1, FFConfig.SPEC_NUM_BINS]);
+            // return [prediction];
 
-        // Extract the central frame that the prediction corresponds to
-        let centralFrame = input[FFConfig.CONTEXT_FRAMES / 2];
-        centralFrame = tf.reshape(centralFrame, [1, FFConfig.MIDI_NUM, FFConfig.SPEC_BINS_PER_MIDI]);
-        centralFrame = tf.sum(centralFrame, 2);
+            // Extract the central frame that the prediction corresponds to
+            let centralFrame = tf.slice(frame, [FFConfig.CONTEXT_FRAMES / 2, 0], [1, FFConfig.SPEC_NUM_BINS]);
+            centralFrame = tf.reshape(centralFrame, [1, FFConfig.MIDI_NUM, FFConfig.SPEC_BINS_PER_MIDI]);
+            centralFrame = tf.sum(centralFrame, 2);
 
-        const denoisedFrame = tf.mul(centralFrame, prediction);
-        return [denoisedFrame];
+            const denoisedFrame = tf.mul(centralFrame, prediction);
+
+            this.outputQueue.push(denoisedFrame);
+        }
+        this.processedItems = numInputs;
     }
 }
 
 class RNNNode extends PipelineNode {
     constructor(parent) {
-        super(parent, FFConfig.SPEC_NUM_FRAMES, FFConfig.SPEC_NUM_FRAMES);
+        super(parent);
         this.modelLoaded = this.loadModel();
     }
 
@@ -427,29 +463,72 @@ class RNNNode extends PipelineNode {
         this.model = await tf.loadLayersModel("models/rnn/model.json");
     }
 
-    greedyDecoder(prediction) {
+    async greedyDecoder(prediction) {
         // Greedy decode RNN predictions to melody contour
         let argMaxes = tf.argMax(prediction, 2).squeeze();
+        let midiNoteByFrame = await argMaxes.data();
 
-        console.debug(argMaxes.dataSync());
+        let sequence = [];
+        let lastMidiNote = null;
+        for(let i = 0; i < midiNoteByFrame.length; i++) {
+            if(midiNoteByFrame[i] !== lastMidiNote) {
+                // Index equal to midi num is index of last
+                //  midi + 1, which is the blank token.
+                if(midiNoteByFrame[i] !== FFConfig.MIDI_NUM) {
+                    sequence.push(midiNoteByFrame[i]);
+                }
+                lastMidiNote = midiNoteByFrame[i];
+            }
+        }
+        return sequence;
     }
 
-    async process(input) {
+    async process() {
         await this.modelLoaded;
 
-        let batch = tf.expandDims(tf.concat2d(input));
-        // batch = tf.div(batch, tf.max(batch));
+        let q = this.parentNode.outputQueue;
+
+        while(this.processedItems < q.length) {
+
+            let nextRNNEnd = this.processedItems + FFConfig.SPEC_NUM_FRAMES;
+            if(q.length >= nextRNNEnd) {
+
+                let frames = q.slice(this.processedItems, nextRNNEnd);
+                let melody = await this.melodyFromFrames(frames);
+                this.outputQueue.push(...melody);
+                this.processedItems = nextRNNEnd;
+            } else if(this.parentNode.hasFinished && q.length > this.processedItems) {
+
+                // Our parent has finished but we've got some leftover frames...
+                let frames = q.slice(this.processedItems, q.length);
+                let rpad = FFConfig.SPEC_NUM_FRAMES - frames.length;
+                let melody = await this.melodyFromFrames(frames, rpad);
+                this.outputQueue.push(...melody);
+                this.processedItems = nextRNNEnd;
+                this.finish();
+
+            } else if(this.parentNode.hasFinished) {
+                this.finish();
+                await this.finished;
+                return;
+            }
+        }
+    }
+
+    async melodyFromFrames(frames, rpad=null) {
+        let batch = tf.expandDims(tf.concat2d(frames));
         batch = tf.mul(batch, tf.div(255, tf.max(batch)));
+
+        if(rpad !== null) {
+            batch = tf.pad(batch, [[0, 0], [0, rpad], [0, 0]]);
+        }
+
         let prediction = this.model.predict(batch);
-        prediction = tf.sub(prediction, tf.min(prediction));
-
-        this.greedyDecoder(prediction);
-
-        return [prediction];
+        return await this.greedyDecoder(prediction);
     }
 }
 
-function getInterpMatrix(midiValues) {
+function computeInterpMatrix(midiValues) {
     /*
         Let LMB = FFConfig.LINEAR_MIDI_BINS.size
 
