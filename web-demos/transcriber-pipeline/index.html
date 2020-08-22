@@ -5,22 +5,24 @@
     <title>Transcriber Pipeline</title>
 
     <!-- TensorFlow JS -->
-    <script src="js/tf.min.js"></script>
+<!--    <script src="js/tf.min.js"></script>-->
 
     <!-- Import @tensorflow/tfjs or @tensorflow/tfjs-core -->
-<!--    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>-->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
 
-    <!-- Adds the WASM backend to the global backend registry -->
-<!--    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>-->
+<!--     Adds the WASM backend to the global backend registry-->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
 
 
     <script type="text/javascript" src="/js/ff-config.js"></script>
-    <script type="text/javascript" src="/js/ff-transcriber.js"></script>
-    <script type="text/javascript" src="/js/demo.js"></script>
+    <script type="text/javascript" src="/js/simplified-demo.js"></script>
+    <script type="text/javascript" src="/js/simplified-transcriber.js"></script>
+<!--    <script type="text/javascript" src="/js/ff-transcriber.js"></script>-->
+<!--    <script type="text/javascript" src="/js/demo.js"></script>-->
 
     <script>
-        // tf.setBackend('wasm');
-        tf.setBackend('webgl');
+        tf.setBackend('wasm');
+        // tf.setBackend('webgl');
         console.log(`Using TensorFlowJS backend ${tf.getBackend()}`);
     </script>
 
