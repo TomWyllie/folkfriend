@@ -40,10 +40,8 @@ async function onChange(e) {
 
     await transcriber.urlToFreqData(url);
 
-    await wasmDemo(transcriber.freqDataQueue);
-
-    return;
-
+    // await wasmDemo(transcriber.freqDataQueue);
+    // return;
 
     transcriber.closed = true;
     console.time("bulk-proceed");

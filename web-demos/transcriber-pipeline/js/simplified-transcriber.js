@@ -22,6 +22,9 @@ class Transcriber {
     async initialise() {
         console.time("transcriber-init");
 
+        this.audioDSP = new AudioDSP();
+        await this.audioDSP.ready;
+
         await tf.ready();
         this.model = await tf.loadLayersModel("models/cnn/model.json");
 
@@ -83,66 +86,7 @@ class Transcriber {
     }
 
     freqDataToFrame(freqData) {
-        // Maths incoming...
-
-        // Decimal -> Decibel conversion is 20 * log10(x)
-        // So we want to do 10^(x/20)
-        // But remember we are using a "k" value (see ff_config.py) of 1/3.
-        // So we want to do
-        //      (10^(x/20))^(1/3)
-        //  Which is equal to
-        //      cbrt(10)^(x/20)
-        //  Except TF only gives us exp(), So all together we need to use
-        //      (e^ln(cbrt(10)))^(x/20)
-        //    = exp( x * ln(cbrt(10))/20 )
-
-        // console.time("ac-exp");
-        let frame = tf.exp(tf.mul(freqData, this.kFactor));
-
-        // console.timeEnd("ac-exp");
-
-        // Also, browser FFT implementation halves length of signal
-        //  (it only returns one of the two symmetrical sides; FFT of
-        //  a real signal is always conjugate-symmetric ie X[-k] = X[k]*
-        //  and browser audio data must always be real)
-
-        let webAssemblyDebugging = true;
-        if(webAssemblyDebugging) {
-            // Pretend FFT. Gets shape right so can proceed.
-            // console.debug(frame.shape);
-            frame = tf.expandDims(frame);
-            // console.debug(frame.shape);
-        } else {
-            // console.time("ac-concat");
-            frame = tf.concat([frame, tf.expandDims(frame.min()), tf.reverse(tf.slice(frame, 1))]);
-            // console.timeEnd("ac-concat");
-
-            // So now frame is now a 1024 long FFT of a 1024-sample window,
-            //  and we've scaled the absolute value of each complex value
-            //  with a power of 1/3.
-
-            // console.time("ac-fft");
-            frame = tf.real(tf.spectral.rfft(frame));
-            // console.timeEnd("ac-fft");
-            // console.time("ac-max");
-            frame = tf.maximum(frame, 0);
-            // console.timeEnd("ac-max");
-
-            // Now frame is 513 long
-            //  (https://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.rfft.html)
-
-            // Remove DC bin as it has frequency = 0 = midi note -infinity.
-            // console.time("remove-first");
-            frame = tf.slice(frame, [0, 1]);  // remove first bin
-            // console.timeEnd("remove-first");
-        }
-
-        // console.time("ac-resample");
-        const linearlyResampled = tf.matMul(frame, this.interpMatrix);
-        frame.dispose();
-        // console.timeEnd("ac-resample");
-
-        return linearlyResampled;
+        return this.audioDSP.processFreqData(freqData);
     }
 
     async bulkProceed() {
@@ -179,8 +123,10 @@ class Transcriber {
         //  frequency data into frames to be used by the CNN.
         while(this.freqDataQueue.length) {
             this.framesQueue.push(
-                this.freqDataToFrame(
-                    this.freqDataQueue.shift()
+                tf.tensor(
+                    this.freqDataToFrame(
+                        this.freqDataQueue.shift()
+                    )
                 )
             );
         }
@@ -199,7 +145,7 @@ class Transcriber {
         let lo = Math.max(this.frameIndex - padding, 0);
 
         let dataFrames = this.framesQueue.slice(lo, hi);
-        let cnnInput = tf.concat(dataFrames);
+        let cnnInput = tf.stack(dataFrames);
 
         if(lo === this.frameIndex - padding) {
             // We can safely dispose this frame as it will not be reused.
