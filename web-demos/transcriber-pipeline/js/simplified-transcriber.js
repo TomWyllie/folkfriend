@@ -73,7 +73,7 @@ class Transcriber {
         const frequencyData = new Float32Array(analyser.frequencyBinCount);
         // noinspection JSDeprecatedSymbols
         processor.onaudioprocess = () => {
-            analyser.getFloatFrequencyData(frequencyData)
+            analyser.getFloatFrequencyData(frequencyData);
             // console.debug(frequencyData);
             this.freqDataQueue.push(frequencyData.slice(0));
         };

@@ -19,6 +19,7 @@ class AudioDSP {
                 resolve();
             }
             if(dspInitialised) {
+                // We might've missed the boat.
                 wrapAndReady();
             } else {
                 DSPModule.onRuntimeInitialized = wrapAndReady();
@@ -55,6 +56,6 @@ class AudioDSP {
         // Free memory
         this.api.free(freqDataArr.byteOffset);
 
-        return freqData.slice(20, 320);
+        return freqData.slice(0, FFConfig.SPEC_NUM_BINS);
     }
 }
