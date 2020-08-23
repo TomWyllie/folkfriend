@@ -8,7 +8,7 @@ async function getAudioURLPipeline() {
         AutocorrelationNode,
         CNNPadNode,
         CNNNode,
-        RNNNode
+        // RNNNode
     ]);
 }
 
@@ -306,7 +306,9 @@ class AutocorrelationNode extends PipelineNode {
             //    = exp( x * ln(cbrt(10))/20 )
 
             // console.time("ac-exp");
-            frame = tf.exp(tf.mul(frame, this.kFactor));
+            let scaledFrame = tf.exp(tf.mul(frame, this.kFactor));
+            frame.dispose();
+
             // console.timeEnd("ac-exp");
 
             // Also, browser FFT implementation halves length of signal
@@ -314,7 +316,7 @@ class AutocorrelationNode extends PipelineNode {
             //  a real signal is always conjugate-symmetric ie X[-k] = X[k]*
             //  and browser audio data must always be real)
 
-            let webAssemblyDebugging = false;
+            let webAssemblyDebugging = true;
             if(webAssemblyDebugging) {
                 // Pretend FFT. Gets shape right so can proceed.
                 // console.debug(frame.shape);
@@ -322,6 +324,7 @@ class AutocorrelationNode extends PipelineNode {
                 // console.debug(frame.shape);
             } else {
                 // console.time("ac-concat");
+                frame = scaledFrame;
                 frame = tf.concat([frame, tf.expandDims(frame.min()), tf.reverse(tf.slice(frame, 1))]);
                 // console.timeEnd("ac-concat");
 
@@ -347,7 +350,7 @@ class AutocorrelationNode extends PipelineNode {
 
             // console.time("ac-resample");
             const linearlyResampled = tf.matMul(frame, this.getInterpMatrix());
-            frame.dispose();
+            scaledFrame.dispose();
             // console.timeEnd("ac-resample");
 
             this.outputQueue.push(linearlyResampled);
@@ -435,15 +438,19 @@ class CNNNode extends PipelineNode {
         // TODO batch by eg 16
 
         let numInputs = this.parentNode.outputQueue.length;
-        for(let i = this.processedItems; i < numInputs; i++) {
-            let frame = this.parentNode.outputQueue[i];
-            let batch = tf.expandDims(tf.expandDims(frame), 3);
+        let BS = 32;
+        for(let i = this.processedItems; i < numInputs; i += BS) {
+            let rawFrames = this.parentNode.outputQueue.slice(i, i + BS);
+            let frames = tf.stack(rawFrames);
+
+            // Add in 1D RGB channel (ie just grayscale magnitude)
+            let batch = tf.expandDims(frames, 3);
             batch = tf.div(batch, tf.max(batch));
 
             // console.debug('here');
 
             // let prediction = this.model.predict(tf.zerosLike(batch), {batchSize: 1});
-            let prediction = this.model.predict(batch, {batchSize: 1});
+            let prediction = this.model.predict(batch, {batchSize: rawFrames.length});
 
             // console.debug('here2');
             batch.dispose();
@@ -461,11 +468,11 @@ class CNNNode extends PipelineNode {
             // return [prediction];
 
             // Extract the central frame that the prediction corresponds to
-            let centralFrame = tf.slice(frame, [FFConfig.CONTEXT_FRAMES / 2, 0], [1, FFConfig.SPEC_NUM_BINS]);
-            frame.dispose();
+            let centralFrame = tf.slice(frames, [0, FFConfig.CONTEXT_FRAMES / 2, 0], [rawFrames.length, 1, FFConfig.SPEC_NUM_BINS]);
+            frames.dispose();
 
-            centralFrame = tf.reshape(centralFrame, [1, FFConfig.MIDI_NUM, FFConfig.SPEC_BINS_PER_MIDI]);
-            centralFrame = tf.sum(centralFrame, 2);
+            centralFrame = tf.reshape(centralFrame, [rawFrames.length, 1, FFConfig.MIDI_NUM, FFConfig.SPEC_BINS_PER_MIDI]);
+            centralFrame = tf.sum(centralFrame, 3);
 
             const denoisedFrame = tf.mul(centralFrame, prediction);
 
@@ -559,6 +566,13 @@ class RNNNode extends PipelineNode {
 
         let prediction = this.model.predict(batch, {batchSize: 1});
         return await this.greedyDecoder(prediction);
+    }
+}
+
+class SimpleDecoder extends PipelineNode {
+    // TODO
+    constructor() {
+        super();
     }
 }
 
