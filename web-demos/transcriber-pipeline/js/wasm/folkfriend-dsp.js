@@ -1,24 +1,13 @@
 DSPModule = Module;
-
-function main() {
-    demo().catch(console.error);
-}
-
-async function demo() {
-    const audioDSP = new AudioDSP();
-    await audioDSP.ready;
-
-    const freqData = new Float32Array(512);
-    freqData.fill(0);
-    freqData[1] = 2.0;
-    freqData[3] = 1.0;
-    audioDSP.processFreqData(freqData);
+let dspInitialised = false;
+DSPModule.onRuntimeInitialized = _ => {
+    dspInitialised = true;
 }
 
 class AudioDSP {
     constructor() {
         this.ready = new Promise(resolve => {
-            DSPModule.onRuntimeInitialized = _ => {
+            let wrapAndReady = _ => {
                 this.api = {
                     processFrame: DSPModule.cwrap(
                         "processFreqData", null, ["number"]),
@@ -29,6 +18,11 @@ class AudioDSP {
                 }
                 resolve();
             }
+            if(dspInitialised) {
+                wrapAndReady();
+            } else {
+                DSPModule.onRuntimeInitialized = wrapAndReady();
+            }
         });
     }
     
@@ -37,28 +31,30 @@ class AudioDSP {
         //  BUT we're not done with DSP, because as part of the processing we have to scale
         //  the values and take the FFT again, along with some other filtering steps.
 
-        console.time("processFreqData");
+        //  Useful info:
+        // https://github.com/WebAssembly/design/issues/1231
 
         // Get data byte size, allocate memory on Emscripten heap, and get pointer
-        let freqDataBytes = freqData.length * freqData.BYTES_PER_ELEMENT;
-        let freqDataPtr = this.api.malloc(freqDataBytes);
+        // let freqDataBytes = freqData.length * freqData.BYTES_PER_ELEMENT;
+        let freqDataPtr = this.api.malloc(freqData.length);
 
         // Copy data to heap
-        let dataHeap = new Uint8Array(Module.HEAPU8.buffer, freqDataPtr, freqDataBytes);
-        dataHeap.set(new Uint8Array(freqData.buffer));
+        let freqDataArr = new Float32Array(Module.HEAPU8.buffer, freqDataPtr, freqData.length);
+        freqDataArr.set(freqData);
+
+        // console.debug("freqData in", freqData);
 
         // Process
-        this.api.processFrame(dataHeap.byteOffset);
+        this.api.processFrame(freqDataPtr);
 
         // Copy data out of heap
-        let result = new Float32Array(dataHeap.buffer, dataHeap.byteOffset, freqData.length);
+        freqData.set(freqDataArr)
+
+        // console.debug("freqData out", freqData);
 
         // Free memory
-        this.api.free(dataHeap.byteOffset);
+        this.api.free(freqDataArr.byteOffset);
 
-        console.timeEnd("processFreqData");
-        console.log(result);
+        return freqData.slice(20, 320);
     }
 }
-
-window.onload = main;

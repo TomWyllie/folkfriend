@@ -75,7 +75,7 @@ class Transcriber {
         processor.onaudioprocess = () => {
             analyser.getFloatFrequencyData(frequencyData)
             // console.debug(frequencyData);
-            this.freqDataQueue.push(tf.tensor(frequencyData.slice(0)));
+            this.freqDataQueue.push(frequencyData.slice(0));
         };
 
         source.start(0);

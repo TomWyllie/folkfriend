@@ -1,9 +1,8 @@
 #include <emscripten.h>
 #include <math.h>
-#include "ffft/src/FFTRealFixLen.h"
-
-// 1024-point (2^10) FFT object constructed.
-ffft::FFTRealFixLen <10> fftObj;
+#include <algorithm>
+#include <iterator>
+#include "kissfft/kiss_fftr.h"
 
 // Corresponds to k = 1/3. See processFreqData().
 float powBase = cbrt(10.0);
@@ -16,7 +15,7 @@ int hsize = 512;
 int size = 1024;
 
 float concatFreqData[1024] = {};
-float autocorrComplexData[1024] = {};
+kiss_fft_cpx autocorrComplexData[512] = {};
 
 extern "C"
 EMSCRIPTEN_KEEPALIVE
@@ -40,7 +39,7 @@ void processFreqData(float *data) {
     //  to 'power down' by another factor of a third to take us to 1/6.
 
     for(int i = 0; i < 512; i++) {
-        data[i] = pow(powBase, data[i]);
+        data[i] = pow(powBase, data[i] / 20.0);
     }
 
     // getFloatFrequencyData returns only the left side of the symmetric
@@ -52,8 +51,8 @@ void processFreqData(float *data) {
     }
 
     // Mirror image for second half of spectrum
-    for(int i = hsize; i < size; i++) {
-        concatFreqData[i] = data[size - i - 1];
+    for(int i = hsize + 1; i < size; i++) {
+        concatFreqData[i] = data[size - i];
     }
 
     // Set middle value. TODO Need to verify if this is actually correct.
@@ -63,7 +62,9 @@ void processFreqData(float *data) {
     concatFreqData[hsize] = data[hsize - 1];
 
     // Now carry out the second FFT.
-    fftObj.do_fft(concatFreqData, autocorrComplexData);
+    kiss_fftr_cfg cfg = kiss_fftr_alloc(1024, 0, NULL, NULL);
+    kiss_fftr(cfg, concatFreqData, autocorrComplexData);
+    kiss_fftr_free(cfg);
 
     for(int i = 0; i < hsize; i++) {
         // Copy result back to buffer exposed to javascript to view results
@@ -71,7 +72,7 @@ void processFreqData(float *data) {
         //  are before all the imaginary elements. We never access the
         //  imaginary part of the array (second half), as we're only
         //  interested in the real part.
-        data[i] = autocorrComplexData[i];
+        data[i] = fmax(0.0, autocorrComplexData[i].r);
     }
 }
 
