@@ -5,7 +5,7 @@ from folkfriend import ff_config
 from folkfriend.sig_proc import note
 
 # This keeps ff_config serialisable for export to JS
-NP_LINEAR_MIDI_BINS = np.asarray(ff_config.LINEAR_MIDI_BINS)
+NP_LINEAR_MIDI_BINS = np.asarray(ff_config.LINEAR_MIDI_BINS_)
 
 
 def compute_ac_spectrogram(signal, window_size=ff_config.SPEC_WINDOW_SIZE):

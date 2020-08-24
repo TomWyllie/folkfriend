@@ -1,7 +1,7 @@
 class Transcriber {
     constructor() {
         this.flush();
-        this.cnnBatchSize = 32;
+        this.cnnBatchSize = 8;
         this.model = null;
     }
 
@@ -28,7 +28,7 @@ class Transcriber {
         await this.audioDSP.ready;
 
         await tf.ready();
-        this.model = await tf.loadLayersModel("models/simplified-cnn/model.json");
+        this.model = await tf.loadLayersModel("models/shrunk-cnn/model.json");
 
         // Only necessary if we're compiling shaders (ie WebGL backend)
         let warmupResult = this.model.predict(tf.zeros([1, FFConfig.CONTEXT_FRAMES, FFConfig.SPEC_NUM_BINS, 1]));
@@ -160,9 +160,8 @@ class Transcriber {
         }
 
         let prediction = tf.squeeze(this.model.predict(cnnBatch, {batchSize: cnnBatch.shape[0]}));
-        let centreFrame = tf.squeeze(tf.slice(cnnBatch, [0, 8, 0, 0], [-1, 1, -1, -1]));
+        let centreFrame = tf.squeeze(tf.slice(cnnBatch, [0, FFConfig.CONTEXT_FRAMES / 2, 0, 0], [-1, 1, -1, -1]));
         cnnBatch.dispose();
-
 
         centreFrame = tf.reshape(centreFrame, [-1, FFConfig.MIDI_NUM, FFConfig.SPEC_BINS_PER_MIDI]);
         centreFrame = tf.sum(centreFrame, 2);

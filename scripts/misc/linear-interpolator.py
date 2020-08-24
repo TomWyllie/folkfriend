@@ -30,8 +30,8 @@ def main():
     # We don't actually do this as a matrix multiplication but do it
     #   sparsely for efficiency.
 
-    print('Desired linear bins:', ff_config.LINEAR_MIDI_BINS)
-    lmb = len(ff_config.LINEAR_MIDI_BINS)
+    print('Desired linear bins:', ff_config.LINEAR_MIDI_BINS_)
+    lmb = len(ff_config.LINEAR_MIDI_BINS_)
 
     # Our frame will be half spectrogram window size at this stage
     bin_indices = np.arange(0, ff_config.SPEC_WINDOW_SIZE)
@@ -53,7 +53,7 @@ def main():
     for i in range(lmb):
         # Each linear midi bin is a linear combination of two bins from
         #  the spectrogram
-        linear_bin_midi_value = ff_config.LINEAR_MIDI_BINS[i]
+        linear_bin_midi_value = ff_config.LINEAR_MIDI_BINS_[i]
 
         if linear_bin_midi_value < non_linear_bins[len(non_linear_bins) - 2]:
             raise RuntimeError("Linear bin goes too low")
@@ -106,6 +106,6 @@ if __name__ == '__main__':
     float loWeights[{n}] = {low};
     int hiIndices[{n}] = {hii};
     float hiWeights[{n}] = {hiw};
-    """.format(n=len(ff_config.LINEAR_MIDI_BINS),
+    """.format(n=len(ff_config.LINEAR_MIDI_BINS_),
                loi=loi, low=low, hii=hii, hiw=hiw)
     print(cpp)

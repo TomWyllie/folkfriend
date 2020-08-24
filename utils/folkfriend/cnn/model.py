@@ -18,7 +18,7 @@ def assemble_model():
     model.add(Conv2D(8, 3, activation='relu', padding='same'))
 
     # Flatten across the 16 filters to create one value for each filter for each bin
-    model.add(Conv2D(8, kernel_size=(16, 1), strides=[1, 1], activation='relu', padding='valid'))
+    model.add(Conv2D(8, kernel_size=(ff_config.CONTEXT_FRAMES, 1), strides=[1, 1], activation='relu', padding='valid'))
 
     model.add(MaxPooling2D(pool_size=(1, ff_config.SPEC_BINS_PER_MIDI), strides=(1, ff_config.SPEC_BINS_PER_MIDI)))
 

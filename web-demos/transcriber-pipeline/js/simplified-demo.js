@@ -17,11 +17,9 @@ async function demo() {
 }
 
 
-async function clickDemo(e) {
+async function clickDemo() {
+    transcriber.flush();
     await transcriber.urlToFreqData("audio/maddie.wav");
-
-    // await wasmDemo(transcriber.freqDataQueue);
-    // return;
 
     transcriber.closed = true;
     console.time("bulk-proceed");
@@ -38,9 +36,6 @@ async function onChange(e) {
     const url = URL.createObjectURL(file);
 
     await transcriber.urlToFreqData(url);
-
-    // await wasmDemo(transcriber.freqDataQueue);
-    // return;
 
     transcriber.closed = true;
     console.time("bulk-proceed");

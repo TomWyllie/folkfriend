@@ -53,7 +53,7 @@ MIDI_LOW = 48  # C2 (130.81 Hz), an octave below middle C
 MIDI_NUM = MIDI_HIGH - MIDI_LOW + 1  # =48
 
 # When resampling we can choose how many values to interpolate.
-SPEC_BINS_PER_MIDI = 5
+SPEC_BINS_PER_MIDI = 3
 SPEC_NUM_BINS = SPEC_BINS_PER_MIDI * MIDI_NUM
 SPEC_NUM_FRAMES = (SAMPLE_RATE * AUDIO_QUERY_SECS) // SPEC_WINDOW_SIZE  # 375
 assert SPEC_NUM_FRAMES == 375
@@ -63,13 +63,16 @@ assert SPEC_NUM_FRAMES == 375
 #   SPECTROGRAM_BINS_PER_MIDI) on either side, ie for the lowest MIDI note
 #   (48) the range of midi bin values is [48.4, 48.2, 48.0, 47.8, 47.6].
 #   So LINEAR_MIDI_BINS = [95.4, 95.2, 95.0, ..., 48.0, 47.8, 47.6]
-LINEAR_MIDI_BINS = np.linspace(
+LINEAR_MIDI_BINS_ = np.linspace(
     start=MIDI_HIGH + SPEC_BINS_PER_MIDI // 2 / SPEC_BINS_PER_MIDI,
     stop=MIDI_LOW - SPEC_BINS_PER_MIDI // 2 / SPEC_BINS_PER_MIDI,
     num=SPEC_NUM_BINS,
     endpoint=True
 )
-LINEAR_MIDI_BINS = [round(x, 2) for x in LINEAR_MIDI_BINS]
+
+# This is not exported to JS as the linear-interpolator script
+#   generates arrays directly in C++.
+LINEAR_MIDI_BINS_ = [round(x, 8) for x in LINEAR_MIDI_BINS_]
 
 # Applying spectrogram resampling
 # [2D spectrum (num_frames, 512)] -> [2D spectrum (num_frames, SPEC_NUM_BINS)]
@@ -83,7 +86,7 @@ LINEAR_MIDI_BINS = [round(x, 2) for x in LINEAR_MIDI_BINS]
 # How much context does each frame get in the CNN (must be even and
 #   not too small, or 'Negative dimension size' occurs due to over
 #   downsampling)
-CONTEXT_FRAMES = 16
+CONTEXT_FRAMES = 10
 
 # Applying spectrogram denoising leaves dimensions unchanged.
 
