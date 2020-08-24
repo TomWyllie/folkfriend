@@ -18,8 +18,12 @@ def main(args):
 
     model = assemble_model()
     model.compile(optimizer=keras.optimizers.Adam(args.learning_rate),
-                  loss=keras.losses.CategoricalCrossentropy())
+                  loss=keras.losses.BinaryCrossentropy(),
+                  metrics=[keras.metrics.Recall(),
+                           keras.metrics.Precision(),
+                           keras.metrics.AUC()])
     model.summary()
+    # exit(0)
 
     if args.weights:
         # TODO reload entire model not just weights

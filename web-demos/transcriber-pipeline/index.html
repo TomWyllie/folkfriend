@@ -5,13 +5,13 @@
     <title>Transcriber Pipeline</title>
 
     <!-- TensorFlow JS -->
-    <script src="js/tf.min.js"></script>
+<!--    <script src="js/tf.min.js"></script>-->
 
     <!-- Import @tensorflow/tfjs or @tensorflow/tfjs-core -->
-<!--    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>-->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
 
 <!--     Adds the WASM backend to the global backend registry-->
-<!--    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>-->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
 
 
     <script type="text/javascript" src="/js/ff-config.js"></script>
@@ -24,8 +24,8 @@
 <!--    <script type="text/javascript" src="/js/demo.js"></script>-->
 
     <script>
-        // tf.setBackend('wasm');
-        tf.setBackend('webgl');
+        tf.setBackend('wasm');
+        // tf.setBackend('webgl');
         console.log(`Using TensorFlowJS backend ${tf.getBackend()}`);
     </script>
 
@@ -39,7 +39,8 @@
 </head>
 <body>
     <h1>Transcriber Pipeline</h1>
-    <input type="file" accept="audio/*" capture id="recorder">
+<!--    <input type="file" accept="audio/*" capture id="recorder">-->
+    <button id="demo">Begin transcribing demo audio</button>
     <canvas id="ac-canvas"></canvas>
     <canvas id="cnn-canvas"></canvas>
     <canvas id="rnn-canvas"></canvas>
