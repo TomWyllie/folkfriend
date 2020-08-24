@@ -128,6 +128,6 @@ CNN_DS_TO_ = CNN_DS_SS_ + AUDIO_QUERY_SECS  # 8 second samples
 #   and it will simply cause data to start repeating. At that value
 #   there will be a lot of data too, increasing training time for
 #   probably not much improvement in accuracy.
-CNN_DS_SAMPLES_PER_IMAGE_ = 100
-CNN_NOISIFY_SCALE_ = 0.1
+CNN_DS_SAMPLES_PER_IMAGE_ = 300
+CNN_NOISIFY_SCALE_ = 0.05
 RNN_INPUT_SALTING_ = 0.01  # 1%
