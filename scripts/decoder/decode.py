@@ -2,10 +2,13 @@ import collections
 import os
 from pprint import pprint
 
+import timeit
 import imageio
 import numpy as np
 
 from folkfriend import ff_config
+
+timer_vals = []
 
 
 def main():
@@ -35,6 +38,10 @@ def main():
         )
 
         # break
+
+    ms_per_norm = 1000 * sum(timer_vals) / len(timer_vals)
+    print('Each call _normalise_events_by_tempo averaged '
+          '{:.6f} ms'.format(ms_per_norm))
 
 
 class Decoder:
@@ -71,11 +78,13 @@ class Decoder:
             img[np.arange(decoded.size), decoded] = 255
             imageio.imwrite(f'scores/{debug_label}-{tempo}.png', img.T)
 
-        plt.clf()
-        plt.plot(tempos, scores)
-        plt.savefig(f'scores/{debug_label}-score.png')
+        # plt.clf()
+        # plt.plot(tempos, scores)
+        # plt.savefig(f'scores/{debug_label}-score.png')
 
     def _normalise_events_by_tempo(self, events, tempo):
+        t0 = timeit.default_timer()
+
         # Simple algorithm to decode events to a queryable sequence, given a
         #   tempo in BPM.
         fpq = self._bpm_to_num_frames(tempo)
@@ -89,7 +98,7 @@ class Decoder:
             # Simply choose nearest whole number of quavers.
             #   But be more lenient to giving each least one.
             exact_quavers = e.duration / fpq
-            if exact_quavers > 1./3:
+            if exact_quavers > 1. / 3:
                 quant_quavers = max(1, round(exact_quavers))
             else:
                 quant_quavers = 0
@@ -111,7 +120,7 @@ class Decoder:
 
         # We use a very simple model of how many notes we expect to see before
         #   the note changes (ie the distribution of values of quant_error).
-        log_likelihood_approx = sum((3 - 0.5*x) for x in quant_quaver_values if x)
+        log_likelihood_approx = sum((3 - 0.5 * x) for x in quant_quaver_values if x)
 
         # Normalise by number of quantised quavers, otherwise there's a
         #   bias towards shorter tempos which have more positive scores.
@@ -129,6 +138,8 @@ class Decoder:
         # Roughly, quant_scale belongs to [0, 1] so scales down the log
         #   likelihood if there's inaccuracy.
         score = quant_scale * log_likelihood_approx * overall_time_error
+
+        timer_vals.append(timeit.default_timer() - t0)
 
         return output_query, score
 
