@@ -21,12 +21,24 @@ class QueryEngine {
         throw {name : "NotImplementedError"};
     }
 
+    async initialise() {
+       await this.loadShards;
+    }
+
     async query(query) {
         console.time('query');
+
+        for(let i = 0; i < query.length; i++) {
+            // The values are stored scaled up by a factor of 4 in the
+            //  PNG data file, so they can be seen more easily.
+            query[i] *= 4;
+        }
 
         console.time('execute');
         let shardScores = await this.execute(query);
         console.timeEnd('execute');
+
+        console.debug(shardScores);
 
         // Extract the top N settings and their scores
         let settingsScores = {};
@@ -45,14 +57,17 @@ class QueryEngine {
 
         console.log(bestN);
         console.timeEnd('query');
+
+        return bestN;
     }
 
     async fetchShardData() {
-        this.shardMeta = await fetch("query-data/query-meta-data.json")
+        let queryMetaData = await fetch("query-data/query-meta-data.json")
             .then(r => r.json());
 
-        // TODO store number of shard partitions in the meta file and use that
-        await this.loadShardPartitions(2);
+        this.numPartitions = queryMetaData[0];
+        this.shardMeta = queryMetaData[1];
+        await this.loadShardPartitions(this.numPartitions);
     }
 
     loadShardPartitions(numPartitions) {
@@ -66,10 +81,10 @@ class QueryEngine {
     }
 
     loadShardPartition(partitionNum) {
-        // Fragment is a URL to a .png file
-        let image = new Image();
         return new Promise(resolve => {
+            let image = new Image();
             image.src = `/query-data/query-data-${partitionNum}.png`;
+            image.decoding = 'sync';
             image.onload = () => resolve(image);
         });
     }
@@ -98,8 +113,8 @@ class QueryEngineGPU extends QueryEngine {
     }
 
     async initialise() {
+        await super.initialise();
         await this.loadShaders;
-        await this.loadShards;
         console.time("initialise");
 
         this.canvas = document.createElement('canvas');
@@ -700,5 +715,99 @@ class QueryEngineGPU extends QueryEngine {
 }
 
 class QueryEngineCPU extends QueryEngine {
-    // TODO
+    constructor() {
+        super();
+        this.matchScore = 2;
+        this.mismatchScore = -2;
+        this.gapScore = -1;
+    }
+
+    execute(query) {
+        // Return an array of scores of same size and corresponding
+        //  to the shards of partitionMeta
+        let canvas = document.createElement('canvas');
+        let context = canvas.getContext('2d');
+        let shardsRemaining = this.shardMeta.length
+        let outputScores = [];
+
+        for(let i = 0; i < this.shardData.length; i++) {
+            let img = this.shardData[i];
+            canvas.width = img.width;
+            canvas.height = img.height;
+            context.drawImage(img, 0, 0 );
+
+            let rawImgData = context.getImageData(0, 0, img.width, img.height);
+            let imgOneChannel = new Uint8ClampedArray(rawImgData.data.length / 4);
+            for(let j = 0; j < imgOneChannel.length; j++) {
+                imgOneChannel[j] = rawImgData.data[4 * j];
+            }
+
+            let shardsThisPartition = imgOneChannel.length / QUERY_SHARD_SIZE;
+            let shardsToProcess = Math.min(shardsThisPartition, shardsRemaining);
+
+            for(let j = 0; j < shardsToProcess; j++) {
+                // Recall indices go down first column, then down second, from
+                //  top to bottom then left to right.
+                let row = j % img.height;
+                let column = QUERY_SHARD_SIZE * Math.floor(j / img.height);
+
+                // But ImageData is left to right then top to bottom
+                let shardIndex = row * img.width + column;
+                let shard = imgOneChannel.slice(shardIndex, shardIndex + QUERY_SHARD_SIZE);
+
+                outputScores.push(this.NWSimpleSingleBuffer(query, shard));
+                // if(i === 1 && j === (106525 % 65535)) {
+                //     console.debug(j, shard);
+                //     console.debug(this.shardMeta);
+                //     console.debug(outputScores);
+                //     throw "breakpoint";
+                // }
+
+            }
+            shardsRemaining -= shardsToProcess;
+        }
+        return outputScores;
+    }
+
+    NWSimpleSingleBuffer(A, B) {
+        /* Memory-efficient version of Needleman-Wunsch written for Javascript.
+        *   ~ Tom Wyllie 2020
+        * */
+
+        if(A.length > B.length) {
+            let temp = A;
+            A = B;
+            B = temp;
+        }
+
+        let lastRow = new Int16Array(A.length + 1);
+        lastRow.fill(0);
+
+        //      A1 A2 A3 .. AN
+        //   B1
+        //   B2
+        //   B3
+        //   ..
+        //   BN
+
+        lastRow[0] = 0;
+        let lastDiag = 0;
+        let currDiag = 0;
+        for(let row = 0; row < B.length; row++) {
+            lastDiag = 0;
+            for(let col = 1; col < lastRow.length; col++) {
+                currDiag = lastDiag;
+                lastDiag = lastRow[col];
+
+                lastRow[col] = Math.max(
+                currDiag + (A[col - 1] === B[row] ? this.matchScore : this.mismatchScore),
+                    lastRow[col - 1] + this.gapScore,
+                    lastRow[col] + this.gapScore
+                );
+            }
+            lastRow[lastRow.length - 1] = Math.max(lastRow[lastRow.length - 1], lastDiag);
+        }
+
+        return Math.max(...lastRow);
+    }
 }
