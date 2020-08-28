@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FolkFriend Transcriber</title>
+
+    <!-- TensorFlow JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.1.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@2.1.0/dist/tf-backend-wasm.js"></script>
+
+    <script type="text/javascript" src="/js/ff-config.js"></script>
+    <script type="text/javascript" src="/js/ff-abc.js"></script>
+    <script type="text/javascript" src="/js/ff-feature-decoder.js"></script>
+    <script type="text/javascript" src="/js/ff-feature-extractor.js"></script>
+    <script type="text/javascript" src="/js/ff-transcriber.js"></script>
+
+    <script type="text/javascript" src="/js/wasm/em.js"></script>
+    <script type="text/javascript" src="/js/wasm/folkfriend-dsp.js"></script>
+
+    <script type="text/javascript" src="/js/demo.js"></script>
+
+    <script>
+        tf.setBackend('wasm');
+        console.log(`Using TensorFlowJS backend ${tf.getBackend()}`);
+    </script>
+
+    <style>
+        canvas {
+            image-rendering: pixelated;
+            display: block;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>FolkFriend Transcriber</h1>
+    <input type="file" accept="audio/*" id="recorder">
+    <button id="demo">Begin transcribing demo audio</button>
+    <canvas id="cnn-canvas"></canvas>
+</body>
+</html>
