@@ -2,6 +2,27 @@ class Transcriber {
     constructor() {
         this.flush();
         this.cnnBatchSize = 8;
+
+        // We have to normalise each batch by something as the CNN is
+        //  sensitive to magnitude of input values.
+
+        //  If we normalise each batch to the range [0, 1] then depending
+        //  on the batch size we may be boosting up the volume of a very
+        //  quiet part of audio, and in doing so adding noise to results.
+        //  In python we like to normalise by the maximum value of the
+        //  whole spectrogram, but we can't know this maximum until the
+        //  last frame has finished processing, so to retain causality we
+        //  keep a running maximum of the past few frames. This means we
+        //  are normalising over a much larger section of time and thus
+        //  less sensitive to rapid variations in magnitude. (this is
+        //  a simple low pass filter on the maximum value of each batch).
+
+        // Batch size 8, contextFrames 10 => 18 frame normalisation width. (0.36s)
+        //  with this, 120 + 10 contextFrames => 128 frame normalisation width. (2.56s)
+        this.cnnRunningMaxNumFrames = 120;
+        this.cnnRunningMaxNumBatches = this.cnnRunningMaxNumFrames / this.cnnBatchSize;
+        this.cnnRunningMaxBatches = [];
+
         this.model = null;
     }
 
@@ -10,7 +31,10 @@ class Transcriber {
         this.framesQueue = [];
         this.cnnBatchQueue = [];
         this.midis = [];
+        this.midiEnergies = [];
         this.frameIndex = 0;
+
+        this.runningMax = null;
 
         this.proceedRequests = 0;
         this.proceeding = false;
@@ -19,6 +43,16 @@ class Transcriber {
         this.finished = new Promise(resolve => {
             this.finish = resolve;
         });
+
+        // Debugging
+        this.debugDenoised = [];
+    }
+
+    decode() {
+        console.time("decoder");
+        let decoder = new Decoder();
+        this.output = decoder.decode(this.midis, this.midiEnergies);
+        console.timeEnd("decoder");
     }
 
     async initialise() {
@@ -28,7 +62,7 @@ class Transcriber {
         await this.audioDSP.ready;
 
         await tf.ready();
-        this.model = await tf.loadLayersModel("models/shrunk-cnn/model.json");
+        this.model = await tf.loadLayersModel("models/uint8/model.json");
 
         // Only necessary if we're compiling shaders (ie WebGL backend)
         let warmupResult = this.model.predict(tf.zeros([1, FFConfig.CONTEXT_FRAMES, FFConfig.SPEC_NUM_BINS, 1]));
@@ -154,6 +188,23 @@ class Transcriber {
         if(this.cnnBatchQueue.length >= this.cnnBatchSize || (this.closed && this.frameIndex === this.framesQueue.length)) {
             let cnnBatchArray = this.cnnBatchQueue.splice(0, this.cnnBatchSize);
             cnnBatch = tf.stack(cnnBatchArray);
+
+            // See explanation in constructor for the sliding window
+            // normalisation value explanation.
+            let batchMax = tf.max(cnnBatch);
+            this.cnnRunningMaxBatches.push(batchMax);
+
+            if(this.cnnRunningMaxBatches > this.cnnRunningMaxNumBatches) {
+                this.cnnRunningMaxBatches[0].dispose();
+                this.cnnRunningMaxBatches.shift();
+            }
+
+            let lowPassBatchMax = this.cnnRunningMaxBatches.reduce(
+                (a, b) => tf.maximum(a, b)
+            );
+
+            // divNoNan is important here. Otherwise we get NaN.
+            cnnBatch = tf.divNoNan(cnnBatch, lowPassBatchMax);
             cnnBatchArray.forEach(paddedFrame => {paddedFrame.dispose()});
         } else {
             return;
@@ -169,14 +220,27 @@ class Transcriber {
         centreFrame.dispose();
         prediction.dispose();
 
+        //  TODO use this once it's been written in TF-JS...
+        //      https://js.tensorflow.org/api/latest/#topk
+        // const {midiEnergies, midiNotes} = tf.topk(denoised, 1);
+        let midiEnergies = tf.max(denoised, 1);
         let midiNotes = tf.argMax(denoised, 1);
+
         let midiNoteData = await midiNotes.data();
-        denoised.dispose();
+        let midiEnergyData = await midiEnergies.data();
+
+        // TODO debugging
+        // denoised.dispose();
+        this.debugDenoised.push(denoised);
+
         midiNotes.dispose();
+        midiEnergies.dispose();
 
         this.midis.push(...midiNoteData);
+        this.midiEnergies.push(...midiEnergyData);
 
         if(this.closed && this.midis.length === this.framesQueue.length) {
+            this.decode();
             this.finish();
         }
     }

@@ -1,27 +1,26 @@
+import argparse
 import collections
 import os
-from pprint import pprint
-
 import timeit
+
 import imageio
 import numpy as np
-
 from folkfriend import ff_config
 
 timer_vals = []
 
 
-def main():
-    ds = 'img'
+def main(ds):
     decoder = Decoder()
 
     for filename in sorted(os.listdir(ds), reverse=True):
-        if not filename.endswith('a_d.png'):
+        if not filename.endswith('_d.png'):
             continue
 
         print(filename)
 
         path = os.path.join(ds, filename)
+
         img = imageio.imread(path).T
 
         maxes = np.argmax(img, axis=1)
@@ -61,7 +60,7 @@ class Decoder:
         # Argmax defaults to zero. This corresponds to silence.
         #   This means we have may some zero power events (with pitch 0).
         #   Remove very short notes (<= 2 frames) and silence.
-        events = [e for e in events if e.power > 0 and e.duration > 2]
+        events = [e for e in events if e.power > 0 and e.duration > 4]
 
         # Debugging only
         tempos = list(range(50, 360, 5))
@@ -78,9 +77,9 @@ class Decoder:
             img[np.arange(decoded.size), decoded] = 255
             imageio.imwrite(f'scores/{debug_label}-{tempo}.png', img.T)
 
-        # plt.clf()
-        # plt.plot(tempos, scores)
-        # plt.savefig(f'scores/{debug_label}-score.png')
+        plt.clf()
+        plt.plot(tempos, scores)
+        plt.savefig(f'scores/{debug_label}-score.png')
 
     def _normalise_events_by_tempo(self, events, tempo):
         t0 = timeit.default_timer()
@@ -124,6 +123,7 @@ class Decoder:
 
         # Normalise by number of quantised quavers, otherwise there's a
         #   bias towards shorter tempos which have more positive scores.
+        #   Include zero length quantised quavers.
         log_likelihood_approx /= len(quant_quaver_values)
 
         # The quantisation error can be a maximum of num_frames * avg_power
@@ -134,6 +134,8 @@ class Decoder:
         # Overall error in tempo
         total_frame_delta = abs(fpq * len(output_query) - input_num_frames)
         overall_time_error = 1 - total_frame_delta / input_num_frames
+
+        print(quant_scale, log_likelihood_approx, overall_time_error)
 
         # Roughly, quant_scale belongs to [0, 1] so scales down the log
         #   likelihood if there's inaccuracy.
@@ -169,7 +171,7 @@ class Decoder:
                     #   This is "dimensionless" because
                     #   we scaled by energy_norm
                     events[-1][3] /= events[-1][1]
-                events.append([i, 1, pitch, energy])
+                events.append([i, 1, pitch, energy * energy_norm])
 
         return [self.event(*e) for e in events]
 
@@ -184,4 +186,8 @@ class Decoder:
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ds', help='Path to dataset directory, containing'
+                                     ' CNN output png files ending in _d.png')
+    args = parser.parse_args()
+    main(args.ds)
