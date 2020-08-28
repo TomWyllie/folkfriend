@@ -5,19 +5,19 @@ async function demo() {
     transcriber = new Transcriber();
     await transcriber.initialise();
 
-    const recorder = document.getElementById('recorder');
-    recorder.addEventListener('change', (e) => {
+    const recorder = document.getElementById("recorder");
+    recorder.addEventListener("change", (e) => {
         onChange(e).catch(console.error);
     });
 
-    const button = document.getElementById('demo');
-    button.addEventListener('click', _ => {
+    const button = document.getElementById("demo");
+    button.addEventListener("click", _ => {
         clickDemo().catch(console.error);
     });
 }
 
 async function clickDemo() {
-    return urlDemo("audio/maddie.wav");
+    return urlDemo("audio/fiddle.wav");
 }
 
 
