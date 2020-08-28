@@ -5,23 +5,18 @@
     <title>FolkFriend Transcriber</title>
 
     <!-- TensorFlow JS -->
-<!--    <script src="js/tf.min.js"></script>-->
-
-    <!-- Import @tensorflow/tfjs or @tensorflow/tfjs-core -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.1.0/dist/tf.min.js"></script>
-
-<!--     Adds the WASM backend to the global backend registry-->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@2.1.0/dist/tf-backend-wasm.js"></script>
 
-
     <script type="text/javascript" src="/js/ff-config.js"></script>
-    <script type="text/javascript" src="/js/simplified-demo.js"></script>
-    <script type="text/javascript" src="/js/decoder.js"></script>
-    <script type="text/javascript" src="/js/simplified-transcriber.js"></script>
-    <script type="text/javascript" src="/js/abc_utils.js"></script>
+    <script type="text/javascript" src="/js/ff-abc.js"></script>
+    <script type="text/javascript" src="/js/ff-decoder.js"></script>
+    <script type="text/javascript" src="/js/ff-transcriber.js"></script>
 
     <script type="text/javascript" src="/js/wasm/em.js"></script>
     <script type="text/javascript" src="/js/wasm/folkfriend-dsp.js"></script>
+
+    <script type="text/javascript" src="/js/demo.js"></script>
 
     <script>
         tf.setBackend('wasm');

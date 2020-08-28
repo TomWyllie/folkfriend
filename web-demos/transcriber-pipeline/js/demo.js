@@ -51,13 +51,15 @@ async function urlDemo(url) {
 }
 
 function outputResult() {
+    let abcConverter = new ABCConverter();
+
     let p1 = document.createElement("p");
     let p2 = document.createElement("p");
     let p3 = document.createElement("p");
-    let abc = decoded_to_abc(transcriber.output.decoded)
-    console.debug(abc);
+    let abc = abcConverter.decoded_to_abc(transcriber.output.decoded)
+    console.log(abc);
 
-    p1.textContent = decoded_to_abc(transcriber.output.decoded);
+    p1.textContent = abc;
     p2.textContent = `${transcriber.output.tempo} BPM`;
     p3.textContent =  `${transcriber.output.score}`;
 
