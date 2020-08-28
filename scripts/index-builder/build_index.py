@@ -119,9 +119,10 @@ def build_index(ds_dir):
     # > Extra efficiency from de-duplicating shards 643840
     # > Inefficiency from overlaps 564268
 
-    # Sort setting
+    # Sort setting and remove any cases where the same shard occurs multiple
+    #   times in a tune.
     for shard in shards:
-        shards[shard] = sorted(shards[shard])
+        shards[shard] = sorted(list(set(shards[shard])))
 
     shards = list(sorted(shards.items(), key=lambda s: s[1][0]))
 
@@ -153,7 +154,12 @@ def build_index(ds_dir):
         print(f'Writing {path}')
         imageio.imwrite(path, 4 * img_data[img_partition])
 
-    meta_info = [s[1] for s in shards]
+    meta_info = [
+        # We have to track somewhere how many partitions there are
+        img_data.shape[0],
+        [s[1] for s in shards]
+    ]
+
     print(f'Writing {index_meta_path}')
     with open(index_meta_path, 'w') as f:
         json.dump(meta_info, f)
