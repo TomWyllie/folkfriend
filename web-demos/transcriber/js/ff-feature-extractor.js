@@ -231,6 +231,13 @@ class FeatureExtractor {
         let midiNoteData = await midiNotes.data();
         let midiEnergyData = await midiEnergies.data();
 
+        for(let i = 0; i < midiEnergyData.length; i++) {
+            // Recall the frequency is descending with index, so
+            //  argmax indices in the reverse order. We want low values
+            //  to correspond to low notes, for the decoder.
+            midiNoteData[i] = FFConfig.MIDI_NUM - midiNoteData[i] - 1;
+        }
+
         if(FFDebug) {
             this.debugDenoised.push(denoised);
         } else {
