@@ -25,10 +25,10 @@ class Transcriber {
             energies: this.featureExtractor.midiEnergies
         }
 
-        let decoded = this.featureDecoder.decode(features);
-        decoded.abc = this.abcConverter.decodedToAbc(decoded.decoded);
+        this.decoded = this.featureDecoder.decode(features);
+        this.decoded.abc = this.abcConverter.decodedToAbc(this.decoded.decoded);
 
-        return decoded;
+        return this.decoded;
     }
 }
 
