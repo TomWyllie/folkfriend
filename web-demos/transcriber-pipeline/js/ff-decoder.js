@@ -10,12 +10,7 @@ class Decoder {
     }
     
     decode(pitches, energies) {
-        if(pitches.length === 0) {
-            // TODO improve
-            this.output = {};
-        }
-
-        let events = this.pitches_to_events(pitches, energies);
+        let events = this._pitchesToEvents(pitches, energies);
 
         // Remove very short events or very dim events
         events = events.filter(e => e.power > 0.02 && e.duration > 4);
@@ -23,48 +18,44 @@ class Decoder {
         let candidateDecodes = [];
         for(let i = 0; i < this.tempos.length; i++) {
             candidateDecodes.push(
-                this.normalise_events_by_tempo(events, this.tempos[i])
+                this.normaliseEventsByTempo(events, this.tempos[i])
             );
-
-            // console.debug(candidateDecodes[candidateDecodes.length - 1].score);
         }
 
-        const bestCandidate = candidateDecodes.reduce(
+        return candidateDecodes.reduce(
             (a, b) => a.score > b.score ? a : b);
-
-        return bestCandidate;
     }
 
-    normalise_events_by_tempo(events, tempo) {
+    normaliseEventsByTempo(events, tempo) {
 
         // Simple algorithm to decode events to a queryable sequence, given a
         //   tempo in BPM.
-        const fpq = this.bpm_to_num_frames(tempo);
-        const input_num_frames = events[events.length - 1].start + events[events.length - 1].duration;
+        const fpq = this._BPMToNumFrames(tempo);
+        const numInputFrames = events[events.length - 1].start + events[events.length - 1].duration;
 
-        const output_query = [];
-        let quant_quaver_values = [];
-        let quant_error = 0;
+        const output = [];
+        let quantQuaverValues = [];
+        let quantError = 0;
 
         events.forEach((e) => {
 
             // Simply choose nearest whole number of quavers.
             //   But be more lenient to giving each least one.
-            const exact_quavers = e.duration / fpq;
-            let quant_quavers;
+            const exactQuavers = e.duration / fpq;
+            let quantQuavers;
 
-            if (exact_quavers > 1. / 3) {
-                quant_quavers = Math.max(1, Math.round(exact_quavers));
+            if (exactQuavers > 1. / 3) {
+                quantQuavers = Math.max(1, Math.round(exactQuavers));
             } else{
-                quant_quavers = 0;
+                quantQuavers = 0;
             }
 
             // What is the quantisation error? Scale this by power
             //   so quantisation error is more important on stronger
             //   notes.
-            quant_quaver_values.push(quant_quavers);
-            output_query.push(...new Array(quant_quavers).fill(e.pitch));
-            quant_error += Math.abs(exact_quavers - quant_quavers) * e.power;
+            quantQuaverValues.push(quantQuavers);
+            output.push(...new Array(quantQuavers).fill(e.pitch));
+            quantError += Math.abs(exactQuavers - quantQuavers) * e.power;
         });
 
         // We cannot rely on quantisation error alone. Clearly the optimal
@@ -76,47 +67,52 @@ class Decoder {
         //   and 50 BPM is painfully slow.
 
         // We use a very simple model of how many notes we expect to see before
-        //   the note changes (ie the distribution of values of quant_error).
-        let nz_quant_quaver_values = quant_quaver_values.filter(x => x > 0);
-        let log_likelihood_approx = nz_quant_quaver_values.map(x => 3 - 0.5 * x).reduce((a, b) => a + b);
+        //   the note changes (ie the distribution of values of quantError).
+        // Note that this linear model is actually surprisingly close to reality,
+        //  modelling the log likelihood which decreases logarithmically with a
+        //  nearly constant exponent coefficient on length. (ie the number of
+        //  occurrences of [1, 2, 3, 4, 5, 6, 7, 8] notes in the output file
+        //  closely follows a single exponentially decreasing function. As we
+        //  consider the output probability as the product of the individual
+        //  probabilities the log likelihood is therefore roughly a sum of these
+        //  notes
+        let nzQuantQuaverValues = quantQuaverValues.filter(x => x > 0);
+        let logLikelihoodApprox = nzQuantQuaverValues.map(x => 3 - 0.5 * x).reduce((a, b) => a + b);
 
         // Normalise by number of quantised quavers, otherwise there's a
         //   bias towards shorter tempos which have more positive scores.
-        log_likelihood_approx /= quant_quaver_values.length;
+        logLikelihoodApprox /= quantQuaverValues.length;
 
         // The quantisation error can be a maximum of num_frames * avg_power
         //   but we normalised power to 1 (although some events have been
         //   removed since then so the average power can be slightly greater).
-        let quant_scale = (1 - quant_error / input_num_frames);
+        let quantScale = (1 - quantError / numInputFrames);
 
         // Overall error in tempo
-        let total_frame_delta = Math.abs(fpq * output_query.length - input_num_frames);
-        let overall_time_error = 1 - total_frame_delta / input_num_frames;
+        let totalFrameDelta = Math.abs(fpq * output.length - numInputFrames);
+        let overallTimeError = 1 - totalFrameDelta / numInputFrames;
 
-        console.debug(quant_scale, log_likelihood_approx, overall_time_error);
+        console.debug(quantScale, logLikelihoodApprox, overallTimeError);
 
         // Roughly, quant_scale belongs to [0, 1] so scales down the log
         //   likelihood if there's inaccuracy.
-        let score = quant_scale * log_likelihood_approx * overall_time_error;
+        let score = quantScale * logLikelihoodApprox * overallTimeError;
 
-        return {decoded: output_query, score: score, tempo: tempo};
+        return {decoded: output, score: score, tempo: tempo};
     }
 
-    pitches_to_events(pitches, energies){
-        console.debug(pitches);
-        console.debug(energies);
-
+    _pitchesToEvents(pitches, energies){
         let events = [];
 
         // We normalise the energies so the average power is 1
-        let num_energies = energies.length;
-        let total_energy = energies.reduce((a, b) => a+ b);
+        let numEnergies = energies.length;
+        let totalEnergy = energies.reduce((a, b) => a+ b);
 
-        if(total_energy === 0) {
+        if(totalEnergy === 0) {
             return [];
         }
 
-        let energy_norm = num_energies / total_energy;
+        let energyNorm = numEnergies / totalEnergy;
 
         for(let i = 0; i < pitches.length; i++) {
             let pitch = pitches[i];
@@ -128,14 +124,14 @@ class Decoder {
                 lastEvent.duration += 1;
 
                 // Cumulative energy sum
-                lastEvent.energy += energy * energy_norm;
+                lastEvent.energy += energy * energyNorm;
 
             } else {
                 events.push({
                     start: i,
                     duration: 1,
                     pitch: pitch,
-                    energy: energy * energy_norm,
+                    energy: energy * energyNorm,
                 });
             }
         }
@@ -143,7 +139,7 @@ class Decoder {
         for(let i = 0; i < events.length; i++) {
             // Average the energy over the duration. This is the power
             //  (energy / time). This is "dimensionless" because we
-            //  scaled by energy_norm.
+            //  scaled by energyNorm.
             events[i].power = events[i].energy / events[i].duration;
         }
 
@@ -152,11 +148,11 @@ class Decoder {
         return events;
     }
 
-    bpm_to_num_frames(bpm){
+    _BPMToNumFrames(bpm){
         // Convert a BPM tempo into a float of frames per quaver
         let bps = bpm / 60;
-        let quavers_ps = bps * 2;  // Quaver = half a crotchet
-        let frames_ps = FFConfig.SAMPLE_RATE / FFConfig.SPEC_WINDOW_SIZE;
-        return frames_ps / quavers_ps;  // Frame per quaver
+        let quaversPS = bps * 2;  // Quaver = half a crotchet
+        let framesPS = FFConfig.SAMPLE_RATE / FFConfig.SPEC_WINDOW_SIZE;
+        return framesPS / quaversPS;  // Frames per quaver
     }
 }

@@ -56,7 +56,7 @@ function outputResult() {
     let p1 = document.createElement("p");
     let p2 = document.createElement("p");
     let p3 = document.createElement("p");
-    let abc = abcConverter.decoded_to_abc(transcriber.output.decoded)
+    let abc = abcConverter.decodedToAbc(transcriber.output.decoded)
     console.log(abc);
 
     p1.textContent = abc;

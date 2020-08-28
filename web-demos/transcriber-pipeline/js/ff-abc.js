@@ -1,6 +1,6 @@
 class ABCConverter {
     constructor() {
-        this.base_map = {
+        this.baseMap = {
             72: 'c',
             73: '^c',
             74: 'd',
@@ -15,10 +15,10 @@ class ABCConverter {
             83: 'b',
         }
 
-        this.abc_map = this.get_abc_map()
+        this.abcMap = this.getAbcMap()
     }
 
-    midi_to_abc(midi) {
+    midiToAbc(midi) {
         let apos = 0;   // Apostrophes
         let commas = 0;
 
@@ -32,7 +32,7 @@ class ABCConverter {
             midi += 12;
         }
 
-        let base = this.base_map[midi];
+        let base = this.baseMap[midi];
 
         if(commas >= 1) {
             base = base.toUpperCase();
@@ -42,34 +42,34 @@ class ABCConverter {
         return base + ','.repeat(commas) + "'".repeat(apos);
     }
 
-    decoded_to_abc(decoded) {
+    decodedToAbc(decoded) {
 
         let hold = 0;
-        let last_n = null;
+        let lastN = null;
         let out = [];
 
         decoded.forEach(n => {
-            if (n === last_n) {
+            if (n === lastN) {
                 hold += 1;
                 return;
             } else if (hold) {
                 out.push((hold + 1).toString());
                 hold = 0;
             }
-            out.push(` ${this.abc_map[n]}`);
-            last_n = n;
+            out.push(` ${this.abcMap[n]}`);
+            lastN = n;
         });
         console.debug(out);
 
         return out.join("");
     }
 
-    get_abc_map() {
-        const ABC_MAP = {};
+    getAbcMap() {
+        const abcMap = {};
         for(let i = 0; i < FFConfig.MIDI_NUM; i++) {
-            ABC_MAP[i] = this.midi_to_abc(FFConfig.MIDI_HIGH - i);
+            abcMap[i] = this.midiToAbc(FFConfig.MIDI_HIGH - i);
         }
-        return ABC_MAP;
+        return abcMap;
     }
 }
 
