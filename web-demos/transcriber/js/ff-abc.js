@@ -67,7 +67,7 @@ class ABCConverter {
     getAbcMap() {
         const abcMap = {};
         for(let i = 0; i < FFConfig.MIDI_NUM; i++) {
-            abcMap[i] = this.midiToAbc(FFConfig.MIDI_HIGH - i);
+            abcMap[i] = this.midiToAbc(FFConfig.MIDI_LOW + i);
         }
         return abcMap;
     }
