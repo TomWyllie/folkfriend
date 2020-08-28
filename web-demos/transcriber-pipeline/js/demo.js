@@ -1,9 +1,7 @@
 let transcriber;
 
 async function demo() {
-
     transcriber = new Transcriber();
-    await transcriber.initialise();
 
     const recorder = document.getElementById("recorder");
     recorder.addEventListener("change", (e) => {
@@ -29,43 +27,36 @@ async function onChange(e) {
 
 
 async function urlDemo(url) {
-    transcriber.flush();
-    await transcriber.urlToFreqData(url);
+    console.time("transcribe-url");
+    const t0 = performance.now();
+    const result = await transcriber.transcribeURL(url);
+    const perf = performance.now() - t0;
+    console.timeEnd("transcribe-url");
+    outputResult(result, perf);
 
-    transcriber.closed = true;
-    console.time("bulk-proceed");
-    await transcriber.bulkProceed();
-    await transcriber.finished;
-    console.timeEnd("bulk-proceed");
-
-    console.debug(transcriber.decoded);
-    outputResult();
-
-    console.debug(transcriber);
-    console.debug(transcriber.midis);
-
-    let canv = document.getElementById("cnn-canvas");
-    let pixels = tf.concat(transcriber.debugDenoised);
-    pixels = tf.div(pixels, tf.max(pixels));
-    tf.browser.toPixels(tf.transpose(pixels), canv);
+    if(FFDebug) {
+        let canv = document.getElementById("cnn-canvas");
+        let pixels = tf.concat(transcriber.featureExtractor.debugDenoised);
+        pixels = tf.div(pixels, tf.max(pixels));
+        tf.browser.toPixels(tf.transpose(pixels), canv);
+    }
 }
 
-function outputResult() {
-    let abcConverter = new ABCConverter();
-
+function outputResult(result, perf) {
     let p1 = document.createElement("p");
     let p2 = document.createElement("p");
     let p3 = document.createElement("p");
-    let abc = abcConverter.decodedToAbc(transcriber.output.decoded)
-    console.log(abc);
+    let p4 = document.createElement("p");
 
-    p1.textContent = abc;
-    p2.textContent = `${transcriber.output.tempo} BPM`;
-    p3.textContent =  `${transcriber.output.score}`;
+    p1.textContent = result.abc;
+    p2.textContent = `Tempo was ${result.tempo} BPM`;
+    p3.textContent = `${Math.round(1000*perf)/1000} milliseconds`;
+    p4.textContent = `${result.score}`;
 
     document.body.appendChild(p1);
     document.body.appendChild(p2);
     document.body.appendChild(p3);
+    document.body.appendChild(p4);
 }
 
 window.onload = () => {

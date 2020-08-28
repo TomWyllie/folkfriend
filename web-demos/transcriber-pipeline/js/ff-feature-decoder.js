@@ -1,4 +1,4 @@
-class Decoder {
+class FeatureDecoder {
     constructor() {
         let lowBPM = 50;
         let highBPM = 300;
@@ -9,8 +9,8 @@ class Decoder {
         }
     }
     
-    decode(pitches, energies) {
-        let events = this._pitchesToEvents(pitches, energies);
+    decode(features) {
+        let events = this._pitchesToEvents(features);
 
         // Remove very short events or very dim events
         events = events.filter(e => e.power > 0.02 && e.duration > 4);
@@ -92,7 +92,7 @@ class Decoder {
         let totalFrameDelta = Math.abs(fpq * output.length - numInputFrames);
         let overallTimeError = 1 - totalFrameDelta / numInputFrames;
 
-        console.debug(quantScale, logLikelihoodApprox, overallTimeError);
+        // console.debug(quantScale, logLikelihoodApprox, overallTimeError);
 
         // Roughly, quant_scale belongs to [0, 1] so scales down the log
         //   likelihood if there's inaccuracy.
@@ -101,7 +101,10 @@ class Decoder {
         return {decoded: output, score: score, tempo: tempo};
     }
 
-    _pitchesToEvents(pitches, energies){
+    _pitchesToEvents(features){
+        const pitches = features.midis;
+        const energies = features.energies;
+
         let events = [];
 
         // We normalise the energies so the average power is 1
@@ -142,8 +145,6 @@ class Decoder {
             //  scaled by energyNorm.
             events[i].power = events[i].energy / events[i].duration;
         }
-
-        console.debug(events);
 
         return events;
     }
