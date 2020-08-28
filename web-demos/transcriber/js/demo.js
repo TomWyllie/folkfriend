@@ -32,7 +32,7 @@ async function urlDemo(url) {
     const result = await transcriber.transcribeURL(url);
     const perf = performance.now() - t0;
     console.timeEnd("transcribe-url");
-    outputResult(result, perf);
+    outputResult(result, perf, transcriber.featureExtractor.networkPerf);
 
     if(FFDebug) {
         let canv = document.getElementById("cnn-canvas");
@@ -42,21 +42,24 @@ async function urlDemo(url) {
     }
 }
 
-function outputResult(result, perf) {
+function outputResult(result, perf, networkPerf) {
     let p1 = document.createElement("p");
     let p2 = document.createElement("p");
     let p3 = document.createElement("p");
     let p4 = document.createElement("p");
+    let p5 = document.createElement("p");
 
     p1.textContent = result.abc;
     p2.textContent = `Tempo was ${result.tempo} BPM`;
-    p3.textContent = `${Math.round(1000*perf)/1000} milliseconds`;
-    p4.textContent = `${result.score}`;
+    p3.textContent = `FolkFriend ${Math.round(1000*perf)/1000} milliseconds`;
+    p4.textContent = `Network ${Math.round(1000*networkPerf)/1000} milliseconds`;
+    p5.textContent = `${result.score}`;
 
     document.body.appendChild(p1);
     document.body.appendChild(p2);
     document.body.appendChild(p3);
     document.body.appendChild(p4);
+    document.body.appendChild(p5);
 }
 
 window.onload = () => {

@@ -69,6 +69,9 @@ class FeatureExtractor {
     }
 
     async urlToFreqData(url) {
+        // Track how long audio takes across network
+        //  so we can actually measure performance
+        const t0 = performance.now();
 
         // Get duration of audio file
         const audio = new Audio();
@@ -100,6 +103,9 @@ class FeatureExtractor {
         };
 
         source.start(0);
+
+        this.networkPerf = performance.now() - t0;
+
         await audioContext.startRendering();
     }
 
