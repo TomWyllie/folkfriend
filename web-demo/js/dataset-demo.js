@@ -40,9 +40,10 @@ async function datasetDemo() {
 
     let t0 = performance.now();
     for(let i = 0; i < slices.data.length; i++) {
-        if(i === 10) {
-            throw "breakpoint";
-        }
+        // if(i === 10) {
+        //     throw "breakpoint";
+        // }
+        console.debug(tf.memory());
 
         let sliceURL = `/dataset/${slices.data[i].path}`;
 
@@ -52,7 +53,6 @@ async function datasetDemo() {
         console.time("query");
         let results = await queryEngine.query(transcription.decoded).catch(console.error);
         console.timeEnd("query");
-        console.warn(tf.memory());
 
         // Now go through the results. Remember the ID of each result
         //  is the *setting ID* that has been matched not the *tune ID*.

@@ -240,6 +240,11 @@ class FeatureExtractor {
             centreFrame.dispose();
             prediction.dispose();
 
+            if(FFDebug) {
+                tf.keep(denoised);
+                this.debugDenoised.push(denoised);
+            }
+
             //  TODO use this once it's been written in TF-JS...
             //      https://js.tensorflow.org/api/latest/#topk
             // const {midiEnergies, midiNotes} = tf.topk(denoised, 1);
@@ -251,12 +256,8 @@ class FeatureExtractor {
 
         let midiEnergyData = await denoised.energies.data();
         let midiNoteData = await denoised.notes.data();
-        if(FFDebug) {
-            this.debugDenoised.push(denoised);
-        } else {
-            denoised.energies.dispose();
-            denoised.notes.dispose();
-        }
+        denoised.energies.dispose();
+        denoised.notes.dispose();
 
         for(let i = 0; i < midiEnergyData.length; i++) {
             // Recall the frequency is descending with index, so

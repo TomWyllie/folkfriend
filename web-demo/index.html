@@ -27,6 +27,9 @@
 
     <script>
         tf.setBackend('wasm');
+        //  Some unresolved memory leak in WebGL btw. But prefer WASM anyway for stability and
+        //      ability to use in web worker.
+        // tf.setBackend('webgl');
         console.log(`Using TensorFlowJS backend ${tf.getBackend()}`);
     </script>
 </head>
