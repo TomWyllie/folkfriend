@@ -25,9 +25,10 @@ class QueryEngine {
        await this.loadShards;
     }
 
-    async query(query) {
+    async query(unscaledQuery) {
         console.time('query');
 
+        let query = unscaledQuery.slice(0);
         for(let i = 0; i < query.length; i++) {
             // The values are stored scaled up by a factor of 4 in the
             //  PNG data file, so they can be seen more easily.
@@ -38,6 +39,8 @@ class QueryEngine {
         let shardScores = await this.execute(query);
         console.timeEnd('execute');
 
+        // Useful for debugging
+        this.shardScores = shardScores;
         console.debug(shardScores);
 
         // Extract the top N settings and their scores
@@ -258,7 +261,7 @@ class QueryEngineGPU extends QueryEngine {
         let outputArr = new Int16Array(this.shardMeta.length);
         for(let i = 0; i < pixelArrs.length; i++) {
             for(let j = 0; j < this.canvas.height; j++) {
-                outputArr[i * this.canvas.height + j] = pixelArrs[i][4*j] - 127;
+                outputArr[i * this.canvas.height + j] = Math.max(0, pixelArrs[i][4*j] - 127);
             }
         }
 
