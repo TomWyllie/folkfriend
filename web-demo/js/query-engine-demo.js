@@ -31,15 +31,16 @@ async function validityTest() {
     perf = performance.now() - t0;
     result(perf);
 
-    let match = 0;
-    for(let i = 0; i < qeCPU.shardScores.length; i++) {
-        if(qeCPU.shardScores[i] === qeGPU.shardScores[i]) {
-            match += 1;
+    if(FFDebug) {
+        let match = 0;
+        for(let i = 0; i < qeCPU.shardScores.length; i++) {
+            if(qeCPU.shardScores[i] === qeGPU.shardScores[i]) {
+                match += 1;
+            }
         }
+        let accuracy = `${match} / ${qeCPU.shardScores.length}`;
+        result(accuracy);
     }
-
-    let accuracy = `${match} / ${qeCPU.shardScores.length}`;
-    result(accuracy);
 }
 
 function result(x) {

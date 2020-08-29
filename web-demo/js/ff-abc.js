@@ -59,7 +59,6 @@ class ABCConverter {
             out.push(` ${this.abcMap[n]}`);
             lastN = n;
         });
-        console.debug(out);
 
         return out.join("");
     }

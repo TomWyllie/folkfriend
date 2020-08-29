@@ -26,8 +26,6 @@ class QueryEngine {
     }
 
     async query(unscaledQuery) {
-        console.time('query');
-
         let query = unscaledQuery.slice(0);
         for(let i = 0; i < query.length; i++) {
             // The values are stored scaled up by a factor of 4 in the
@@ -35,13 +33,13 @@ class QueryEngine {
             query[i] *= 4;
         }
 
-        console.time('execute');
         let shardScores = await this.execute(query);
-        console.timeEnd('execute');
 
         // Useful for debugging
-        this.shardScores = shardScores;
-        console.debug(shardScores);
+        if(FFDebug) {
+            this.shardScores = shardScores;
+            console.debug(shardScores);
+        }
 
         // Extract the top N settings and their scores
         let settingsScores = {};
@@ -57,9 +55,6 @@ class QueryEngine {
         }, settingsScores);
         props.sort(function(p1, p2) { return p2.value - p1.value; });
         let bestN = props.slice(0, 100);
-
-        console.log(bestN);
-        console.timeEnd('query');
 
         return bestN;
     }
@@ -118,7 +113,7 @@ class QueryEngineGPU extends QueryEngine {
     async initialise() {
         await super.initialise();
         await this.loadShaders;
-        console.time("initialise");
+        console.time("gpu-query-engine-init");
 
         this.canvas = document.createElement('canvas');
         this.canvas.width = this.shardData[0].width;
@@ -174,16 +169,13 @@ class QueryEngineGPU extends QueryEngine {
 
         this.partitionTextureObjects = this.setupPartitionTextures();
 
-        console.timeEnd("initialise");
+        console.timeEnd("gpu-query-engine-init");
         this.finishInitialising();
     }
 
     async execute(query) {
         await this.initialised;
 
-        console.log(this);
-
-        console.log("Execute");
         // console.time("execute pre-draw");
         const gl = this.gl;
 
