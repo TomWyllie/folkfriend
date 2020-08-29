@@ -2,7 +2,7 @@ class FeatureExtractor {
     constructor() {
 
         this.flush();
-        this.cnnBatchSize = 1;
+        this.cnnBatchSize = 32;
 
         // We have to normalise each batch by something as the CNN is
         //  sensitive to magnitude of input values.
@@ -22,7 +22,6 @@ class FeatureExtractor {
         //  with this, 120 + 10 contextFrames => 128 frame normalisation width. (2.56s)
         this.cnnRunningMaxNumFrames = 120;
         this.cnnRunningMaxNumBatches = this.cnnRunningMaxNumFrames / this.cnnBatchSize;
-        this.cnnRunningMaxBatches = [];
 
         this.model = null;
     }
@@ -35,10 +34,10 @@ class FeatureExtractor {
         this.midiEnergies = [];
         this.frameIndex = 0;
 
-        this.runningMax = null;
-
         this.proceedRequests = 0;
         this.proceeding = false;
+
+        this.cnnRunningMaxBatches = [];
 
         this.closed = false;
         this.finished = new Promise(resolve => {
@@ -114,10 +113,12 @@ class FeatureExtractor {
     }
 
     cleanup() {
-        // Make sure NO TENSORS are left allocated by end of this as we are about
-        //  to flush to begin a new transcription.
-        console.warn(tf.memory());
-        console.warn(this);
+        this.cnnRunningMaxBatches.forEach(t => t.dispose());
+        const mem = tf.memory();
+        if(mem.numTensors > 10) {
+            console.warn("Unexpectedly many tensors remain allocated at end of transcription");
+            console.warn(mem);
+        }
     }
 
     async bulkProceed() {
@@ -134,6 +135,8 @@ class FeatureExtractor {
         // Queue up requests for the future (even if it is one that is executed immediately)
         this.proceedRequests += numProceedRequests;
 
+        tf.engine().startScope();
+
         if(!this.proceeding) {
             // Handle the request
             this.proceeding = true;
@@ -147,6 +150,8 @@ class FeatureExtractor {
             }
             this.proceeding = false
         }
+
+        tf.engine().endScope();
     }
 
     async process() {
@@ -194,33 +199,36 @@ class FeatureExtractor {
         this.frameIndex++;
         this.cnnBatchQueue.push(cnnInput);
 
-        let cnnBatch;
+        if (!(this.cnnBatchQueue.length >= this.cnnBatchSize || (this.closed && this.frameIndex === this.framesQueue.length))) {
+            return;
+        }
 
-        if(this.cnnBatchQueue.length >= this.cnnBatchSize || (this.closed && this.frameIndex === this.framesQueue.length)) {
-            let cnnBatchArray = this.cnnBatchQueue.splice(0, this.cnnBatchSize);
-            cnnBatch = tf.stack(cnnBatchArray);
-            cnnBatchArray.forEach(paddedFrame => {paddedFrame.dispose()});
+        let cnnBatchArray = this.cnnBatchQueue.splice(0, this.cnnBatchSize);
+
+        const denoised = tf.tidy(() => {
+
+            let cnnBatch = tf.stack(cnnBatchArray);
+            cnnBatchArray.forEach(paddedFrame => {
+                paddedFrame.dispose()
+            });
 
             // See explanation in constructor for the sliding window
             // normalisation value explanation.
-            let batchMax = await tf.max(cnnBatch).data();
+            let batchMax = tf.max(cnnBatch);
+            tf.keep(batchMax);  // Don't dispose of it yet
             this.cnnRunningMaxBatches.push(batchMax);
 
-            if(this.cnnRunningMaxBatches.length > this.cnnRunningMaxNumBatches) {
+            if (this.cnnRunningMaxBatches.length > this.cnnRunningMaxNumBatches) {
+                this.cnnRunningMaxBatches[0].dispose();
                 this.cnnRunningMaxBatches.shift();
             }
 
             let lowPassBatchMax = this.cnnRunningMaxBatches.reduce(
-                (a, b) => Math.max(a, b)
+                (a, b) => tf.maximum(a, b)
             );
 
             // divNoNan is important here. Otherwise we get NaN.
             cnnBatch = tf.divNoNan(cnnBatch, lowPassBatchMax);
-        } else {
-            return;
-        }
-
-        const denoised = tf.tidy(() => {
 
             let prediction = tf.squeeze(this.model.predict(cnnBatch, {batchSize: cnnBatch.shape[0]}));
             let centreFrame = tf.squeeze(tf.slice(cnnBatch, [0, FFConfig.CONTEXT_FRAMES / 2, 0, 0], [-1, 1, -1, -1]));
