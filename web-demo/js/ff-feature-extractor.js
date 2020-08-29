@@ -2,7 +2,7 @@ class FeatureExtractor {
     constructor() {
 
         this.flush();
-        this.cnnBatchSize = 8;
+        this.cnnBatchSize = 1;
 
         // We have to normalise each batch by something as the CNN is
         //  sensitive to magnitude of input values.
@@ -61,9 +61,9 @@ class FeatureExtractor {
         this.model = await tf.loadLayersModel("external/models/uint8/model.json");
 
         // Only necessary if we're compiling shaders (ie WebGL backend)
-        let warmupResult = this.model.predict(tf.zeros([1, FFConfig.CONTEXT_FRAMES, FFConfig.SPEC_NUM_BINS, 1]));
-        await warmupResult.data();
-        warmupResult.dispose();
+        tf.tidy(() => {
+            return this.model.predict(tf.zeros([1, FFConfig.CONTEXT_FRAMES, FFConfig.SPEC_NUM_BINS, 1]));
+        }).dispose();
 
         console.timeEnd("feature-extractor-init");
     }
@@ -113,6 +113,13 @@ class FeatureExtractor {
         return this.audioDSP.processFreqData(freqData);
     }
 
+    cleanup() {
+        // Make sure NO TENSORS are left allocated by end of this as we are about
+        //  to flush to begin a new transcription.
+        console.warn(tf.memory());
+        console.warn(this);
+    }
+
     async bulkProceed() {
         // Proceed up until the end of all provided data.
         return this.proceed(this.framesQueue.length + this.freqDataQueue.length);
@@ -147,10 +154,8 @@ class FeatureExtractor {
         //  frequency data into frames to be used by the CNN.
         while(this.freqDataQueue.length) {
             this.framesQueue.push(
-                tf.tensor(
-                    this.freqDataToFrame(
-                        this.freqDataQueue.shift()
-                    )
+                this.freqDataToFrame(
+                    this.freqDataQueue.shift()
                 )
             );
         }
@@ -168,68 +173,82 @@ class FeatureExtractor {
         let hi = Math.min(this.frameIndex + padding, this.framesQueue.length);
         let lo = Math.max(this.frameIndex - padding, 0);
 
-        let dataFrames = this.framesQueue.slice(lo, hi);
-        let cnnInput = tf.stack(dataFrames);
+        let cnnInput = tf.tidy(() => {
+            let dataFrames = this.framesQueue.slice(lo, hi);
+            for(let i = 0; i < dataFrames.length; i++) {
+                dataFrames[i] = tf.tensor(dataFrames[i]);
+            }
+            let cnnInput = tf.stack(dataFrames);
+            if(paddingLeft || paddingRight) {
+                // Pad
+                cnnInput = tf.pad(cnnInput, [[paddingLeft, paddingRight], [0, 0]])
+            }
+            return tf.expandDims(cnnInput, 2);
+        })
 
-        if(lo === this.frameIndex - padding) {
-            // We can safely dispose this frame as it will not be reused.
-            this.framesQueue[lo].dispose();
-        }
+        // if(lo === this.frameIndex - padding) {
+        //     // We can safely dispose this frame as it will not be reused.
+        //     this.framesQueue[lo].dispose();
+        // }
 
-        if(paddingLeft || paddingRight) {
-            // Pad
-            cnnInput = tf.pad(cnnInput, [[paddingLeft, paddingRight], [0, 0]])
-        }
-
-        cnnInput = tf.expandDims(cnnInput, 2);
         this.frameIndex++;
-
         this.cnnBatchQueue.push(cnnInput);
+
         let cnnBatch;
 
         if(this.cnnBatchQueue.length >= this.cnnBatchSize || (this.closed && this.frameIndex === this.framesQueue.length)) {
             let cnnBatchArray = this.cnnBatchQueue.splice(0, this.cnnBatchSize);
             cnnBatch = tf.stack(cnnBatchArray);
+            cnnBatchArray.forEach(paddedFrame => {paddedFrame.dispose()});
 
             // See explanation in constructor for the sliding window
             // normalisation value explanation.
-            let batchMax = tf.max(cnnBatch);
+            let batchMax = await tf.max(cnnBatch).data();
             this.cnnRunningMaxBatches.push(batchMax);
 
-            if(this.cnnRunningMaxBatches > this.cnnRunningMaxNumBatches) {
-                this.cnnRunningMaxBatches[0].dispose();
+            if(this.cnnRunningMaxBatches.length > this.cnnRunningMaxNumBatches) {
                 this.cnnRunningMaxBatches.shift();
             }
 
             let lowPassBatchMax = this.cnnRunningMaxBatches.reduce(
-                (a, b) => tf.maximum(a, b)
+                (a, b) => Math.max(a, b)
             );
 
             // divNoNan is important here. Otherwise we get NaN.
             cnnBatch = tf.divNoNan(cnnBatch, lowPassBatchMax);
-            cnnBatchArray.forEach(paddedFrame => {paddedFrame.dispose()});
         } else {
             return;
         }
 
-        let prediction = tf.squeeze(this.model.predict(cnnBatch, {batchSize: cnnBatch.shape[0]}));
-        let centreFrame = tf.squeeze(tf.slice(cnnBatch, [0, FFConfig.CONTEXT_FRAMES / 2, 0, 0], [-1, 1, -1, -1]));
-        cnnBatch.dispose();
+        const denoised = tf.tidy(() => {
 
-        centreFrame = tf.reshape(centreFrame, [-1, FFConfig.MIDI_NUM, FFConfig.SPEC_BINS_PER_MIDI]);
-        centreFrame = tf.sum(centreFrame, 2);
-        let denoised = tf.mul(centreFrame, prediction);
-        centreFrame.dispose();
-        prediction.dispose();
+            let prediction = tf.squeeze(this.model.predict(cnnBatch, {batchSize: cnnBatch.shape[0]}));
+            let centreFrame = tf.squeeze(tf.slice(cnnBatch, [0, FFConfig.CONTEXT_FRAMES / 2, 0, 0], [-1, 1, -1, -1]));
+            cnnBatch.dispose();
 
-        //  TODO use this once it's been written in TF-JS...
-        //      https://js.tensorflow.org/api/latest/#topk
-        // const {midiEnergies, midiNotes} = tf.topk(denoised, 1);
-        let midiEnergies = tf.max(denoised, 1);
-        let midiNotes = tf.argMax(denoised, 1);
+            centreFrame = tf.reshape(centreFrame, [-1, FFConfig.MIDI_NUM, FFConfig.SPEC_BINS_PER_MIDI]);
+            centreFrame = tf.sum(centreFrame, 2);
+            let denoised = tf.mul(centreFrame, prediction);
+            centreFrame.dispose();
+            prediction.dispose();
 
-        let midiNoteData = await midiNotes.data();
-        let midiEnergyData = await midiEnergies.data();
+            //  TODO use this once it's been written in TF-JS...
+            //      https://js.tensorflow.org/api/latest/#topk
+            // const {midiEnergies, midiNotes} = tf.topk(denoised, 1);
+            let midiEnergies = tf.max(denoised, 1);
+            let midiNotes = tf.argMax(denoised, 1);
+
+            return {notes: midiNotes, energies: midiEnergies};
+        });
+
+        let midiEnergyData = await denoised.energies.data();
+        let midiNoteData = await denoised.notes.data();
+        if(FFDebug) {
+            this.debugDenoised.push(denoised);
+        } else {
+            denoised.energies.dispose();
+            denoised.notes.dispose();
+        }
 
         for(let i = 0; i < midiEnergyData.length; i++) {
             // Recall the frequency is descending with index, so
@@ -238,19 +257,11 @@ class FeatureExtractor {
             midiNoteData[i] = FFConfig.MIDI_NUM - midiNoteData[i] - 1;
         }
 
-        if(FFDebug) {
-            this.debugDenoised.push(denoised);
-        } else {
-            denoised.dispose();
-        }
-
-        midiNotes.dispose();
-        midiEnergies.dispose();
-
         this.midis.push(...midiNoteData);
         this.midiEnergies.push(...midiEnergyData);
 
         if(this.closed && this.midis.length === this.framesQueue.length) {
+            this.cleanup();
             this.finish();
         }
     }

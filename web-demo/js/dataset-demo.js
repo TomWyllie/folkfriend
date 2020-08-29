@@ -40,6 +40,10 @@ async function datasetDemo() {
 
     let t0 = performance.now();
     for(let i = 0; i < slices.data.length; i++) {
+        if(i === 10) {
+            throw "breakpoint";
+        }
+
         let sliceURL = `/dataset/${slices.data[i].path}`;
 
         console.time("transcribe");
@@ -48,6 +52,7 @@ async function datasetDemo() {
         console.time("query");
         let results = await queryEngine.query(transcription.decoded).catch(console.error);
         console.timeEnd("query");
+        console.warn(tf.memory());
 
         // Now go through the results. Remember the ID of each result
         //  is the *setting ID* that has been matched not the *tune ID*.
@@ -70,7 +75,9 @@ async function datasetDemo() {
         //  the tune was ranked outside the top results.length.
         let score = tunesRanking[groundTruth] || results.length;
 
-        textOutput.textContent += `${slices.data[i].path},${score}\n`;
+        let dataLine = `${slices.data[i].path},${score}\n`;
+        textOutput.textContent += dataLine;
+        console.info(dataLine);
 
         let perf = (performance.now() - t0) / (1 + i);
         perf = Math.round(1000 * perf) / 1000;
