@@ -5,11 +5,13 @@ import logging
 import math
 import os
 import pathlib
+import imageio
 
 from folkfriend import ff_config
 from folkfriend.data import midi
 from folkfriend.data.download import download_thesession_data
 from tqdm import tqdm
+import numpy as np
 
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(name)s:%(lineno)s] %(message)s')
@@ -18,8 +20,8 @@ log = logging.getLogger(os.path.basename(__file__))
 
 def build_index(ds_dir):
     tunes_path = os.path.join(ds_dir, 'thesession-data.json')
-    index_path = os.path.join(ds_dir, 'index', 'query-data.txt')
-    index_meta_path = os.path.join(ds_dir, 'index', 'meta-query-data.json')
+    index_data_path = os.path.join(ds_dir, 'index', 'query-data-{:d}.png')
+    index_meta_path = os.path.join(ds_dir, 'index', 'query-meta-data.json')
     index_midis_path = os.path.join(ds_dir, 'index', 'midis')
 
     pathlib.Path(index_midis_path).mkdir(parents=True, exist_ok=True)
@@ -32,7 +34,7 @@ def build_index(ds_dir):
     contours = []
 
     for setting in tqdm(thesession_data,
-                        desc='Converting ABC text to queryable index'):
+                        desc='Converting ABC text to contour string'):
         # break
         abc_header = [
             'X:1',
@@ -52,14 +54,9 @@ def build_index(ds_dir):
             midi.abc_to_midi(abc, midi_out_path)
 
         midi_events = midi.midi_as_csv(midi_out_path)
-        note_contour = midi.CSVMidiNoteReader(midi_events).to_note_contour()
+        note_contour = midi.CSVMidiNoteReader(midi_events).to_midi_contour()
 
         contours.append((setting['setting'], note_contour))
-
-    # with open('contours.json', 'w') as f:
-    #     json.dump(contours, f)
-    # with open('contours.json', 'r') as f:
-    #     contours = json.load(f)
 
     # import matplotlib.pyplot as plt
     # lengths = [len(c) for s, c in contours]
@@ -83,13 +80,18 @@ def build_index(ds_dir):
     # plt.show()
     # Big spikes at multiples of 64.
 
-    shard_size = 64
+    shard_size = ff_config.QUERY_SHARD_SIZE
     shards = collections.defaultdict(list)
     total_overlap = 0
 
+    # shard: [setting_1, setting_2, setting_3,..., ]  (but likely only 2 or 3)
     for setting_id, contour in tqdm(contours, desc='Sharding contours'):
         if not contour:
             continue
+
+        if len(contour) < shard_size:
+            contour = list(contour) * (1 + shard_size // len(contour))
+            contour = tuple(contour[:shard_size])
 
         num_shards = math.ceil(len(contour) / shard_size)
         overlapping_notes = num_shards * shard_size - len(contour)
@@ -100,11 +102,14 @@ def build_index(ds_dir):
         next_s = 0
         for i in range(num_shards):
             shard = contour[next_s: next_s + shard_size]
-            shards[shard].append(setting_id)
+            if len(shard) != ff_config.QUERY_SHARD_SIZE:
+                raise RuntimeError(shard)
+
+            shards[shard].append(int(setting_id))
             next_s += shard_size
             next_s -= overlaps[i]
 
-    # (Changes shards to a list for this to work) TODO improve
+    # (Changes shards to a list for this to work)
     # x = len(shards)
     # y = len(set(shards))
     # print(x, y, x - y)
@@ -114,17 +119,50 @@ def build_index(ds_dir):
     # > Extra efficiency from de-duplicating shards 643840
     # > Inefficiency from overlaps 564268
 
-    shard_lines = list(shards.keys())
-    shard_meta = [0] * len(shards)
-    for i, shard in enumerate(shard_lines):
-        # noinspection PyTypeChecker
-        shard_meta[i] = shards[shard]
+    # Sort setting and remove any cases where the same shard occurs multiple
+    #   times in a tune.
+    for shard in shards:
+        shards[shard] = sorted(list(set(shards[shard])))
 
-    with open(index_path, 'w') as f:
-        f.writelines('\n'.join(shard_lines))
+    shards = list(sorted(shards.items(), key=lambda s: s[1][0]))
 
+    shards_per_partition = (ff_config.QUERY_TEXTURE_EDGE_LENGTH ** 2
+                            / ff_config.QUERY_SHARD_SIZE)
+    shards_per_row = int(ff_config.QUERY_TEXTURE_EDGE_LENGTH
+                         / ff_config.QUERY_SHARD_SIZE)
+    num_partitions = math.ceil(len(shards) / shards_per_partition)
+    num_padding_shards = num_partitions * shards_per_partition - len(shards)
+
+    # The shards are stacked in vertical columns indexed
+    #   [0, ff_config.QUERY_TEXTURE_EDGE_LENGTH - 1]
+    #   Down the first column of the first image, due to the
+    #   way the data is read back out of shaders in WebGL.
+    shard_data = np.vstack([np.array(s[0], np.uint8) for s in shards])
+    padding_data = np.repeat(np.zeros_like(shard_data[0])[np.newaxis, :],
+                             num_padding_shards, axis=0)
+    img_data = np.concatenate((shard_data, padding_data))
+    img_data = img_data.reshape((-1, shards_per_row,
+                                 ff_config.QUERY_TEXTURE_EDGE_LENGTH,
+                                 ff_config.QUERY_SHARD_SIZE))
+    img_data = np.transpose(img_data, (0, 2, 1, 3))
+    img_data = np.reshape(img_data, (-1,
+                                     ff_config.QUERY_TEXTURE_EDGE_LENGTH,
+                                     ff_config.QUERY_TEXTURE_EDGE_LENGTH))
+
+    for img_partition in range(img_data.shape[0]):
+        path = index_data_path.format(img_partition)
+        print(f'Writing {path}')
+        imageio.imwrite(path, 4 * img_data[img_partition])
+
+    meta_info = [
+        # We have to track somewhere how many partitions there are
+        img_data.shape[0],
+        [s[1] for s in shards]
+    ]
+
+    print(f'Writing {index_meta_path}')
     with open(index_meta_path, 'w') as f:
-        json.dump(shard_meta, f)
+        json.dump(meta_info, f)
 
 
 def partition_x_into_n(x, n):
