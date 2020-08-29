@@ -58,7 +58,7 @@ class FeatureExtractor {
         await this.audioDSP.ready;
 
         await tf.ready();
-        this.model = await tf.loadLayersModel("models/uint8/model.json");
+        this.model = await tf.loadLayersModel("external/models/uint8/model.json");
 
         // Only necessary if we're compiling shaders (ie WebGL backend)
         let warmupResult = this.model.predict(tf.zeros([1, FFConfig.CONTEXT_FRAMES, FFConfig.SPEC_NUM_BINS, 1]));

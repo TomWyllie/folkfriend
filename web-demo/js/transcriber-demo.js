@@ -1,6 +1,6 @@
 let transcriber;
 
-async function demo() {
+async function transcriberDemo() {
     transcriber = new Transcriber();
 
     const recorder = document.getElementById("recorder");
@@ -15,7 +15,7 @@ async function demo() {
 }
 
 async function clickDemo() {
-    return urlDemo("audio/fiddle.wav");
+    return urlDemo("/external/audio/fiddle.wav");
 }
 
 
@@ -63,5 +63,5 @@ function outputResult(result, perf, networkPerf) {
 }
 
 window.onload = () => {
-    demo().catch(console.error);
+    transcriberDemo().catch(console.error);
 };

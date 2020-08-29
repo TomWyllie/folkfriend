@@ -65,7 +65,7 @@ class QueryEngine {
     }
 
     async fetchShardData() {
-        let queryMetaData = await fetch("query-data/query-meta-data.json")
+        let queryMetaData = await fetch("/external/query-data/query-meta-data.json")
             .then(r => r.json());
 
         this.numPartitions = queryMetaData[0];
@@ -86,7 +86,7 @@ class QueryEngine {
     loadShardPartition(partitionNum) {
         return new Promise(resolve => {
             let image = new Image();
-            image.src = `/query-data/query-data-${partitionNum}.png`;
+            image.src = `/external/query-data/query-data-${partitionNum}.png`;
             image.decoding = 'sync';
             image.onload = () => resolve(image);
         });
