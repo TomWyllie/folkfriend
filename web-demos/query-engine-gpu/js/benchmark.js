@@ -5,7 +5,7 @@ function benchmark() {
     const qe = new QueryEngineCPU();
     qe.initialise().catch(console.error);
     document.getElementById("execute").addEventListener("click", () => {
-        let lemonSpade = [22, 24, 22, 26, 29, 31, 27, 26, 24, 22, 19, 21, 19, 15, 14, 19, 22, 24, 22, 24, 22, 26, 29, 26, 24, 26, 24, 22];
-        qe.query(lemonSpade).catch(console.error);
+        let fiddleDemo = [14, 16, 16, 18, 14, 14, 18, 19, 21, 21, 21, 16, 19, 16, 21, 16, 11, 11, 13, 14, 16, 16, 9, 9, 9, 21, 18, 18, 14, 14, 21, 19, 21, 21, 21, 21, 25, 26, 14, 26, 26, 14, 14, 25, 21];
+        qe.query(fiddleDemo).catch(console.error);
     });
 }
