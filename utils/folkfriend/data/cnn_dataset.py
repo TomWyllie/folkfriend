@@ -54,7 +54,7 @@ class CNNDataset:
         ds = ds.apply(tf.data.experimental.ignore_errors())
 
         # Pre-compute number of batches per epoch for convenience
-        samples = ff_config.CNN_DS_SAMPLES_PER_IMAGE * len(a_img_paths)
+        samples = ff_config.CNN_DS_SAMPLES_PER_IMAGE_ * len(a_img_paths)
         batches_per_epoch = math.floor(samples / batch_size)
 
         return ds.prefetch(tf.data.experimental.AUTOTUNE), batches_per_epoch
@@ -96,7 +96,7 @@ class CNNDataset:
 
         range_ds = tf.data.Dataset.range(ff_config.SPEC_NUM_FRAMES)
         range_ds = range_ds.shuffle(ff_config.SPEC_NUM_FRAMES)
-        range_ds = range_ds.take(ff_config.CNN_DS_SAMPLES_PER_IMAGE)
+        range_ds = range_ds.take(ff_config.CNN_DS_SAMPLES_PER_IMAGE_)
         sub_dataset = range_ds.map(expand_img_pair_to_sub_dataset)
 
         return sub_dataset

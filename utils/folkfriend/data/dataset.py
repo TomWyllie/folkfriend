@@ -199,8 +199,8 @@ class DatasetEntry:
             raise RuntimeError(f'{self._audio_a} should have a sample rate of '
                                f'{ff_config.SAMPLE_RATE}')
 
-        samples = samples[sample_rate * ff_config.CNN_DS_SS:
-                          sample_rate * ff_config.CNN_DS_TO]
+        samples = samples[sample_rate * ff_config.CNN_DS_SS_:
+                          sample_rate * ff_config.CNN_DS_TO_]
 
         # TODO we should be able to avoid writing stereo output.
         #   fluidsynth doesn't seem to allow this, maybe the soundfont can
@@ -229,16 +229,16 @@ class DatasetEntry:
         midi_reader = midi.CSVMidiNoteReader(csv_lines)
         return midi_reader.to_spectrogram_mask(
             tempo=self.config['tempo'],
-            start_seconds=ff_config.CNN_DS_SS,
-            end_seconds=ff_config.CNN_DS_TO
+            start_seconds=ff_config.CNN_DS_SS_,
+            end_seconds=ff_config.CNN_DS_TO_
         )
 
     def _midi_to_note_contour(self, csv_lines):
         midi_reader = midi.CSVMidiNoteReader(csv_lines)
         return midi_reader.to_note_contour(
             tempo=self.config['tempo'],
-            start_seconds=ff_config.CNN_DS_SS,
-            end_seconds=ff_config.CNN_DS_TO
+            start_seconds=ff_config.CNN_DS_SS_,
+            end_seconds=ff_config.CNN_DS_TO_
         )
 
     @staticmethod
@@ -275,7 +275,7 @@ class DatasetEntry:
     @staticmethod
     def _noisify_spectrogram(spectrogram):
         noise = np.random.normal(loc=0,
-                                 scale=ff_config.CNN_NOISIFY_SCALE,
+                                 scale=ff_config.CNN_NOISIFY_SCALE_,
                                  size=spectrogram.size
                                  ).reshape(spectrogram.shape)
         noise[noise < 0] = 0  # Because autocorrelation step does this too
@@ -293,7 +293,7 @@ class DatasetEntry:
             #   won't always be perfect.
             salt = np.random.uniform(size=spectrogram.size
                                      ).reshape(spectrogram.shape)
-            salt[salt < ff_config.RNN_INPUT_SALTING] = 1
+            salt[salt < ff_config.RNN_INPUT_SALTING_] = 1
             salt[salt < 1] = 0
             spec_mask = np.logical_or(salt, spec_mask)
 

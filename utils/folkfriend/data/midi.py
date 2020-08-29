@@ -202,7 +202,7 @@ class Note:
         while pitch >= ff_config.MIDI_HIGH:
             pitch -= 12
 
-        return ff_config.MIDI_MAP[pitch - ff_config.MIDI_LOW]
+        return ff_config.MIDI_MAP_[pitch - ff_config.MIDI_LOW]
 
 
 def abc_to_midi(abc, midi_path, clean=True):

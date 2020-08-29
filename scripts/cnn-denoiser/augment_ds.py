@@ -43,7 +43,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('model', help='Path to trained model')
     parser.add_argument('-d', '--dir',
-                        default=ff_config.DEFAULT_DS_DIR,
+                        default=ff_config.DEFAULT_DS_DIR_,
                         help='Path to dataset directory')
 
     args = parser.parse_args()

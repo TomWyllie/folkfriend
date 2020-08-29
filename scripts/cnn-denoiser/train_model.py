@@ -18,8 +18,12 @@ def main(args):
 
     model = assemble_model()
     model.compile(optimizer=keras.optimizers.Adam(args.learning_rate),
-                  loss=keras.losses.CategoricalCrossentropy())
+                  loss=keras.losses.BinaryCrossentropy(),
+                  metrics=[keras.metrics.Recall(),
+                           keras.metrics.Precision(),
+                           keras.metrics.AUC()])
     model.summary()
+    # exit(0)
 
     if args.weights:
         # TODO reload entire model not just weights
@@ -52,7 +56,7 @@ if __name__ == '__main__':
     path_timestamp = datetime.now().strftime('%H%M%S-%d%m%Y')
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--dir',
-                        default=ff_config.DEFAULT_DS_DIR,
+                        default=ff_config.DEFAULT_DS_DIR_,
                         help='Path to dataset directory')
     parser.add_argument('-n', '--name',
                         help='A label to use for this training run. Models'

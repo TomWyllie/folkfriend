@@ -59,8 +59,8 @@ def download_thesession_data(tunes_path):
             return
 
             # Otherwise download it fresh from the github repository.
-        print(f'Downloading from {ff_config.THESESSION_DATA_URL}...')
-        r = requests.get(ff_config.THESESSION_DATA_URL)
+        print(f'Downloading from {ff_config.THESESSION_DATA_URL_}...')
+        r = requests.get(ff_config.THESESSION_DATA_URL_)
         with open(tunes_path, 'wb') as f:
             f.write(r.content)
 
