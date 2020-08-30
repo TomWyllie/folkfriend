@@ -1,3 +1,5 @@
+const FFConfig = require("./ff-config")
+
 class FeatureDecoder {
     constructor() {
         let lowBPM = 50;
@@ -10,6 +12,7 @@ class FeatureDecoder {
     }
     
     decode(features) {
+
         let events = this._pitchesToEvents(features);
 
         // Remove very short events or very dim events
@@ -27,7 +30,6 @@ class FeatureDecoder {
     }
 
     normaliseEventsByTempo(events, tempo) {
-
         // Simple algorithm to decode events to a queryable sequence, given a
         //   tempo in BPM.
         const fpq = this._BPMToNumFrames(tempo);
@@ -155,5 +157,13 @@ class FeatureDecoder {
         let quaversPS = bps * 2;  // Quaver = half a crotchet
         let framesPS = FFConfig.SAMPLE_RATE / FFConfig.SPEC_WINDOW_SIZE;
         return framesPS / quaversPS;  // Frames per quaver
+    }
+}
+
+// noinspection JSUnresolvedVariable
+if (typeof module !== 'undefined') {
+    // noinspection JSUnresolvedVariable
+    module.exports = {
+        FeatureDecoder: FeatureDecoder,
     }
 }

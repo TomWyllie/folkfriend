@@ -1,5 +1,14 @@
+const FFConfig = require("./ff-config")
+// noinspection JSUnresolvedVariable
+const node = typeof module !== 'undefined';
+
+const tf = require('@tensorflow/tfjs');
+//  USE THIS ONE BELOW IF POSSIBLE! (or with CUDA, even better).
+// const tf = require('@tensorflow/tfjs-node');
+
 class FeatureExtractor {
-    constructor() {
+    constructor(rootURL="") {
+        this.rootURL = rootURL;
 
         this.flush();
         this.cnnBatchSize = 32;
@@ -45,7 +54,7 @@ class FeatureExtractor {
         });
 
         // Debugging
-        if(FFDebug) {
+        if(FFConfig.debug) {
             this.debugDenoised = [];
         }
     }
@@ -53,11 +62,13 @@ class FeatureExtractor {
     async initialise() {
         console.time("feature-extractor-init");
 
-        this.audioDSP = new AudioDSP();
-        await this.audioDSP.ready;
+        if(!node) {
+            this.audioDSP = new AudioDSP();
+            await this.audioDSP.ready;
+        }
 
         await tf.ready();
-        this.model = await tf.loadLayersModel("external/models/uint8/model.json");
+        this.model = await tf.loadLayersModel(`${this.rootURL}/external/models/uint8/model.json`);
 
         // Only necessary if we're compiling shaders (ie WebGL backend)
         tf.tidy(() => {
@@ -240,7 +251,7 @@ class FeatureExtractor {
             centreFrame.dispose();
             prediction.dispose();
 
-            if(FFDebug) {
+            if(FFConfig.debug) {
                 tf.keep(denoised);
                 this.debugDenoised.push(denoised);
             }
@@ -273,5 +284,14 @@ class FeatureExtractor {
             this.cleanup();
             this.finish();
         }
+    }
+}
+
+
+// noinspection JSUnresolvedVariable
+if (typeof module !== 'undefined') {
+    // noinspection JSUnresolvedVariable
+    module.exports = {
+        FeatureExtractor: FeatureExtractor
     }
 }

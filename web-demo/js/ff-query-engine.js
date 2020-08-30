@@ -8,10 +8,18 @@
 //     }
 // };
 
-QUERY_SHARD_SIZE = 64;
+// noinspection JSUnresolvedVariable
+const node = typeof module !== 'undefined';
+
+const fetch = require('node-fetch');
+const { loadImage, createCanvas } = require('canvas')
+const FFConfig = require("./ff-config")
+
+const QUERY_SHARD_SIZE = 64;
 
 class QueryEngine {
-    constructor() {
+    constructor(rootURL="") {
+        this.rootURL = rootURL;
         this.loadShards = this.fetchShardData();
     }
 
@@ -36,7 +44,7 @@ class QueryEngine {
         let shardScores = await this.execute(query);
 
         // Useful for debugging
-        if(FFDebug) {
+        if(FFConfig.debug) {
             this.shardScores = shardScores;
             console.debug(shardScores);
         }
@@ -54,13 +62,11 @@ class QueryEngine {
           return { key: key, value: this[key] };
         }, settingsScores);
         props.sort(function(p1, p2) { return p2.value - p1.value; });
-        let bestN = props.slice(0, 100);
-
-        return bestN;
+        return props.slice(0, 100);
     }
 
     async fetchShardData() {
-        let queryMetaData = await fetch("/external/query-data/query-meta-data.json")
+        let queryMetaData = await fetch(`${this.rootURL}/external/query-data/query-meta-data.json`)
             .then(r => r.json());
 
         this.numPartitions = queryMetaData[0];
@@ -79,9 +85,15 @@ class QueryEngine {
     }
 
     loadShardPartition(partitionNum) {
+        const imageURL = `${this.rootURL}/external/query-data/query-data-${partitionNum}.png`;
+
+        if(node) {
+            return loadImage(imageURL);
+        }
+
         return new Promise(resolve => {
             let image = new Image();
-            image.src = `/external/query-data/query-data-${partitionNum}.png`;
+            image.src = imageURL;
             image.decoding = 'sync';
             image.onload = () => resolve(image);
         });
@@ -89,13 +101,13 @@ class QueryEngine {
 }
 
 class QueryEngineGPU extends QueryEngine {
-    constructor(shardData, shardMeta) {
-        super(shardData, shardMeta);
+    constructor(props) {
+        super(props);
 
-        let loadVertexShader = fetch("shaders/vertex.glsl")
+        let loadVertexShader = fetch(`${this.rootURL}/shaders/vertex.glsl`)
             .then(value => value.text())
             .then(text => {this.vertexShaderSource = text;});
-        let loadFragmentShader = fetch("shaders/fragment.glsl")
+        let loadFragmentShader = fetch(`${this.rootURL}/shaders/fragment.glsl`)
             .then(value => value.text())
             .then(text => {this.fragmentShaderSource = text;});
         this.loadShaders = Promise.all([loadVertexShader, loadFragmentShader]);
@@ -645,7 +657,7 @@ class QueryEngineGPU extends QueryEngine {
         shardColOffset = Math.min(stage, shardLength);
         queryColOffset = Math.max(0, stage - shardLength);
 
-        // Boolean parameter indicates 
+        // Boolean parameter indicates
         //  false -> gl.uniform1f
         //  true  -> gl.uniform1i
         return {
@@ -710,25 +722,38 @@ class QueryEngineGPU extends QueryEngine {
 }
 
 class QueryEngineCPU extends QueryEngine {
-    constructor() {
-        super();
+    constructor(props) {
+        super(props);
         this.matchScore = 2;
         this.mismatchScore = -2;
         this.gapScore = -1;
     }
 
-    execute(query) {
-        // Return an array of scores of same size and corresponding
-        //  to the shards of partitionMeta
-        let canvas = document.createElement('canvas');
+    async initialise() {
+        await super.initialise();
+        // TODO load in this bit only once but store it in memory IN A WORKER
+
+        let canvas;
+        if(!node) {
+            canvas = document.createElement('canvas');
+        } else {
+            // All partitions should have same dimensions
+            canvas = createCanvas(this.shardData[0].width, this.shardData[0].width);
+        }
+
         let context = canvas.getContext('2d');
+
         let shardsRemaining = this.shardMeta.length
-        let outputScores = [];
+        this.cpuShards = [];
 
         for(let i = 0; i < this.shardData.length; i++) {
             let img = this.shardData[i];
-            canvas.width = img.width;
-            canvas.height = img.height;
+
+            if(!node) {
+                canvas.width = img.width;
+                canvas.height = img.height;
+            }
+
             context.drawImage(img, 0, 0 );
 
             let rawImgData = context.getImageData(0, 0, img.width, img.height);
@@ -749,17 +774,19 @@ class QueryEngineCPU extends QueryEngine {
                 // But ImageData is left to right then top to bottom
                 let shardIndex = row * img.width + column;
                 let shard = imgOneChannel.slice(shardIndex, shardIndex + QUERY_SHARD_SIZE);
-
-                outputScores.push(this.NWSimpleSingleBuffer(query, shard));
-                // if(i === 1 && j === (106525 % 65535)) {
-                //     console.debug(j, shard);
-                //     console.debug(this.shardMeta);
-                //     console.debug(outputScores);
-                //     throw "breakpoint";
-                // }
-
+                this.cpuShards.push(shard)
             }
             shardsRemaining -= shardsToProcess;
+        }
+    }
+
+    execute(query) {
+        // Return an array of scores of same size and corresponding
+        //  to the shards of partitionMeta
+        let outputScores = []
+        for(let i = 0; i < this.cpuShards.length; i++) {
+            outputScores.push(this.NWSimpleSingleBuffer(query, this.cpuShards[i]));
+
         }
         return outputScores;
     }
@@ -804,5 +831,14 @@ class QueryEngineCPU extends QueryEngine {
         }
 
         return Math.max(...lastRow);
+    }
+}
+
+// noinspection JSUnresolvedVariable
+if (typeof module !== 'undefined') {
+    // noinspection JSUnresolvedVariable
+    module.exports = {
+        QueryEngineGPU: QueryEngineGPU,
+        QueryEngineCPU: QueryEngineCPU,
     }
 }

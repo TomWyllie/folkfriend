@@ -1,4 +1,4 @@
-DSPModule = Module;
+const DSPModule = Module;
 let dspInitialised = false;
 DSPModule.onRuntimeInitialized = _ => {
     dspInitialised = true;

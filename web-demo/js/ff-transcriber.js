@@ -1,8 +1,12 @@
+const ffFeatureDecoder = require("./ff-feature-decoder");
+const ffFeatureExtractor = require("./ff-feature-extractor");
+const ffABC = require("./ff-abc");
+
 class Transcriber {
-    constructor() {
-        this.featureDecoder = new FeatureDecoder();
-        this.featureExtractor = new FeatureExtractor();
-        this.abcConverter = new ABCConverter();
+    constructor(rootURL="") {
+        this.featureDecoder = new ffFeatureDecoder.FeatureDecoder();
+        this.featureExtractor = new ffFeatureExtractor.FeatureExtractor(rootURL);
+        this.abcConverter = new ffABC.ABCConverter();
         this.initialise = this.featureExtractor.initialise();
     }
 
@@ -35,4 +39,13 @@ class Transcriber {
 class MicrophoneTranscriber extends Transcriber {
     // TODO
     // this.freqDataQueue.push(frequencyData.slice(0));
+}
+
+// noinspection JSUnresolvedVariable
+if (typeof module !== 'undefined') {
+
+    // noinspection JSUnresolvedVariable
+    module.exports = {
+        Transcriber: Transcriber,
+    }
 }

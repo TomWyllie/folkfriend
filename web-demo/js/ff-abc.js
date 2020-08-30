@@ -1,3 +1,5 @@
+const FFConfig = require("./ff-config")
+
 class ABCConverter {
     constructor() {
         this.baseMap = {
@@ -72,3 +74,11 @@ class ABCConverter {
     }
 }
 
+// noinspection JSUnresolvedVariable
+if (typeof module !== 'undefined') {
+
+    // noinspection JSUnresolvedVariable
+    module.exports = {
+        ABCConverter: ABCConverter,
+    }
+}

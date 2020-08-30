@@ -1,0 +1,15 @@
+{
+  "name": "folkfriend",
+  "version": "1.0.0",
+  "dependencies": {
+    "@tensorflow/tfjs": "^2.3.0",
+    "@tensorflow/tfjs-node": "^2.3.0",
+    "@tensorflow/tfjs-node-gpu": "^2.3.0",
+    "canvas": "^2.6.1",
+    "fs": "0.0.1-security",
+    "gl": "^4.5.3",
+    "jimp": "^0.16.1",
+    "node-fetch": "^2.6.0",
+    "papaparse": "^5.3.0"
+  }
+}
