@@ -1,8 +1,8 @@
-const FFConfig = require("./ff-config")
+// const FFConfig = require("./ff-config")
 // noinspection JSUnresolvedVariable
-const node = typeof module !== 'undefined';
+// const node = typeof module !== 'undefined';
 
-const tf = require('@tensorflow/tfjs');
+// const tf = require('@tensorflow/tfjs');
 //  USE THIS ONE BELOW IF POSSIBLE! (or with CUDA, even better).
 // const tf = require('@tensorflow/tfjs-node');
 
@@ -39,6 +39,7 @@ class FeatureExtractor {
         this.freqDataQueue = [];
         this.framesQueue = [];
         this.cnnBatchQueue = [];
+        this.denoisedFramesSparse = [];
         this.midis = [];
         this.midiEnergies = [];
         this.frameIndex = 0;
@@ -62,10 +63,8 @@ class FeatureExtractor {
     async initialise() {
         console.time("feature-extractor-init");
 
-        if(!node) {
-            this.audioDSP = new AudioDSP();
-            await this.audioDSP.ready;
-        }
+        this.audioDSP = new AudioDSP();
+        await this.audioDSP.ready;
 
         await tf.ready();
         this.model = await tf.loadLayersModel(`${this.rootURL}/external/models/uint8/model.json`);
@@ -259,39 +258,64 @@ class FeatureExtractor {
             //  TODO use this once it's been written in TF-JS...
             //      https://js.tensorflow.org/api/latest/#topk
             // const {midiEnergies, midiNotes} = tf.topk(denoised, 1);
-            let midiEnergies = tf.max(denoised, 1);
-            let midiNotes = tf.argMax(denoised, 1);
-
-            return {notes: midiNotes, energies: midiEnergies};
+            return denoised;
         });
 
-        let midiEnergyData = await denoised.energies.data();
-        let midiNoteData = await denoised.notes.data();
-        denoised.energies.dispose();
-        denoised.notes.dispose();
+        let denoisedData = await denoised.data();
+        denoised.dispose();
 
-        for(let i = 0; i < midiEnergyData.length; i++) {
+        // for(let i = 0; i < midiEnergyData.length; i++) {
             // Recall the frequency is descending with index, so
             //  argmax indices in the reverse order. We want low values
             //  to correspond to low notes, for the decoder.
-            midiNoteData[i] = FFConfig.MIDI_NUM - midiNoteData[i] - 1;
+            // midiNoteData[i] = FFConfig.MIDI_NUM - midiNoteData[i] - 1;
+        // }
+
+        // Sparsify the data at each frame
+        for(let i = 0; i < denoisedData.length; i += FFConfig.MIDI_NUM) {
+            let sparseIndices = topK(denoisedData.slice(i, i + FFConfig.MIDI_NUM), 5);
+            this.denoisedFramesSparse.push(sparseIndices);
         }
 
-        this.midis.push(...midiNoteData);
-        this.midiEnergies.push(...midiEnergyData);
-
-        if(this.closed && this.midis.length === this.framesQueue.length) {
+        if(this.closed && this.denoisedFramesSparse.length === this.framesQueue.length) {
             this.cleanup();
             this.finish();
         }
     }
 }
 
-
-// noinspection JSUnresolvedVariable
-if (typeof module !== 'undefined') {
-    // noinspection JSUnresolvedVariable
-    module.exports = {
-        FeatureExtractor: FeatureExtractor
+function topK(inp, count, flip=true) {
+    if(flip) {
+        // Remember that previously as we increased the index the
+        //  frequency descended. But now we want index 0 to correspond
+        //  to the lowest midi note.
+        inp = inp.reverse();
     }
+
+    let indices = [];
+    for (let i = 0; i < inp.length; i++) {
+        indices.push(i); // add index to output array
+        if (indices.length > count) {
+            indices.sort(function(a, b) { return inp[b] - inp[a]; }); // descending sort the output array
+            indices.pop(); // remove the last index (index of smallest element in output array)
+        }
+    }
+    let sparse = {};
+    sparse[indices[0]] = inp[indices[0]]
+    for(let i = 1; i < count; i++) {
+        // Make sure any value we add is at least 5% of the maximum.
+        //  Otherwise we deem it to be meaningless.
+        if(inp[indices[i]] >= 0.1 * sparse[indices[0]]) {
+            sparse[indices[i]] = inp[indices[i]];
+        }
+    }
+    return sparse;
 }
+
+// // noinspection JSUnresolvedVariable
+// if (typeof module !== 'undefined') {
+//     // noinspection JSUnresolvedVariable
+//     module.exports = {
+//         FeatureExtractor: FeatureExtractor
+//     }
+// }

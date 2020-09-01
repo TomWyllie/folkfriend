@@ -1,43 +1,32 @@
-// Run this script using NodeJS (14).
-const ffQueryEngine = require("./js/ff-query-engine");
-const ffTranscriber = require("./js/ff-transcriber");
-const Papa = require('papaparse');
-const Jimp = require("jimp");
-const fs = require('fs');
+let decoder, queryEngine, abcConverter;
 
-let transcriber, queryEngine;
-const rootURL = "http://localhost:8080";
+function main() {
+    queryEngine = new QueryEngineGPU();
+    queryEngine.initialise().catch(console.error);
+    decoder = new FeatureDecoder();
+    abcConverter = new ABCConverter();
 
-async function main() {
-    // Because these resources are loaded over HTTP rather than through the local file
-    //  system there still needs to be a local `http-server` running.
-    transcriber = new ffTranscriber.Transcriber(rootURL);
+    document.getElementById("evaluate-dataset").onclick = _ => {
+        datasetDemo().catch();
+    };
 
-    // Getting WebGL to work in NodeJS with custom shaders is utterly horrifying.
-    //  I managed to get as far as this message:
-    /*
-        node: symbol lookup error: /home/tom/repos/folkfriend/node_modules/gl/build/Release/webgl.node: undefined symbol: _Z15XextFindDisplayP15_XExtensionInfoP9_XDisplay
-     */
-    // And have now given up, resorting to CPU.
-
-    // queryEngine = new ffQueryEngine.QueryEngineGPU(rootURL);
-    queryEngine = new ffQueryEngine.QueryEngineCPU(rootURL);
-    await queryEngine.initialise();
-
-    await datasetDemo();
+    document.getElementById("download-textbox").onclick = _ => {
+        const textOutput = document.getElementById("results-textbox");
+        saveTextAsFile(textOutput.textContent, "results.csv");
+    }
 }
 
 async function datasetDemo() {
 
     const settingsToTunes = await getSettingsToTunes();
 
-    const recordings = await loadCSV(`./dataset/recordings.csv`);
+    const recordings = await loadCSV("/dataset/recordings.csv");
     const recordingsToTunes = {}
     for(let i = 0; i < recordings.data.length; i++) {
         recordingsToTunes[recordings.data[i].path] = recordings.data[i]["thesession-id"];
     }
 
-    const slices = await loadCSV(`./dataset/slices.csv`);
+    const slices = await loadCSV("/dataset/slices.csv");
     const slicesToTunes = {}
     for(let i = 0; i < slices.data.length; i++) {
         slicesToTunes[slices.data[i].path] = recordingsToTunes[
@@ -47,84 +36,95 @@ async function datasetDemo() {
         ];
     }
 
-    let t0 = Date.now();
+    const progressInfo = document.getElementById("progress");
+    const textOutput = document.getElementById("results-textbox");
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+
+
+    let t0 = performance.now();
     for(let i = 0; i < slices.data.length; i++) {
-        try {
 
-            // We already used python to convert the .wav slices to .pngs.
-            //  This meant we didn't need to mess around with WebAudio in NodeJS.
-            //  The results are almost pixel to pixel identical with only some
-            //  slight differences due to numerical precision / minutely different
-            //  windowing etc.
+        let sliceURL = `/dataset/${slices.data[i].path}`;
+        let sliceURLPng = sliceURL.replace(".wav", ".png");
 
-            let sliceURLWav = `${rootURL}/dataset/${slices.data[i].path}`;
-            let sliceURLPng = sliceURLWav.replace(".wav", ".png");
+        let img = new Image();
+        img.src = sliceURLPng;
+        await new Promise(resolve => {img.onload = resolve});
 
-            // Now we have to decode the PNG ourselves and insert the data from each frame
-            //  into transcriber.featureExtractor.framesQueue
+        canvas.width = img.width;
+        canvas.height = img.height;
+        context.drawImage(img, 0, 0 );
 
-            const img = await Jimp.read(sliceURLPng);
+        let denoisedFramesSparse = [];
+        let denoisedFrame = new Uint8ClampedArray(img.height);
 
-            transcriber.featureExtractor.flush();
+        for(let x = 0; x < img.width; x++) {
+            let denoisedFrameRGBA = context.getImageData(x, 0, 1, img.height);
 
-            for(let j = 0; j < img.bitmap.width; j++) {
-                // Float32 make tensorflow's tensors float32
-                let frame = new Float32Array(img.bitmap.height);
-                for(let k = 0; k < img.bitmap.height; k++) {
-                    frame[k] = Jimp.intToRGBA(img.getPixelColor(j, k)).r
-                }
-                transcriber.featureExtractor.framesQueue.push(frame);
+            for(let y = 0; y < img.height; y++) {
+                // Extract only one channel as image is grayscale
+                denoisedFrame[y] = denoisedFrameRGBA.data[4 * y];
             }
 
-            // console.time("transcribe");
-            transcriber.featureExtractor.closed = true;
-            await transcriber.featureExtractor.bulkProceed();
-            const decoded = await transcriber.decode();
-            // console.timeEnd("transcribe");
-
-            // console.time("query");
-            let results = await queryEngine.query(decoded.decoded).catch(console.error);
-            // console.timeEnd("query");
-
-            // Now go through the results. Remember the ID of each result
-            //  is the *setting ID* that has been matched not the *tune ID*.
-            //  Record the highest score setting for each tune.
-            let tunesRanking = {};
-            let tunes = 0;
-            for(let i = 0; i < results.length; i++) {
-                let tune = settingsToTunes[parseInt(results[i].key)];
-                if(!tunesRanking.hasOwnProperty(tune)) {
-                    tunesRanking[tune] = tunes;
-                    tunes++;
-                }
-            }
-
-            // Now let's look at the label for what the tune ID should have been
-            let groundTruth = slicesToTunes[slices.data[i].path];
-
-            // 0 means correct label was ranked first (best score).
-            //  Worst score is results.length (100) which means that
-            //  the tune was ranked outside the top results.length.
-            let score = tunesRanking[groundTruth] || results.length;
-
-            let dataLine = `${slices.data[i].path},${score}`;
-            console.info(dataLine);
-
-            let perf = (Date.now() - t0) / (1 + i);
-            perf = Math.round(1000 * perf) / 1000;
-            let minutesRemaining = perf * (slices.data.length - i - 1) / 60000;
-            minutesRemaining = Math.round(100 * minutesRemaining) / 100;
-            let updateInfo = `Progress: ${i} / ${slices.data.length}, at ${perf}ms per tune, (${minutesRemaining} minutes remaining)`;
-            console.info(updateInfo);
-
-        } catch (e) {
-            console.log(e);
+            // TODO parameterise that 5
+            let sparseIndices = topK(denoisedFrame, 5);
+            denoisedFramesSparse.push(sparseIndices);
         }
+
+        console.time("decode");
+        const featureContour = contourBeamSearch(denoisedFramesSparse);
+        const transcription = decoder.decode(featureContour);
+        transcription.abc = abcConverter.decodedToAbc(transcription.decoded);
+
+        console.timeEnd("decode");
+
+        // console.debug(transcription.decoded);
+        // debugger;
+
+        console.time("query");
+        let results = await queryEngine.query(transcription.decoded).catch(console.error);
+        console.timeEnd("query");
+
+        // Now go through the results. Remember the ID of each result
+        //  is the *setting ID* that has been matched not the *tune ID*.
+        //  Record the highest score setting for each tune.
+        let tunesRanking = {};
+        let tunes = 0;
+        for(let i = 0; i < results.length; i++) {
+            let tune = settingsToTunes[parseInt(results[i].key)];
+            if(!tunesRanking.hasOwnProperty(tune)) {
+                tunesRanking[tune] = tunes;
+                tunes++;
+            }
+        }
+
+        // Now let's look at the label for what the tune ID should have been
+        let groundTruth = slicesToTunes[slices.data[i].path];
+
+        // 0 means correct label was ranked first (best score).
+        //  Worst score is results.length (100) which means that
+        //  the tune was ranked outside the top results.length.
+        let score = tunesRanking[groundTruth] || results.length;
+
+        let dataLine = `${slices.data[i].path},${score}\n`;
+        textOutput.textContent += dataLine;
+        textOutput.scrollTop = textOutput.scrollHeight
+
+        console.info(dataLine);
+
+        let perf = (performance.now() - t0) / (1 + i);
+        perf = Math.round(1000 * perf) / 1000;
+        let minutesRemaining = perf * (slices.data.length - i - 1) / 60000;
+        minutesRemaining = Math.round(100 * minutesRemaining) / 100;
+        progressInfo.textContent = `Progress: ${i} / ${slices.data.length}, 
+        at ${perf}ms per tune, (${minutesRemaining} minutes remaining)`;
     }
 }
 
 async function getSettingsToTunes() {
-    const tunes = await loadCSV(`./dataset/tunes.csv`);
+    const tunes = await loadCSV("/dataset/tunes.csv");
     let settingsToTunes = {}
     tunes.data.forEach(e => {
        // noinspection JSUnresolvedVariable
@@ -141,10 +141,10 @@ function slicePathToRecordingPath(s) {
 }
 
 function loadCSV(CSV) {
-    const file = fs.readFileSync(CSV, 'utf8');
     return new Promise(resolve => {
-        Papa.parse(file, {
+        Papa.parse(CSV, {
             dynamicTyping: true,
+            download: true,
             header: true,
             skipEmptyLines: true,
             complete: resolve
@@ -152,4 +152,13 @@ function loadCSV(CSV) {
     });
 }
 
-main().catch(console.error);
+function saveTextAsFile(textToWrite, fileNameToSaveAs) {
+    let textFileAsBlob = new Blob([textToWrite], {type:'text/plain'});
+    let downloadLink = document.createElement("a");
+    downloadLink.download = fileNameToSaveAs;
+    downloadLink.innerHTML = "Download File";
+    downloadLink.href = window.webkitURL.createObjectURL(textFileAsBlob);
+    downloadLink.click();
+}
+
+window.onload = main;

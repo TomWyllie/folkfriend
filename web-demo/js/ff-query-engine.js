@@ -9,11 +9,11 @@
 // };
 
 // noinspection JSUnresolvedVariable
-const node = typeof module !== 'undefined';
+// const node = typeof module !== 'undefined';
 
-const fetch = require('node-fetch');
-const { loadImage, createCanvas } = require('canvas')
-const FFConfig = require("./ff-config")
+// const fetch = require('node-fetch');
+// const { loadImage, createCanvas } = require('canvas')
+// const FFConfig = require("./ff-config")
 
 const QUERY_SHARD_SIZE = 64;
 
@@ -87,9 +87,9 @@ class QueryEngine {
     loadShardPartition(partitionNum) {
         const imageURL = `${this.rootURL}/external/query-data/query-data-${partitionNum}.png`;
 
-        if(node) {
-            return loadImage(imageURL);
-        }
+        // if(node) {
+        //     return loadImage(imageURL);
+        // }
 
         return new Promise(resolve => {
             let image = new Image();
@@ -734,12 +734,13 @@ class QueryEngineCPU extends QueryEngine {
         // TODO load in this bit only once but store it in memory IN A WORKER
 
         let canvas;
-        if(!node) {
-            canvas = document.createElement('canvas');
-        } else {
+        canvas = document.createElement('canvas');
+        // if(!node) {
+        //     canvas = document.createElement('canvas');
+        // } else {
             // All partitions should have same dimensions
-            canvas = createCanvas(this.shardData[0].width, this.shardData[0].width);
-        }
+            // canvas = createCanvas(this.shardData[0].width, this.shardData[0].width);
+        // }
 
         let context = canvas.getContext('2d');
 
@@ -749,10 +750,10 @@ class QueryEngineCPU extends QueryEngine {
         for(let i = 0; i < this.shardData.length; i++) {
             let img = this.shardData[i];
 
-            if(!node) {
-                canvas.width = img.width;
-                canvas.height = img.height;
-            }
+            // if(!node) {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            // }
 
             context.drawImage(img, 0, 0 );
 
@@ -835,10 +836,10 @@ class QueryEngineCPU extends QueryEngine {
 }
 
 // noinspection JSUnresolvedVariable
-if (typeof module !== 'undefined') {
+// if (typeof module !== 'undefined') {
     // noinspection JSUnresolvedVariable
-    module.exports = {
-        QueryEngineGPU: QueryEngineGPU,
-        QueryEngineCPU: QueryEngineCPU,
-    }
-}
+    // module.exports = {
+    //     QueryEngineGPU: QueryEngineGPU,
+    //     QueryEngineCPU: QueryEngineCPU,
+    // }
+// }

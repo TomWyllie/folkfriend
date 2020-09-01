@@ -1,12 +1,12 @@
-const ffFeatureDecoder = require("./ff-feature-decoder");
-const ffFeatureExtractor = require("./ff-feature-extractor");
-const ffABC = require("./ff-abc");
+// const ffFeatureDecoder = require("./ff-feature-decoder");
+// const ffFeatureExtractor = require("./ff-feature-extractor");
+// const ffABC = require("./ff-abc");
 
 class Transcriber {
     constructor(rootURL="") {
-        this.featureDecoder = new ffFeatureDecoder.FeatureDecoder();
-        this.featureExtractor = new ffFeatureExtractor.FeatureExtractor(rootURL);
-        this.abcConverter = new ffABC.ABCConverter();
+        this.featureDecoder = new FeatureDecoder();
+        this.featureExtractor = new FeatureExtractor(rootURL);
+        this.abcConverter = new ABCConverter();
         this.initialise = this.featureExtractor.initialise();
     }
 
@@ -23,13 +23,8 @@ class Transcriber {
 
     async decode() {
         await this.featureExtractor.finished;
-
-        const features = {
-            midis: this.featureExtractor.midis,
-            energies: this.featureExtractor.midiEnergies
-        }
-
-        this.decoded = this.featureDecoder.decode(features);
+        const featureContour = contourBeamSearch(this.featureExtractor.denoisedFramesSparse);
+        this.decoded = this.featureDecoder.decode(featureContour);
         this.decoded.abc = this.abcConverter.decodedToAbc(this.decoded.decoded);
 
         return this.decoded;

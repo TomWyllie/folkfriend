@@ -77,6 +77,11 @@ def beam_search(sparse_frames, max_beams=5):
 
     beams = []
     for midi in initial_midis:
+        # Some of the first 10 midis must have appeared in the first frame
+        #  but many may have not. This is actually pretty important - we
+        #  don't want to constrain the contour to always start on the first
+        #  non-zero bin as there's a very good chance it's wrong - we have no
+        #  information at this point.
         energy = sparse_frames[0].get(midi, 0)
         candidate = initial_beam.test_candidate(midi, energy)
         beams.append(Beam().apply_candidate(candidate))

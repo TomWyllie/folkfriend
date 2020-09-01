@@ -6,18 +6,25 @@ import pathlib
 import imageio
 import numpy as np
 from folkfriend.sig_proc import spectrogram
+from folkfriend.cnn import denoiser
+from folkfriend.data import data_ops
 from scipy.io import wavfile
 
+from tqdm import tqdm
 
-def main(dataset):
+
+def main(dataset, model):
     slices_path = os.path.join(dataset, 'slices.csv')
+
+    cnn_denoiser = denoiser.CNNDenoiser()
+    cnn_denoiser.load_model(model)
 
     with open(slices_path) as f:
         slices = list(csv.DictReader(f))
 
     dirs = set()
 
-    for audio_slice in [s['path'] for s in slices]:
+    for audio_slice in tqdm([s['path'] for s in slices], desc='Processing Audio to Decodable Features'):
         slice_path = os.path.join(dataset, audio_slice)
 
         # Be sure to have run the wav conversion script.
@@ -32,14 +39,22 @@ def main(dataset):
             pathlib.Path(slice_dir).mkdir(parents=True, exist_ok=True)
             dirs.add(slice_dir)
 
-        linear_ac_spec *= 255 / np.max(linear_ac_spec)
-        linear_ac_spec = np.asarray(linear_ac_spec, dtype=np.uint8)
-        print(ac_path)
-        imageio.imwrite(ac_path, linear_ac_spec.T)
+        _, denoised = cnn_denoiser.denoise(linear_ac_spec)
+
+        # Sum along values for each MIDI note
+        denoised = data_ops.spec_to_pseudo(denoised)
+
+        denoised -= np.min(denoised)
+        denoised /= np.max(denoised)
+        denoised *= 255.0
+        denoised = np.asarray(denoised, dtype=np.uint8)
+
+        imageio.imwrite(ac_path, denoised.T)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='/home/tom/datasets/evaluation-tunes')
+    parser.add_argument('--cnn', help='Path to trained CNN model', default='cnn.h5')
     args = parser.parse_args()
-    main(args.dataset)
+    main(args.dataset, args.cnn)

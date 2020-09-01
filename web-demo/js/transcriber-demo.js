@@ -34,7 +34,7 @@ async function urlDemo(url) {
     console.timeEnd("transcribe-url");
     outputResult(result, perf, transcriber.featureExtractor.networkPerf);
 
-    if(FFDebug) {
+    if(FFConfig.debug) {
         let canv = document.getElementById("cnn-canvas");
         let pixels = tf.concat(transcriber.featureExtractor.debugDenoised);
         pixels = tf.div(pixels, tf.max(pixels));

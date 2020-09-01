@@ -1,4 +1,3 @@
-const FFConfig = require("./ff-config")
 
 class ABCConverter {
     constructor() {

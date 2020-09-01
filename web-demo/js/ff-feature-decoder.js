@@ -1,4 +1,4 @@
-const FFConfig = require("./ff-config")
+// const FFConfig = require("./ff-config")
 
 class FeatureDecoder {
     constructor() {
@@ -11,9 +11,9 @@ class FeatureDecoder {
         }
     }
     
-    decode(features) {
+    decode(contour) {
 
-        let events = this._pitchesToEvents(features);
+        let events = this._contourToEvents(contour);
 
         // Remove very short events or very dim events
         events = events.filter(e => e.power > 0.02 && e.duration > 4);
@@ -79,6 +79,11 @@ class FeatureDecoder {
         //  probabilities the log likelihood is therefore roughly a sum of these
         //  notes
         let nzQuantQuaverValues = quantQuaverValues.filter(x => x > 0);
+
+        if(!nzQuantQuaverValues.length) {
+            return {decoded: [0], score: 0, tempo: 0};
+        }
+
         let logLikelihoodApprox = nzQuantQuaverValues.map(x => 3 - 0.5 * x).reduce((a, b) => a + b);
 
         // Normalise by number of quantised quavers, otherwise there's a
@@ -103,9 +108,9 @@ class FeatureDecoder {
         return {decoded: output, score: score, tempo: tempo};
     }
 
-    _pitchesToEvents(features){
-        const pitches = features.midis;
-        const energies = features.energies;
+    _contourToEvents(contour) {
+        const pitches = contour.midis;
+        const energies = contour.energies;
 
         let events = [];
 
