@@ -44,12 +44,24 @@ def main(dataset, model):
         # Sum along values for each MIDI note
         denoised = data_ops.spec_to_pseudo(denoised)
 
-        denoised -= np.min(denoised)
+        # This quantisation error gives rounds some zeros which is handy
         denoised /= np.max(denoised)
         denoised *= 255.0
-        denoised = np.asarray(denoised, dtype=np.uint8)
+        denoised = np.asarray(denoised, dtype=np.int64)
 
-        imageio.imwrite(ac_path, denoised.T)
+        octaves_fixed = spectrogram.fix_octaves(denoised)
+
+        norm_and_save_png(ac_path.replace('.png', '-o.png'), octaves_fixed.T)
+        norm_and_save_png(ac_path, denoised.T)
+
+
+def norm_and_save_png(path, img):
+    img = np.asarray(img, dtype=np.float32)
+    img -= np.min(img)
+    img /= np.max(img)
+    img *= 255.0
+    img = np.asarray(img, dtype=np.uint8)
+    imageio.imwrite(path, img)
 
 
 if __name__ == '__main__':

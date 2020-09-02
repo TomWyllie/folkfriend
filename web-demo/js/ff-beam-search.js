@@ -164,7 +164,7 @@ class BeamCandidate {
     //   logarithmic in nature so we are adding them. We can't multiply or we
     //   could be combining low absolute values with negative values to achieve
     //   higher scores.
-    static ENERGY_VS_TRANSITION_WEIGHT = 500;
+    static ENERGY_VS_TRANSITION_WEIGHT = 0.02;
 
     constructor(next_midi, new_cum_energy, new_cum_transition_prob,
                 new_num_changes, new_length, has_changed,
@@ -232,7 +232,7 @@ class Beam {
 
         if (has_changed) {
             new_num_changes += 1;
-            new_cum_transition_prob -= score_transition_likelihood(
+            new_cum_transition_prob += score_transition_likelihood(
                 this.previous_midi, next_midi
             );
         }
@@ -266,5 +266,5 @@ function score_transition_likelihood(m1, m2) {
     // Transition from m1 to m2.
     const d = Math.abs(m1 - m2);
     // TODO transition matrix as a proper model
-    return 0.25 * d;
+    return -0.25 * d;
 }

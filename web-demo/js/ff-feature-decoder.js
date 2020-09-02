@@ -18,6 +18,13 @@ class FeatureDecoder {
         // Remove very short events or very dim events
         events = events.filter(e => e.power > 0.02 && e.duration > 4);
 
+        // There may be no events left (all silence = all low power = all removed)
+        //  or only very few. If there's only 3 or 4 notes we're really wasting
+        //  everybody's time - let's just say there was no music heard.
+        if(events.length <= 4) {
+            return false;
+        }
+
         let candidateDecodes = [];
         for(let i = 0; i < this.tempos.length; i++) {
             candidateDecodes.push(

@@ -18,7 +18,7 @@ def main(dataset):
 
     with open(slices_path) as f:
         slices = list(csv.DictReader(f))
-        slice_paths = [s['path'] for s in slices][::-1]
+        slice_paths = [s['path'] for s in slices]
 
     cum_proc_ms = 0
     avg_proc_ms = 0
@@ -50,12 +50,13 @@ def main(dataset):
         avg_proc_ms = 1000 * cum_proc_ms / (1 + i)
         # print('{:.3f}ms'.format(avg_proc_ms))
 
-        imageio.imwrite(f'pngs/debug-{i}-in.png', uint8_denoised.T)
+        base_path = os.path.basename(cnn_feat_path).replace('.png', '')
+        imageio.imwrite(f'pngs/{base_path}-in.png', uint8_denoised.T)
 
         # View output contour for debugging
         debug_out = np.zeros_like(uint8_denoised)
         debug_out[np.arange(len(viterbi_indices)), viterbi_indices] = 255
-        imageio.imwrite(f'pngs/debug-{i}-out.png', debug_out.T)
+        imageio.imwrite(f'pngs/{base_path}-out.png', debug_out.T)
 
 
 def beam_search(sparse_frames, max_beams=5):

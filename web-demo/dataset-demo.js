@@ -76,37 +76,50 @@ async function datasetDemo() {
         console.time("decode");
         const featureContour = contourBeamSearch(denoisedFramesSparse);
         const transcription = decoder.decode(featureContour);
-        transcription.abc = abcConverter.decodedToAbc(transcription.decoded);
 
-        console.timeEnd("decode");
+        let score;
+        if(transcription !== false) {
+            transcription.abc = abcConverter.decodedToAbc(transcription.decoded);
 
-        // console.debug(transcription.decoded);
-        // debugger;
+            console.timeEnd("decode");
 
-        console.time("query");
-        let results = await queryEngine.query(transcription.decoded).catch(console.error);
-        console.timeEnd("query");
-
-        // Now go through the results. Remember the ID of each result
-        //  is the *setting ID* that has been matched not the *tune ID*.
-        //  Record the highest score setting for each tune.
-        let tunesRanking = {};
-        let tunes = 0;
-        for(let i = 0; i < results.length; i++) {
-            let tune = settingsToTunes[parseInt(results[i].key)];
-            if(!tunesRanking.hasOwnProperty(tune)) {
-                tunesRanking[tune] = tunes;
-                tunes++;
+            if(FFConfig.debug) {
+                console.debug(transcription);
             }
+
+            console.time("query");
+            let results = await queryEngine.query(transcription.decoded).catch(console.error);
+            console.timeEnd("query");
+
+            if(FFConfig.debug) {
+                console.debug(results);
+            }
+
+            // Now go through the results. Remember the ID of each result
+            //  is the *setting ID* that has been matched not the *tune ID*.
+            //  Record the highest score setting for each tune.
+            let tunesRanking = {};
+            let tunes = 0;
+            for(let i = 0; i < results.length; i++) {
+                let tune = settingsToTunes[parseInt(results[i].key)];
+                if(!tunesRanking.hasOwnProperty(tune)) {
+                    tunesRanking[tune] = tunes;
+                    tunes++;
+                }
+            }
+
+            // Now let's look at the label for what the tune ID should have been
+            let groundTruth = slicesToTunes[slices.data[i].path];
+
+            // 0 means correct label was ranked first (best score).
+            //  Worst score is results.length (100) which means that
+            //  the tune was ranked outside the top results.length.
+            score = tunesRanking.hasOwnProperty(groundTruth) ? tunesRanking[groundTruth] : results.length;
+        } else {
+            // Silence. Give this the worst score.
+            // TODO store this value somewhere else
+            score = 100;
         }
-
-        // Now let's look at the label for what the tune ID should have been
-        let groundTruth = slicesToTunes[slices.data[i].path];
-
-        // 0 means correct label was ranked first (best score).
-        //  Worst score is results.length (100) which means that
-        //  the tune was ranked outside the top results.length.
-        let score = tunesRanking[groundTruth] || results.length;
 
         let dataLine = `${slices.data[i].path},${score}\n`;
         textOutput.textContent += dataLine;
