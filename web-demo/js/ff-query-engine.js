@@ -8,13 +8,6 @@
 //     }
 // };
 
-// noinspection JSUnresolvedVariable
-// const node = typeof module !== 'undefined';
-
-// const fetch = require('node-fetch');
-// const { loadImage, createCanvas } = require('canvas')
-// const FFConfig = require("./ff-config")
-
 const QUERY_SHARD_SIZE = 64;
 
 class QueryEngine {
@@ -834,12 +827,3 @@ class QueryEngineCPU extends QueryEngine {
         return Math.max(...lastRow);
     }
 }
-
-// noinspection JSUnresolvedVariable
-// if (typeof module !== 'undefined') {
-    // noinspection JSUnresolvedVariable
-    // module.exports = {
-    //     QueryEngineGPU: QueryEngineGPU,
-    //     QueryEngineCPU: QueryEngineCPU,
-    // }
-// }

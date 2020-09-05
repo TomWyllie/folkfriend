@@ -1,11 +1,3 @@
-// const FFConfig = require("./ff-config")
-// noinspection JSUnresolvedVariable
-// const node = typeof module !== 'undefined';
-
-// const tf = require('@tensorflow/tfjs');
-//  USE THIS ONE BELOW IF POSSIBLE! (or with CUDA, even better).
-// const tf = require('@tensorflow/tfjs-node');
-
 class FeatureExtractor {
     constructor(rootURL="") {
         this.rootURL = rootURL;
@@ -262,7 +254,10 @@ class FeatureExtractor {
         });
 
         let denoisedData = await denoised.data();
-        denoised.dispose();
+
+        if(!FFConfig.debug) {
+            denoised.dispose();
+        }
 
         // for(let i = 0; i < midiEnergyData.length; i++) {
             // Recall the frequency is descending with index, so
@@ -311,11 +306,3 @@ function topK(inp, count, flip=true) {
     }
     return sparse;
 }
-
-// // noinspection JSUnresolvedVariable
-// if (typeof module !== 'undefined') {
-//     // noinspection JSUnresolvedVariable
-//     module.exports = {
-//         FeatureExtractor: FeatureExtractor
-//     }
-// }

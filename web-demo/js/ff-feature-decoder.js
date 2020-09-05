@@ -1,5 +1,3 @@
-// const FFConfig = require("./ff-config")
-
 class FeatureDecoder {
     constructor() {
         let lowBPM = 50;
@@ -169,13 +167,5 @@ class FeatureDecoder {
         let quaversPS = bps * 2;  // Quaver = half a crotchet
         let framesPS = FFConfig.SAMPLE_RATE / FFConfig.SPEC_WINDOW_SIZE;
         return framesPS / quaversPS;  // Frames per quaver
-    }
-}
-
-// noinspection JSUnresolvedVariable
-if (typeof module !== 'undefined') {
-    // noinspection JSUnresolvedVariable
-    module.exports = {
-        FeatureDecoder: FeatureDecoder,
     }
 }
