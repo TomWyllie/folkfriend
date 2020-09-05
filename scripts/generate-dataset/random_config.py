@@ -94,7 +94,7 @@ def generate_random_config(ds_dir, num):
         # These weights are fairly arbitrary, but give a roughly realistic
         #   distribution of instruments.
         number_melodies = random.choices(range(1, 5), k=1,
-                                         weights=[0.4, 0.3, 0.15, 0.15])[0]
+                                         weights=[0.3, 0.4, 0.25, 0.05])[0]
         number_accomps = random.choices(range(0, 4), k=1,
                                         weights=[0.5, 0.25, 0.15, 0.10])[0]
 
@@ -111,36 +111,24 @@ def generate_random_config(ds_dir, num):
         #   contain outlier notes at extreme melodic range).
         transpositions = [random.choice(range(-11, 12))]
         lo = transpositions[0] < 0
-        shifted = False
 
         for non_lead_melody in range(number_melodies - 1):
             shift = 0
 
-            # Sometimes add on a shifted octave if there's exactly two
-            #   melody instruments
-            if (non_lead_melody == 0 and number_melodies == 2
-                    and random.random() > 0.60):
+            # Sometimes add on a shifted octave if there's
+            #   more than one instrument
+            if random.random() > 0.60:
                 # Add or minus an octave to the other melody voices
                 shift = 12 if lo else -12
-                shifted = True
-
             transpositions.append(transpositions[0] + shift)
-
-        # Pick the lowest transposed instrument as the 'lead'
-        #   the 'lead' is simply the first entry in the melody
-        #   list, and is used to generate the mask.
-        # We pick lowest because harmonics stack and there tends
-        #   to be more energy in lower bands. But the either
-        #   actually works and we've changed back and forth on this.
-        transpositions = sorted(transpositions)
 
         melodies = random_melody_inst(number_melodies)
 
-        if shifted:
-            # Make sure we have an octave difference on the lead instrument.
-            #   Otherwise if the instrument an octave up is something much
-            #   quieter than the other instruments
-            melodies[-1] = melodies[0]
+        # if shifted:
+        #     # Make sure we have an octave difference on the lead instrument.
+        #     #   Otherwise if the instrument an octave up is something much
+        #     #   quieter than the other instruments
+        #     melodies[-1] = melodies[0]
 
         config = {
             'index': i,

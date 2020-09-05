@@ -107,6 +107,8 @@ CONTEXT_FRAMES = 10
 BLANK_CHARACTER_ = '-'
 MIDI_MAP_ = string.ascii_letters[:MIDI_NUM] + BLANK_CHARACTER_
 RNN_CLASSES_NUM_ = len(MIDI_MAP_)  # Includes blank character
+MIDI_UNMAP_ = {c: i for (i, c)
+               in enumerate(string.ascii_letters[:MIDI_NUM])}
 
 # Applying RNN model gives
 # [2D spectrum (num_frames, NUM_MIDI)] -> [1D array (num_frames)]
@@ -117,6 +119,13 @@ RNN_CLASSES_NUM_ = len(MIDI_MAP_)  # Includes blank character
 # During training this is converted to a string to compute metrics such as
 #   word edit distance, but the array can also be used directly for search
 #   queries.
+
+# ===============================
+# === QUERY ENGINE PARAMETERS ===
+# ===============================
+
+QUERY_SHARD_SIZE = 64
+QUERY_TEXTURE_EDGE_LENGTH = 2048
 
 # =======================================
 # === OTHER NON-PRODUCTION PARAMETERS ===
@@ -132,5 +141,5 @@ CNN_DS_TO_ = CNN_DS_SS_ + AUDIO_QUERY_SECS  # 8 second samples
 #   there will be a lot of data too, increasing training time for
 #   probably not much improvement in accuracy.
 CNN_DS_SAMPLES_PER_IMAGE_ = 300
-CNN_NOISIFY_SCALE_ = 0.05
+CNN_NOISIFY_SCALE_ = 0.10
 RNN_INPUT_SALTING_ = 0.01  # 1%

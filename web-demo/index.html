@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FolkFriend</title>
+
+    <link rel="stylesheet" type="text/css" href="styles.css"/>
+
+    <!-- TensorFlow JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.1.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@2.1.0/dist/tf-backend-wasm.js"></script>
+
+    <!--  We use some CSV files so download a CSV parser. This one looks good! -->
+    <script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"></script>
+
+    <script type="text/javascript" src="/js/ff-config.js"></script>
+    <script type="text/javascript" src="/js/ff-abc.js"></script>
+    <script type="text/javascript" src="/js/ff-beam-search.js"></script>
+    <script type="text/javascript" src="/js/ff-feature-decoder.js"></script>
+    <script type="text/javascript" src="/js/ff-feature-extractor.js"></script>
+    <script type="text/javascript" src="/js/ff-query-engine.js"></script>
+    <script type="text/javascript" src="/js/ff-transcriber.js"></script>
+
+    <script type="text/javascript" src="/external/em.js"></script>
+    <script type="text/javascript" src="/wasm/folkfriend-dsp.js"></script>
+
+    <script type="text/javascript" src="/dataset-demo.js"></script>
+
+    <script>
+        tf.setBackend('wasm');
+        //  Some unresolved memory leak in WebGL btw. But prefer WASM anyway for stability and
+        //      ability to use in web worker.
+        // tf.setBackend('webgl');
+        console.log(`Using TensorFlowJS backend ${tf.getBackend()}`);
+    </script>
+</head>
+<body>
+    <h1>FolkFriend Dataset Evaluator</h1>
+    <p>This pages provides access to a simple web demo which transcribes the FolkFriend evaluation dataset and runs the results through the query engine, to measure performance, quantitatively, of any changes to the algorithms. The dataset should be downloaded from <a href="https://github.com/TomWyllie/folkfriend-evaluation-dataset">https://github.com/TomWyllie/folkfriend-evaluation-dataset</a></p>
+    <p>The server will look for the files hosted over http-server locally at /dataset/[json file path] so be sure to symlink the downloaded repository to /dataset/ where / is the root of the server.</p>
+    <p>Other demos are at <a href="/query-engine.html">query engine</a> and <a href="/transcriber.html">transcriber</a></p>
+    <div>
+        <button id="evaluate-dataset">Begin Evaluating Dataset</button>
+        <p id="progress">Progress: 0 / 0</p>
+    </div>
+    <div>
+        <label>Analyse results from results.csv file
+            <input type="file" accept=".text/csv" id="analyse-results">
+        </label>
+    </div>
+    <div>
+        <button id="download-textbox">Download text below as results.csv</button>
+        <label>Results:
+            <button id="toggle-hidden">Toggle results hidden</button>
+            <textarea class="no-display" id="results-textbox"></textarea>
+        </label>
+    </div>
+</body>
+</html>

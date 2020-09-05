@@ -68,8 +68,7 @@ class DatasetEntry:
 
         # Create two midi files; one which will be turned into audio to be used
         # as input for the model, and the other which will be used to
-        # determine the output image mask for the CNN, and the label for the
-        # RNN.
+        # determine the output image mask for the CNN.
 
         # Non-clean input with chords and potentially extra voices included in
         #   the midi file
@@ -127,10 +126,11 @@ class DatasetEntry:
         transpositions = self.config['transpositions']
 
         chords = [None] if clean else chords
-        melodies = melodies[:1] if clean else melodies
 
-        if not clean:
-            chords += (len(melodies) - len(chords)) * [None]
+        # Allow all melodies
+        # melodies = melodies[:1] if clean else melodies
+
+        chords += (len(melodies) - len(chords)) * [None]
 
         # Insert relevant ABC commands. See documentation at
         #   https://manpages.debian.org/stretch/abcmidi/abc2midi.1.en.html

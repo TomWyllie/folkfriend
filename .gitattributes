@@ -3,3 +3,8 @@
 
 # Ignore all differences in line endings
 * -crlf
+
+# Don't break newlines inside binary files
+*.png binary
+*.gz binary
+*.bin binary
