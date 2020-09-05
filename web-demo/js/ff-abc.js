@@ -72,12 +72,3 @@ class ABCConverter {
         return abcMap;
     }
 }
-
-// noinspection JSUnresolvedVariable
-if (typeof module !== 'undefined') {
-
-    // noinspection JSUnresolvedVariable
-    module.exports = {
-        ABCConverter: ABCConverter,
-    }
-}

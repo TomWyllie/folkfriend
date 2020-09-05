@@ -164,7 +164,7 @@ class BeamCandidate {
     //   logarithmic in nature so we are adding them. We can't multiply or we
     //   could be combining low absolute values with negative values to achieve
     //   higher scores.
-    static ENERGY_VS_TRANSITION_WEIGHT = 0.02;
+    static ENERGY_VS_TRANSITION_WEIGHT = 130.0;
 
     constructor(next_midi, new_cum_energy, new_cum_transition_prob,
                 new_num_changes, new_length, has_changed,
@@ -261,10 +261,39 @@ class Beam {
     }
 }
 
+// Log likelihoods of intervals based on thesession.org dataset
+//  Interval 0 (same note) is excluded because it's not a transition
+const TRANSITION_LIKELIHOODS = {
+    "-12": -4.862729914,
+    "-11": -6.616962671,
+    "-10": -5.195117404,
+    "-9": -4.389511542,
+    "-8": -4.529393252,
+    "-7": -3.385424236,
+    "-6": -5.954093232,
+    "-5": -2.853697858,
+    "-4": -2.898438133,
+    "-3": -2.61756944,
+    "-2": -2.462423203,
+    "-1": -3.598778811,
+    "1": -3.523344336,
+    "2": -2.222813183,
+    "3": -2.558428021,
+    "4": -2.819645063,
+    "5": -2.527086002,
+    "6": -5.272730177,
+    "7": -3.444736763,
+    "8": -4.710698161,
+    "9": -4.995631992,
+    "10": -5.795059625,
+    "11": -7.371974346,
+    "12": -5.636881433,
+}
 
 function score_transition_likelihood(m1, m2) {
     // Transition from m1 to m2.
-    const d = Math.abs(m1 - m2);
-    // TODO transition matrix as a proper model
-    return -0.25 * d;
+    const d = String(m2 - m1);
+
+    //  Anything more than an octave assigned score -10
+    return TRANSITION_LIKELIHOODS[d] || -10;
 }

@@ -16,10 +16,8 @@ function queryEngineDemo() {
 }
 
 async function validityTest() {
-    // "Crow Road Croft"
-    //  This example was
-    // let fiddleDemo = [14, 16, 16, 18, 14, 14, 18, 19, 21, 21, 21, 16, 19, 16, 21, 16, 11, 11, 13, 14, 16, 16, 9, 9, 9, 21, 18, 18, 14, 14, 21, 19, 21, 21, 21, 21, 25, 26, 14, 26, 26, 14, 14, 25, 21];
-    let fiddleDemo = [14, 16, 16, 18, 14, 14, 18, 19, 21, 21, 21, 21, 16, 19, 16, 21, 16, 11, 11, 13, 12, 14, 16, 16, 9, 9, 9, 9, 21, 16, 18, 18, 14, 14, 21, 18, 19, 21, 21, 21, 21, 21, 25, 26, 14, 26, 26, 14, 14, 14, 23, 21];
+    let demoMidis = document.getElementById("text-area").value;
+    let fiddleDemo = JSON.parse(demoMidis);
     let t0, perf;
 
     t0 = performance.now();

@@ -39,7 +39,7 @@ def main(dataset, model):
             pathlib.Path(slice_dir).mkdir(parents=True, exist_ok=True)
             dirs.add(slice_dir)
 
-        _, denoised = cnn_denoiser.denoise(linear_ac_spec)
+        mask, denoised = cnn_denoiser.denoise(linear_ac_spec)
 
         # Sum along values for each MIDI note
         denoised = data_ops.spec_to_pseudo(denoised)
@@ -51,6 +51,8 @@ def main(dataset, model):
 
         octaves_fixed = spectrogram.fix_octaves(denoised)
 
+        norm_and_save_png(ac_path.replace('.png', '-a.png'), linear_ac_spec.T)
+        norm_and_save_png(ac_path.replace('.png', '-b.png'), mask.T)
         norm_and_save_png(ac_path.replace('.png', '-o.png'), octaves_fixed.T)
         norm_and_save_png(ac_path, denoised.T)
 
