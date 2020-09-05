@@ -10,9 +10,14 @@ function main() {
         datasetDemo().catch();
     };
 
+    const textOutput = document.getElementById("results-textbox");
     document.getElementById("download-textbox").onclick = _ => {
-        const textOutput = document.getElementById("results-textbox");
         saveTextAsFile(textOutput.textContent, "results.csv");
+    }
+
+    const toggleHidden = document.getElementById("toggle-hidden");
+    toggleHidden.onclick = _ => {
+        textOutput.classList.toggle("no-display");
     }
 }
 
@@ -58,14 +63,14 @@ async function datasetDemo() {
         context.drawImage(img, 0, 0 );
 
         let denoisedFramesSparse = [];
-        let denoisedFrame = new Uint8ClampedArray(img.height);
+        let denoisedFrame = new Float32Array(img.height);
 
         for(let x = 0; x < img.width; x++) {
             let denoisedFrameRGBA = context.getImageData(x, 0, 1, img.height);
 
             for(let y = 0; y < img.height; y++) {
                 // Extract only one channel as image is grayscale
-                denoisedFrame[y] = denoisedFrameRGBA.data[4 * y];
+                denoisedFrame[y] = denoisedFrameRGBA.data[4 * y] / 255.0;
             }
 
             // TODO parameterise that 5
@@ -131,8 +136,10 @@ async function datasetDemo() {
         perf = Math.round(1000 * perf) / 1000;
         let minutesRemaining = perf * (slices.data.length - i - 1) / 60000;
         minutesRemaining = Math.round(100 * minutesRemaining) / 100;
-        progressInfo.textContent = `Progress: ${i} / ${slices.data.length}, 
-        at ${perf}ms per tune, (${minutesRemaining} minutes remaining)`;
+        let secondsRemaining = String(Math.round(60 * (minutesRemaining % 1))).padStart(2, "0");
+        perf = perf.toFixed(2);
+        progressInfo.textContent = `Progress: ${i} / ${slices.data.length} 
+        \r\n${perf}ms per tune, (${Math.floor(minutesRemaining)}:${secondsRemaining} remaining)`;
     }
 }
 
