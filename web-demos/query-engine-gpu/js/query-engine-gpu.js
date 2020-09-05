@@ -8,121 +8,31 @@
 //     }
 // };
 
-QUERY_SHARD_SIZE = 64;
+SHARD_LENGTH = 64;
 
-class QueryEngine {
-    constructor() {
-        this.loadShards = this.fetchShardData();
-    }
+class QueryEngineGPU {
+    // noinspection JSUnusedLocalSymbols
+    constructor(vertexShaderSource, fragmentShaderSource, shard) {
+        this.vertexShaderSource = vertexShaderSource;
+        this.fragmentShaderSource = fragmentShaderSource;
 
-    execute(query) {
-        // Return an array of scores of same size and corresponding
-        //  to the shards of partitionMeta
-        throw {name : "NotImplementedError"};
-    }
-
-    async initialise() {
-       await this.loadShards;
-    }
-
-    async query(unscaledQuery) {
-        console.time('query');
-
-        let query = unscaledQuery.slice(0);
-        for(let i = 0; i < query.length; i++) {
-            // The values are stored scaled up by a factor of 4 in the
-            //  PNG data file, so they can be seen more easily.
-            query[i] *= 4;
-        }
-
-        console.time('execute');
-        let shardScores = await this.execute(query);
-        console.timeEnd('execute');
-
-        // Useful for debugging
-        this.shardScores = shardScores;
-        console.debug(shardScores);
-
-        // Extract the top N settings and their scores
-        let settingsScores = {};
-        for(let i = 0; i < this.shardMeta.length; i++) {
-            let settings = this.shardMeta[i];
-            for(let j = 0; j < settings.length; j++) {
-                settingsScores[settings[j]] = Math.max(settingsScores[settings[j]] || 0, shardScores[i]);
-            }
-        }
-
-        let props = Object.keys(settingsScores).map(function(key) {
-          return { key: key, value: this[key] };
-        }, settingsScores);
-        props.sort(function(p1, p2) { return p2.value - p1.value; });
-        let bestN = props.slice(0, 100);
-
-        console.log(bestN);
-        console.timeEnd('query');
-
-        return bestN;
-    }
-
-    async fetchShardData() {
-        let queryMetaData = await fetch("query-data/query-meta-data.json")
-            .then(r => r.json());
-
-        this.numPartitions = queryMetaData[0];
-        this.shardMeta = queryMetaData[1];
-        await this.loadShardPartitions(this.numPartitions);
-    }
-
-    loadShardPartitions(numPartitions) {
-        let partitionPromises = [];
-        for(let i = 0; i < numPartitions; i++) {
-            partitionPromises.push(this.loadShardPartition(i))
-        }
-        return Promise.all(partitionPromises).then(values => {
-            this.shardData = values;
-        });
-    }
-
-    loadShardPartition(partitionNum) {
-        return new Promise(resolve => {
-            let image = new Image();
-            image.src = `/query-data/query-data-${partitionNum}.png`;
-            image.decoding = 'sync';
-            image.onload = () => resolve(image);
-        });
-    }
-}
-
-class QueryEngineGPU extends QueryEngine {
-    constructor(shardData, shardMeta) {
-        super(shardData, shardMeta);
-
-        let loadVertexShader = fetch("shaders/vertex.glsl")
-            .then(value => value.text())
-            .then(text => {this.vertexShaderSource = text;});
-        let loadFragmentShader = fetch("shaders/fragment.glsl")
-            .then(value => value.text())
-            .then(text => {this.fragmentShaderSource = text;});
-        this.loadShaders = Promise.all([loadVertexShader, loadFragmentShader]);
-
-        // This promise is resolved by this.initialise();
-        this.initialised = new Promise(resolve => {
-            this.finishInitialising = resolve;
-        });
+        // Dummy data of [1, 2, 3, ..., 63]
+        // let dummyShard = [];
+        // for(let i = 0; i < SHARD_LENGTH; i++) {
+        //     dummyShard.push(i);
+        // }
+        // this.shard = this.queryToImgData(dummyShard);
+        this.shard = shard;
 
         this.pingPongBuffers = [];
         this.pingPongTextures = [];
         this.pingPongState = false;
     }
 
-    async initialise() {
-        await super.initialise();
-        await this.loadShaders;
-        console.time("initialise");
-
+    initialise() {
         this.canvas = document.createElement('canvas');
-        this.canvas.width = this.shardData[0].width;
-        this.canvas.height = this.shardData[0].height;
+        this.canvas.width = this.shard.width;
+        this.canvas.height = this.shard.height;
         this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
         const gl = this.gl;
 
@@ -149,13 +59,13 @@ class QueryEngineGPU extends QueryEngine {
         this.clearPingPongTextures();
 
         // Load in some global constants
-        this.setUniform("shardLength", QUERY_SHARD_SIZE);
+        this.setUniform("shardLength", SHARD_LENGTH);
 
-        if(this.canvas.width % QUERY_SHARD_SIZE !== 0) {
-            throw `Canvas width / Shard length mismatch (${this.canvas.width}, ${QUERY_SHARD_SIZE})`
+        if(this.canvas.width % SHARD_LENGTH !== 0) {
+            throw `Canvas width / Shard length mismatch (${this.canvas.width}, ${SHARD_LENGTH})`
         }
 
-        this.numShardsX = this.canvas.width / QUERY_SHARD_SIZE;
+        this.numShardsX = this.canvas.width / SHARD_LENGTH;
         this.setUniform("numShardsX", this.numShardsX);
 
         // Set up samplers so we can access data from textures
@@ -163,28 +73,17 @@ class QueryEngineGPU extends QueryEngine {
         // TEXTURE      ID
         // Ping pong    0
         // Query        1
-        // Partition 0  2
-        // Partition 1  3
-        // ...
-        // Partition N  N + 1
+        // shards    2
 
         gl.activeTexture(gl.TEXTURE0);
         this.pingPongSampler = gl.getUniformLocation(this.program, "lastStage");
         gl.uniform1i(this.pingPongSampler, 0);
 
-        this.partitionTextureObjects = this.setupPartitionTextures();
-
-        console.timeEnd("initialise");
-        this.finishInitialising();
+        this.setupDataTexture(this.shard, "shards", 2)
     }
 
-    async execute(query) {
-        await this.initialised;
-
-        console.log(this);
-
+    execute(query) {
         console.log("Execute");
-        // console.time("execute pre-draw");
         const gl = this.gl;
 
         this.setUniform("queryLength", query.length);
@@ -192,79 +91,58 @@ class QueryEngineGPU extends QueryEngine {
         this.setUniform("queryImgDataLength", queryImgData.width);
         this.setupDataTexture(queryImgData, "query", 1);
 
-        const numStages = query.length + QUERY_SHARD_SIZE - 1;
+        const numStages = query.length + SHARD_LENGTH - 1;
+
+        gl.activeTexture(gl.TEXTURE0);
+        let uniforms;
+
+        for(let stage = 1; stage <= numStages; stage++) {
+            let i = this.pingPongState ? 1 : 0;
+
+            // Update various offsets that have changed on this iteration
+            uniforms = this.getShaderUniforms(query.length, SHARD_LENGTH, stage);
+            // console.log(uniforms);
+            this.setShaderUniforms(uniforms);
+
+            // Calculate next frame
+            gl.bindFramebuffer(gl.FRAMEBUFFER, this.pingPongBuffers[i]);
+            gl.bindTexture(gl.TEXTURE_2D, this.pingPongTextures[1 - i]);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            this.pingPongState = !this.pingPongState;
+
+            // // Debugging
+            // // TODO uniforms.length is bad practice lol
+            // let pixels = new Uint8Array(uniforms.length[0] * 4);
+            // gl.readPixels(SHARD_LENGTH, 0, uniforms.length[0], 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+            // // gl.readPixels(0, 0, 1, 256, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+            //
+            // let rChannel = [];
+            // for(let i = 0; i < pixels.length; i+=4) {
+            //     rChannel.push(pixels[i]);
+            // }
+            // console.log(rChannel);
+        }
+
+        // Now that the computation is finished we need to read out all the
+        //  final values. These are the bottom-right hand corner values of
+        //  the alignment matrix. As we have stacked shards vertically
+        //  and horizontally we have to take several reads to get this
+        //  data out. These are located in alignment buffer index 0
+        //  as the bottom corner has a diagonal length of 1.
         let pixelArrs = [];
-
-        // console.timeEnd("execute pre-draw");
-        for(let p = 0; p < this.partitionTextureObjects.length; p++) {
-            // console.time("partition");
-
-            gl.uniform1i(this.partitionTextureObjects[p].sampler, 2 + p);
-
-            gl.activeTexture(gl.TEXTURE0);
-            let uniforms;
-
-            for(let stage = 1; stage <= numStages; stage++) {
-                let i = this.pingPongState ? 1 : 0;
-
-                // Update various offsets that have changed on this iteration
-                uniforms = this.getShaderUniforms(query.length, QUERY_SHARD_SIZE, stage);
-                // console.log(uniforms);
-                this.setShaderUniforms(uniforms);
-
-                // Calculate next frame
-                gl.bindFramebuffer(gl.FRAMEBUFFER, this.pingPongBuffers[i]);
-                gl.bindTexture(gl.TEXTURE_2D, this.pingPongTextures[1 - i]);
-                // console.time("draw");
-                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-                // console.timeEnd("draw");
-                this.pingPongState = !this.pingPongState;
-
-                // // Debugging
-                // // TODO uniforms.length is bad practice lol
-                // let pixels = new Uint8Array(uniforms.length[0] * 4);
-                // gl.readPixels(SHARD_LENGTH, 0, uniforms.length[0], 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-                // // gl.readPixels(0, 0, 1, 256, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-                //
-                // let rChannel = [];
-                // for(let i = 0; i < pixels.length; i+=4) {
-                //     rChannel.push(pixels[i]);
-                // }
-                // console.log(rChannel);
-            }
-
-            // console.time("texture-read-alt");
-            // let pixelsAlt = new Uint8Array(this.canvas.width * this.canvas.height * 4);
-            // gl.readPixels(0, 0, this.canvas.width, this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixelsAlt);
-            // console.timeEnd("texture-read-alt");
-
-
-            // console.time("texture-read");
-
-            // Now that the computation is finished we need to read out all the
-            //  final values. These are the bottom-right hand corner values of
-            //  the alignment matrix. As we have stacked shards vertically
-            //  and horizontally we have to take several reads to get this
-            //  data out. These are located in alignment buffer index 0
-            //  as the bottom corner has a diagonal length of 1.
-            let pixels = new Uint8Array(this.canvas.height * 4);
-            for(let i = 0; i < this.numShardsX; i++) {
-                gl.readPixels(QUERY_SHARD_SIZE * i, 0, 1,
-                    this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-                pixelArrs.push(pixels.slice());
-            }
-
-            // console.timeEnd("texture-read");
-            // console.timeEnd("partition");
+        let pixels = new Uint8Array(this.canvas.height * 4);
+        for(let i = 0; i < this.numShardsX; i++) {
+            gl.readPixels(SHARD_LENGTH * i, 0, 1,
+                this.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+            pixelArrs.push(pixels.slice());
         }
 
-        let outputArr = new Int16Array(this.shardMeta.length);
-        for(let i = 0; i < pixelArrs.length; i++) {
+        let outputArr = [this.canvas.height * this.numShardsX];
+        for(let i = 0; i < this.numShardsX; i++) {
             for(let j = 0; j < this.canvas.height; j++) {
-                outputArr[i * this.canvas.height + j] = Math.max(0, pixelArrs[i][4*j] - 127);
+                outputArr[i*this.numShardsX + j] = pixelArrs[i][4*j] - 127;
             }
         }
-
         return outputArr;
     }
 
@@ -373,15 +251,6 @@ class QueryEngineGPU extends QueryEngine {
 
         gl.uniform1i(sampler, id);
         return {tex: tex, sampler: sampler}
-    }
-
-    setupPartitionTextures() {
-        let partitionTextureObjects = []
-        for(let i = 0; i < this.shardData.length; i++) {
-            let pto = this.setupDataTexture(this.shardData[i], "shards", 2 + i);
-            partitionTextureObjects.push(pto);
-        }
-        return partitionTextureObjects;
     }
 
     getShaderUniforms(queryLength, shardLength, stage) {
@@ -714,103 +583,5 @@ class QueryEngineGPU extends QueryEngine {
         console.error(type === gl.VERTEX_SHADER ? "VERTEX" : "shard",
             gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
-    }
-}
-
-class QueryEngineCPU extends QueryEngine {
-    constructor() {
-        super();
-        this.matchScore = 2;
-        this.mismatchScore = -2;
-        this.gapScore = -1;
-    }
-
-    execute(query) {
-        // Return an array of scores of same size and corresponding
-        //  to the shards of partitionMeta
-        let canvas = document.createElement('canvas');
-        let context = canvas.getContext('2d');
-        let shardsRemaining = this.shardMeta.length
-        let outputScores = [];
-
-        for(let i = 0; i < this.shardData.length; i++) {
-            let img = this.shardData[i];
-            canvas.width = img.width;
-            canvas.height = img.height;
-            context.drawImage(img, 0, 0 );
-
-            let rawImgData = context.getImageData(0, 0, img.width, img.height);
-            let imgOneChannel = new Uint8ClampedArray(rawImgData.data.length / 4);
-            for(let j = 0; j < imgOneChannel.length; j++) {
-                imgOneChannel[j] = rawImgData.data[4 * j];
-            }
-
-            let shardsThisPartition = imgOneChannel.length / QUERY_SHARD_SIZE;
-            let shardsToProcess = Math.min(shardsThisPartition, shardsRemaining);
-
-            for(let j = 0; j < shardsToProcess; j++) {
-                // Recall indices go down first column, then down second, from
-                //  top to bottom then left to right.
-                let row = j % img.height;
-                let column = QUERY_SHARD_SIZE * Math.floor(j / img.height);
-
-                // But ImageData is left to right then top to bottom
-                let shardIndex = row * img.width + column;
-                let shard = imgOneChannel.slice(shardIndex, shardIndex + QUERY_SHARD_SIZE);
-
-                outputScores.push(this.NWSimpleSingleBuffer(query, shard));
-                // if(i === 1 && j === (106525 % 65535)) {
-                //     console.debug(j, shard);
-                //     console.debug(this.shardMeta);
-                //     console.debug(outputScores);
-                //     throw "breakpoint";
-                // }
-
-            }
-            shardsRemaining -= shardsToProcess;
-        }
-        return outputScores;
-    }
-
-    NWSimpleSingleBuffer(A, B) {
-        /* Memory-efficient version of Needleman-Wunsch written for Javascript.
-        *   ~ Tom Wyllie 2020
-        * */
-
-        if(A.length > B.length) {
-            let temp = A;
-            A = B;
-            B = temp;
-        }
-
-        let lastRow = new Int16Array(A.length + 1);
-        lastRow.fill(0);
-
-        //      A1 A2 A3 .. AN
-        //   B1
-        //   B2
-        //   B3
-        //   ..
-        //   BN
-
-        lastRow[0] = 0;
-        let lastDiag = 0;
-        let currDiag = 0;
-        for(let row = 0; row < B.length; row++) {
-            lastDiag = 0;
-            for(let col = 1; col < lastRow.length; col++) {
-                currDiag = lastDiag;
-                lastDiag = lastRow[col];
-
-                lastRow[col] = Math.max(
-                currDiag + (A[col - 1] === B[row] ? this.matchScore : this.mismatchScore),
-                    lastRow[col - 1] + this.gapScore,
-                    lastRow[col] + this.gapScore
-                );
-            }
-            lastRow[lastRow.length - 1] = Math.max(lastRow[lastRow.length - 1], lastDiag);
-        }
-
-        return Math.max(...lastRow);
     }
 }
