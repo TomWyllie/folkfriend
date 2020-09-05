@@ -7,8 +7,6 @@ from folkfriend.sig_proc import note
 # This keeps ff_config serialisable for export to JS
 NP_LINEAR_MIDI_BINS = np.asarray(ff_config.LINEAR_MIDI_BINS_)
 
-import matplotlib.pyplot as plt
-
 
 def compute_ac_spectrogram(signal, window_size=ff_config.SPEC_WINDOW_SIZE):
     # 1024 / 48000 = 21.33 ms
@@ -54,18 +52,3 @@ def linearise_ac_spectrogram(spectrogram):
 
     return interp.interp1d(bin_midi_values,
                            spectrogram)(NP_LINEAR_MIDI_BINS)
-
-
-def fix_octaves(spectrogram):
-    # Remove time stretched copy (a la enhanced autocorrelation)
-    out = spectrogram.copy()
-    out[:, 12:] -= out[:, :-12]
-    out[out < 0] = 0
-    return out
-
-
-if __name__ == '__main__':
-    spec = np.zeros((500, 48))
-    spec[:, 10] = 10
-    spec[:, 22] = 5
-    print(fix_octaves(spec).shape)
