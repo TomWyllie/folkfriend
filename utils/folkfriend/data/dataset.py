@@ -105,8 +105,8 @@ class DatasetEntry:
         self._save_spectral_image(denoised_spectrogram, 'd')
 
         # Generate output labels for RNN decoder
-        label = self._midi_to_note_contour(midi_events)
-        self._save_label(label)
+        # label = self._midi_to_note_contour(midi_events)
+        # self._save_label(label)
 
     def _generate_abc(self, clean):
         """Generate abc file contents for this dataset entry"""
@@ -233,13 +233,13 @@ class DatasetEntry:
             end_seconds=ff_config.CNN_DS_TO_
         )
 
-    def _midi_to_note_contour(self, csv_lines):
-        midi_reader = midi.CSVMidiNoteReader(csv_lines)
-        return midi_reader.to_note_contour(
-            tempo=self.config['tempo'],
-            start_seconds=ff_config.CNN_DS_SS_,
-            end_seconds=ff_config.CNN_DS_TO_
-        )
+    # def _midi_to_note_contour(self, csv_lines):
+    #     midi_reader = midi.CSVMidiNoteReader(csv_lines)
+    #     return midi_reader.to_midi_contour(
+    #         tempo=self.config['tempo'],
+    #         start_seconds=ff_config.CNN_DS_SS_,
+    #         end_seconds=ff_config.CNN_DS_TO_
+    #     )
 
     @staticmethod
     def _save_abc(abc, path):
@@ -251,13 +251,13 @@ class DatasetEntry:
         png_path = self._dirs.png_dir.chunk_path(self.index, img_name)
         imageio.imwrite(png_path, spec.T)
 
-    def _save_label(self, label):
+    # def _save_label(self, label):
         # We would rather write all of these out to one big file but this isn't
         #   possible with multiprocessing. Instead write out small files and
         #   cat them all right at the end.
-        label_path = self._dirs.label_dir.chunk_path(self.index, '{:d}.txt')
-        with open(label_path, 'w') as f:
-            f.write(label)
+        # label_path = self._dirs.label_dir.chunk_path(self.index, '{:d}.txt')
+        # with open(label_path, 'w') as f:
+        #     f.write(label)
 
     @property
     def index(self):
