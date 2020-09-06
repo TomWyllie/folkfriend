@@ -96,7 +96,7 @@ class CSVMidiNoteReader(csv.DictReader):
 
         return notes
 
-    def to_note_contour(self, tempo=125, start_seconds=None, end_seconds=None):
+    def to_midi_contour(self, tempo=125, start_seconds=None, end_seconds=None):
         """Quantise an arbitrary sequence of MIDI notes into all quavers.
 
         This results in some distortion of the melody but it should closely
@@ -107,7 +107,7 @@ class CSVMidiNoteReader(csv.DictReader):
 
         # TODO this NEEDS test cases as it's a pretty weird function.
 
-        label = []
+        midi_contour = []
 
         music_time = 0
         output_time = 0
@@ -138,23 +138,19 @@ class CSVMidiNoteReader(csv.DictReader):
             rel_duration = (note.duration / quaver_duration)
             if rel_duration.is_integer():
                 output_time += note.duration
-                label.append(note.char() * int(rel_duration))
+                midi_contour.extend([note.rel_pitch()] * int(rel_duration))
             elif rel_duration < 1.0:
                 # In the output label everything is a quaver
                 output_time += quaver_duration
-                label.append(note.char())
+                midi_contour.append(note.rel_pitch())
             else:
                 # If we've fallen behind, round up, else round down
                 round_f = math.ceil if music_time > output_time else math.floor
                 rounded_int = round_f(rel_duration)
                 output_time += rounded_int * quaver_duration
-                label.append(note.char() * rounded_int)
+                midi_contour.extend([note.rel_pitch()] * rounded_int)
 
-        return ''.join(label)
-
-    def to_midi_contour(self, *args, **kwargs):
-        string_contour = self.to_note_contour(*args, **kwargs)
-        return tuple(ff_config.MIDI_UNMAP[c] for c in string_contour)
+        return midi_contour
 
 
 class Note:
@@ -190,7 +186,7 @@ class Note:
     def duration(self):
         return self.end - self.start
 
-    def char(self):
+    def rel_pitch(self):
         pitch = self.pitch
 
         # We use LTE / GTE here because we need an amount of frequency
@@ -202,7 +198,7 @@ class Note:
         while pitch >= ff_config.MIDI_HIGH:
             pitch -= 12
 
-        return ff_config.MIDI_MAP_[pitch - ff_config.MIDI_LOW]
+        return pitch - ff_config.MIDI_LOW
 
 
 def abc_to_midi(abc, midi_path, clean=True):
