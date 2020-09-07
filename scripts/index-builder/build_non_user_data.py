@@ -119,30 +119,20 @@ def gather_aliases(aliases):
     #   distribution and we can condense it somewhat
     condensed_aliases = {}
     for alias in aliases:
-        tid = alias['tune_id']
+        tid = int(alias['tune_id'])
 
         if tid in condensed_aliases:
             condensed_aliases[tid]['aliases'].append(alias['alias'])
         else:
+            alias['tune'] = tid
             alias['aliases'] = [alias['alias']]
             del alias['alias']
-
-            if 'name' in alias:
-                del alias['name']
-            else:
-                # https://github.com/adactio/TheSession-data/issues/12
-                if tid == '9275':
-                    alias['aliases'] = ['"Come Into The Town, My Fair Lady"']
-                elif tid == '18917':
-                    alias['aliases'] = ['"When I Saw My Bonny Lass To The Church Go"']
-                else:
-                    log.warning('Missing name field from first name entry.'
-                                ' Alias might be broken.')
-                    log.warning(alias)
-
+            del alias['name']
+            del alias['tune_id']
+            assert set(alias.keys()) == {'aliases', 'tune'}
             condensed_aliases[tid] = alias
 
-    return sorted(condensed_aliases.values(), key=lambda a: int(a['tune_id']))
+    return sorted(condensed_aliases.values(), key=lambda a: a['tune'])
 
 
 def generate_midi_contours(tune_data, midis_path):
