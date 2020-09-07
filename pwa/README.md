@@ -1,4 +1,4 @@
-# hello-world
+# pwa
 
 ## Project setup
 ```
