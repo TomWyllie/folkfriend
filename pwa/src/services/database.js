@@ -10,23 +10,27 @@ class DatabaseService {
         // Setup database schema
         db.version(1).stores({
             /* Version string to track when the Non-User Data was updated last */
-            NUDVersion: '++alwaysZero',
+            NUDVersion: 'key,version',    // We always store this at key zero. We only need one entry in this table.
 
             /* Non-user data */
-            settings: '&setting, tune, name, type, meter, mode',    // 'abc' added but not indexed
-            aliases: '&tune, *aliases',
+            // settings: ',&setting, tune, name, type, meter, mode',    // 'abc' added but not indexed
+            // aliases: ',&tune, *aliases',
             // Generic table for our bulky objects. Bulky objects are NOT!!! indexed.
             // These are the shard meta JSON and the partitioned shards pngs in base 64.
-            bulk: 'name',
+            // bulk: ',name',
 
             /* User data */
-            transcriptions: 'timestamp, name',  // 'midis' added but not indexed
-            history: 'timestamp, tune'   // 'midis' added but not indexed
+            // transcriptions: '++id, timestamp, name',  // 'midis' added but not indexed
+            // history: '++id, timestamp, tune'   // 'midis' added but not indexed
         });
 
         this.db = db;
         this.networkProgress = {};
-        this.checkForUpdates().then();
+        this.checkForUpdates().then(() => {
+            this.getNUDVersionLocal().then(value => {
+                console.log(value);
+            });
+        });
     }
 
     async checkForUpdates() {
@@ -47,29 +51,33 @@ class DatabaseService {
         let NUDExpired = this.daysSince2020() - NUDVersionLocal > this.MAX_NUD_AGE;
 
         if (NUDVersionLocal === null) {
-            this.updateNonUserData(NUDVersionRemote, NUDSize).catch(e => {
+            try {
+                await this.updateNonUserData(NUDVersionRemote, NUDSize);
+            } catch (e) {
                 // This is a very bad state to be in.
                 //  No tune database was found and we failed to install one.
                 //  This is not a critical error but needs a graceful fallback.
                 console.error(e);
-            });
+            }
         } else if (NUDExpired) {
-            this.updateNonUserData(NUDVersionRemote, NUDSize).catch(e => {
+            try {
+                await this.updateNonUserData(NUDVersionRemote, NUDSize);
+            } catch (e) {
                 // This is a not so bad state to be in.
                 //  A tune database was found but we failed to upgrade.
                 //  This is only concerning if it keeps happening.
                 console.warn(e);
-            });
+            }
         }
     }
 
     async getNUDVersionLocal() {
-        const version = await this.db.NUDVersion.get(0);
-        if (typeof version === 'undefined') {
+        const versionObj = await this.db.NUDVersion.get(0);
+        if (typeof versionObj === 'undefined') {
             // No install detected.
             return null;
         }
-        return version;
+        return versionObj;
     }
 
     async getNUDMetaRemote() {
@@ -88,6 +96,45 @@ class DatabaseService {
             'http://82.2.76.175/folkfriend-non-user-data.json',
             NUDSize);
 
+        // Now use the big data file to update the IDB.
+        //  This is a transaction so either it all works or it all rejects (thanks Dexie).
+        this.db.transaction('rw', [
+            this.db.NUDVersion,
+            // this.db.settings,
+            // this.db.aliases,
+            // this.db.bulk
+        ], function () {
+            /* Update bulk data objects */
+            // this.db.bulk.put({
+            //     name: 'shard-to-settings',
+            //     value: NUDSize['shard-to-settings']
+            // });
+
+            // this.db.bulk.put({
+            //     name: 'partitions',
+            //     value: NUDSize['shard-partitions']
+            // });
+
+            /* Update tune settings */
+            // this.db.settings.bulkPut(NUData['tunes']);
+
+            /* Update aliases */
+            // this.db.aliases.bulkPut(NUData['aliases']);
+
+            /* Now bump version */
+            this.db.NUDVersion.put({
+                key: 0,
+                version: NUDVersionRemote
+            });
+
+
+        }).then(function () {
+
+            // Transaction complete.
+            console.log('complete');
+
+        });
+
         console.log(NUDVersionRemote);
         console.log(NUData);
     }
@@ -104,7 +151,7 @@ class DatabaseService {
         // Step 2: get total length
         //  Prefer to pass size in from metadata file as gzip means
         //  there's a mismatch between content length and received length
-        if(typeof size === 'undefined') {
+        if (typeof size === 'undefined') {
             size = +response.headers.get('Content-Length');
         }
 
@@ -124,7 +171,6 @@ class DatabaseService {
             receivedLength += value.length;
 
             this.networkProgress[requestLabel] = 100 * receivedLength / size;
-            console.log(this.networkProgress);
         }
 
         // Step 4: concatenate chunks into single Uint8Array
