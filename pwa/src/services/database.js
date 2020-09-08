@@ -25,33 +25,36 @@ class DatabaseService {
         });
 
         this.db = db;
+        this.networkProgress = {};
         this.checkForUpdates().then();
     }
 
     async checkForUpdates() {
         let NUDVersionLocal = await this.getNUDVersionLocal();
-        let NUDVersionRemote = await this.getNUDVersionRemote();
+        let NUDMetaRemote = await this.getNUDMetaRemote();
+        let NUDVersionRemote = NUDMetaRemote['v'];
+        let NUDSize = NUDMetaRemote['size'];
 
-        let canUpdate = NUDVersionRemote !== NUDVersionLocal;
-        let NUDExpired = this.daysSince2020() - NUDVersionLocal > this.MAX_NUD_AGE;
+        let canUpdate = NUDVersionRemote !== null && NUDVersionRemote !== NUDVersionLocal;
 
-        console.debug(this.daysSince2020());
-        console.debug(NUDVersionLocal);
-        console.debug(NUDVersionRemote);
-
-        if(!canUpdate) {
+        if (NUDVersionRemote === null) {
+            console.warn('Could not find NUDVersionRemote');
+        }
+        if (!canUpdate) {
             return;
         }
 
-        if (NUDVersionLocal === false) {
-            this.updateNonUserData().catch(e => {
+        let NUDExpired = this.daysSince2020() - NUDVersionLocal > this.MAX_NUD_AGE;
+
+        if (NUDVersionLocal === null) {
+            this.updateNonUserData(NUDVersionRemote, NUDSize).catch(e => {
                 // This is a very bad state to be in.
                 //  No tune database was found and we failed to install one.
                 //  This is not a critical error but needs a graceful fallback.
                 console.error(e);
             });
         } else if (NUDExpired) {
-            this.updateNonUserData().catch(e => {
+            this.updateNonUserData(NUDVersionRemote, NUDSize).catch(e => {
                 // This is a not so bad state to be in.
                 //  A tune database was found but we failed to upgrade.
                 //  This is only concerning if it keeps happening.
@@ -64,19 +67,79 @@ class DatabaseService {
         const version = await this.db.NUDVersion.get(0);
         if (typeof version === 'undefined') {
             // No install detected.
-            return false;
+            return null;
         }
         return version;
     }
 
-    async getNUDVersionRemote() {
-        let response = await fetch('http://82.2.76.175/version.txt');
-        let rawVersion = await response.text();
-        return parseInt(rawVersion);
+    async getNUDMetaRemote() {
+        try {
+            let response = await fetch('http://82.2.76.175/nud-meta.json');
+            return await response.json();
+        } catch (e) {
+            return {"v": null, "size": null};
+        }
     }
 
-    async updateNonUserData() {
+    async updateNonUserData(NUDVersionRemote, NUDSize) {
+        // We now fetch the big data file.
+        const NUData = await this.fetchJSONWithProgress(
+            'NUData',
+            'http://82.2.76.175/folkfriend-non-user-data.json',
+            NUDSize);
 
+        console.log(NUDVersionRemote);
+        console.log(NUData);
+    }
+
+    async fetchJSONWithProgress(requestLabel, url, size) {
+        // Taken directly from
+        //  https://javascript.info/fetch-progress
+
+        // Step 1: start the fetch and obtain a reader
+        let response = await fetch(url);
+
+        const reader = response.body.getReader();
+
+        // Step 2: get total length
+        //  Prefer to pass size in from metadata file as gzip means
+        //  there's a mismatch between content length and received length
+        if(typeof size === 'undefined') {
+            size = +response.headers.get('Content-Length');
+        }
+
+        // Step 3: read the data
+        let receivedLength = 0; // received that many bytes at the moment
+        let chunks = []; // array of received binary chunks (comprises the body)
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            let {done, value} = await reader.read();
+
+            if (done) {
+                break;
+            }
+
+            chunks.push(value);
+            receivedLength += value.length;
+
+            this.networkProgress[requestLabel] = 100 * receivedLength / size;
+            console.log(this.networkProgress);
+        }
+
+        // Step 4: concatenate chunks into single Uint8Array
+        let chunksAll = new Uint8Array(receivedLength); // (4.1)
+        let position = 0;
+        for (let chunk of chunks) {
+            chunksAll.set(chunk, position); // (4.2)
+            position += chunk.length;
+        }
+
+        // Step 5: decode into a string
+        let result = new TextDecoder('utf-8').decode(chunksAll);
+
+        // We're done!
+        return JSON.parse(result);
     }
 
     daysSince2020() {
