@@ -9,11 +9,15 @@
 
 // @ is an alias to /src
 import HelloWorld from '@/components/HelloWorld.vue';
+import ds from '@/services/database';
 
 export default {
     name: 'Home',
     components: {
         HelloWorld
+    },
+    mounted: function() {
+        console.debug('from App.vue', ds);
     }
 };
 

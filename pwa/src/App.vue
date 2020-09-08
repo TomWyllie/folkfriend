@@ -9,6 +9,17 @@
     </div>
 </template>
 
+<script>
+
+import ds from './services/database';
+console.debug('from App.vue', ds);
+
+export default {
+
+}
+
+</script>
+
 <style>
 #app {
     font-family: Avenir, Helvetica, Arial, sans-serif;
