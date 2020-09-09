@@ -27,7 +27,7 @@
 
 // @ is an alias to /src
 import HelloWorld from '@/components/HelloWorld.vue';
-import ds from '@/services/database';
+import ds from '@/services/database.worker';
 
 export default {
     name: 'Home',

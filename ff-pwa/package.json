@@ -1,5 +1,5 @@
 {
-  "name": "pwa",
+  "name": "ff-pwa",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,6 +8,7 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "comlink-loader": "^2.0.0",
     "core-js": "^3.6.5",
     "dexie": "^3.0.2",
     "register-service-worker": "^1.7.1",
@@ -23,41 +24,6 @@
     "babel-eslint": "^10.1.0",
     "eslint": "^6.7.2",
     "eslint-plugin-vue": "^6.2.2",
-    "vue-template-compiler": "^2.6.11",
-    "worker-loader": "^3.0.2"
-  },
-  "eslintConfig": {
-    "root": true,
-    "env": {
-      "node": true
-    },
-    "extends": [
-      "plugin:vue/essential",
-      "eslint:recommended"
-    ],
-    "parserOptions": {
-      "parser": "babel-eslint"
-    },
-    "rules": {
-      "vue/script-indent": [
-        "error",
-        4,
-        {
-          "baseIndent": 0
-        }
-      ],
-      "vue/html-indent": [
-        "error",
-        4,
-        {
-          "baseIndent": 1
-        }
-      ]
-    }
-  },
-  "browserslist": [
-    "> 1%",
-    "last 2 versions",
-    "not dead"
-  ]
+    "vue-template-compiler": "^2.6.11"
+  }
 }

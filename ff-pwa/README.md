@@ -1,4 +1,4 @@
-# pwa
+# ff-pwa
 
 ## Project setup
 ```
