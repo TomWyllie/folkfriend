@@ -1,7 +1,8 @@
-import Dexie from 'dexie';
+import Dexie from "dexie";
 
 class DatabaseService {
-    MAX_NUD_AGE = 28;   // 28 days = 4 weeks
+    // MAX_NUD_AGE = 28;   // 28 days = 4 weeks
+    MAX_NUD_AGE = 0;   // 0 = always use latest version
 
     constructor() {
         console.debug(`${this.constructor.name} init`);
@@ -131,8 +132,7 @@ class DatabaseService {
             /* Now bump version */
             this.db.NUDVersion.put({
                 key: 0,
-                // v: NUDVersionRemote
-                v: 138
+                v: NUDVersionRemote
             });
         });
         console.log('complete');

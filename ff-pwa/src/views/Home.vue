@@ -26,8 +26,11 @@
 <script>
 
 // @ is an alias to /src
-import HelloWorld from '@/components/HelloWorld.vue';
-import ds from '@/services/database.worker';
+import HelloWorld from "@/components/HelloWorld.vue";
+import ds from "@/services/database.worker";
+
+import AudioService from "@/services/folkfriend/ff-audio";
+import transcriber from "@/services/folkfriend/ff-transcriber";
 
 export default {
     name: 'Home',
@@ -36,6 +39,20 @@ export default {
     },
     mounted: function () {
         console.debug('from App.vue', ds);
+
+        // this might work?
+        this.demo();
+
+    },
+    methods: {
+        demo: async function() {
+            const audioService = new AudioService();
+            const demoURL = 'audio/fiddle.wav';
+
+            const freqDataQueue = await audioService.urlToFreqData(demoURL);
+            const decoded = await transcriber.transcribeFreqData(freqDataQueue);
+            console.debug(decoded);
+        }
     }
 };
 
