@@ -23,7 +23,8 @@
     "babel-eslint": "^10.1.0",
     "eslint": "^6.7.2",
     "eslint-plugin-vue": "^6.2.2",
-    "vue-template-compiler": "^2.6.11"
+    "vue-template-compiler": "^2.6.11",
+    "worker-loader": "^3.0.2"
   },
   "eslintConfig": {
     "root": true,
@@ -41,9 +42,17 @@
       "vue/script-indent": [
         "error",
         4,
-        {"baseIndent": 0}
+        {
+          "baseIndent": 0
+        }
       ],
-      "vue/html-indent": ["error", 4, {"baseIndent": 1}]
+      "vue/html-indent": [
+        "error",
+        4,
+        {
+          "baseIndent": 1
+        }
+      ]
     }
   },
   "browserslist": [

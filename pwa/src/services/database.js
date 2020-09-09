@@ -10,14 +10,16 @@ class DatabaseService {
         // Setup database schema
         db.version(1).stores({
             /* Version string to track when the Non-User Data was updated last */
-            NUDVersion: 'key,version',    // We always store this at key zero. We only need one entry in this table.
+            NUDVersion: 'key',    // We always store this at key zero. We only need one entry in this table.
 
             /* Non-user data */
-            // settings: ',&setting, tune, name, type, meter, mode',    // 'abc' added but not indexed
-            // aliases: ',&tune, *aliases',
+            // settings: '&setting, tune, name, type, meter, mode',    // 'abc' added but not indexed
+            settings: '&setting, tune, name',    // 'abc, type, meter, mode' added but not indexed for performance reasons
+            aliases: '&tune, *aliases',
+
             // Generic table for our bulky objects. Bulky objects are NOT!!! indexed.
             // These are the shard meta JSON and the partitioned shards pngs in base 64.
-            // bulk: ',name',
+            bulk: 'name',
 
             /* User data */
             // transcriptions: '++id, timestamp, name',  // 'midis' added but not indexed
@@ -26,10 +28,8 @@ class DatabaseService {
 
         this.db = db;
         this.networkProgress = {};
-        this.checkForUpdates().then(() => {
-            this.getNUDVersionLocal().then(value => {
-                console.log(value);
-            });
+        this.checkForUpdates().then(hasUpdated => {
+            console.debug(`Non-user data has ${hasUpdated === true ? '' : 'not '}updated`);
         });
     }
 
@@ -38,6 +38,9 @@ class DatabaseService {
         let NUDMetaRemote = await this.getNUDMetaRemote();
         let NUDVersionRemote = NUDMetaRemote['v'];
         let NUDSize = NUDMetaRemote['size'];
+
+        console.debug('NUDVersionLocal', NUDVersionLocal);
+        console.debug('NUDMetaRemote', NUDMetaRemote);
 
         let canUpdate = NUDVersionRemote !== null && NUDVersionRemote !== NUDVersionLocal;
 
@@ -51,8 +54,10 @@ class DatabaseService {
         let NUDExpired = this.daysSince2020() - NUDVersionLocal > this.MAX_NUD_AGE;
 
         if (NUDVersionLocal === null) {
+            console.debug('NUData has not been loaded, attempting to update');
             try {
                 await this.updateNonUserData(NUDVersionRemote, NUDSize);
+                return true;
             } catch (e) {
                 // This is a very bad state to be in.
                 //  No tune database was found and we failed to install one.
@@ -60,8 +65,10 @@ class DatabaseService {
                 console.error(e);
             }
         } else if (NUDExpired) {
+            console.debug('NUData has expired, attempting to update');
             try {
                 await this.updateNonUserData(NUDVersionRemote, NUDSize);
+                return true;
             } catch (e) {
                 // This is a not so bad state to be in.
                 //  A tune database was found but we failed to upgrade.
@@ -77,12 +84,12 @@ class DatabaseService {
             // No install detected.
             return null;
         }
-        return versionObj;
+        return versionObj.v;
     }
 
     async getNUDMetaRemote() {
         try {
-            let response = await fetch('http://82.2.76.175/nud-meta.json');
+            let response = await fetch('http://192.168.0.19//nud-meta.json');
             return await response.json();
         } catch (e) {
             return {"v": null, "size": null};
@@ -93,50 +100,42 @@ class DatabaseService {
         // We now fetch the big data file.
         const NUData = await this.fetchJSONWithProgress(
             'NUData',
-            'http://82.2.76.175/folkfriend-non-user-data.json',
+            'http://192.168.0.19/folkfriend-non-user-data.json',
             NUDSize);
 
         // Now use the big data file to update the IDB.
         //  This is a transaction so either it all works or it all rejects (thanks Dexie).
-        this.db.transaction('rw', [
+        await this.db.transaction('rw', [
             this.db.NUDVersion,
-            // this.db.settings,
-            // this.db.aliases,
-            // this.db.bulk
+            this.db.settings,
+            this.db.aliases,
+            this.db.bulk
         ], function () {
             /* Update bulk data objects */
-            // this.db.bulk.put({
-            //     name: 'shard-to-settings',
-            //     value: NUDSize['shard-to-settings']
-            // });
+            this.db.bulk.put({
+                name: 'shard-to-settings',
+                value: NUData['shard-to-settings']
+            });
 
-            // this.db.bulk.put({
-            //     name: 'partitions',
-            //     value: NUDSize['shard-partitions']
-            // });
+            this.db.bulk.put({
+                name: 'partitions',
+                value: NUData['shard-partitions']
+            });
 
             /* Update tune settings */
-            // this.db.settings.bulkPut(NUData['tunes']);
+            this.db.settings.bulkPut(NUData['tunes']);
 
             /* Update aliases */
-            // this.db.aliases.bulkPut(NUData['aliases']);
+            this.db.aliases.bulkPut(NUData['aliases']);
 
             /* Now bump version */
             this.db.NUDVersion.put({
                 key: 0,
-                version: NUDVersionRemote
+                // v: NUDVersionRemote
+                v: 138
             });
-
-
-        }).then(function () {
-
-            // Transaction complete.
-            console.log('complete');
-
         });
-
-        console.log(NUDVersionRemote);
-        console.log(NUData);
+        console.log('complete');
     }
 
     async fetchJSONWithProgress(requestLabel, url, size) {
