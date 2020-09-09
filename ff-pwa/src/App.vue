@@ -12,11 +12,10 @@
 <script>
 
 import ds from './services/database.worker';
+
 console.debug('from App.vue', ds);
 
-export default {
-
-}
+export default {};
 
 </script>
 
