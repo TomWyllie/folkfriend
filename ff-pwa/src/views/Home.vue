@@ -30,6 +30,7 @@ import HelloWorld from "@/components/HelloWorld.vue";
 import ds from "@/services/database.worker";
 
 import AudioService from "@/services/folkfriend/ff-audio";
+import { QueryEngineGPU } from "@/services/folkfriend/ff-query-engine";
 import transcriber from "@/services/folkfriend/ff-transcriber";
 
 export default {
@@ -47,11 +48,20 @@ export default {
     methods: {
         demo: async function() {
             const audioService = new AudioService();
-            const demoURL = 'audio/fiddle.wav';
+            console.debug(audioService);
+            console.debug(transcriber);
+            // const demoURL = 'audio/fiddle.wav';
+            //
+            // const freqDataQueue = await audioService.urlToFreqData(demoURL);
+            // const decoded = await transcriber.transcribeFreqData(freqDataQueue);
+            // console.debug(decoded);
 
-            const freqDataQueue = await audioService.urlToFreqData(demoURL);
-            const decoded = await transcriber.transcribeFreqData(freqDataQueue);
-            console.debug(decoded);
+            const queryEngine = new QueryEngineGPU();
+            await queryEngine.ready;
+            console.debug(queryEngine);
+
+            // const result = await queryEngine.query(decoded.decoded);
+            // console.debug(result);
         }
     }
 };
@@ -59,6 +69,10 @@ export default {
 </script>
 
 <style scoped>
+
+svg > * {
+    will-change: transform;
+}
 
 #gear-1-wrapper {
     transform: translate(1025px, -3025px);

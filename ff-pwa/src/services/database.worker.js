@@ -29,6 +29,17 @@ class DatabaseService {
 
         this.db = db;
         this.networkProgress = {};
+
+        // We use a promise to track whether or not some data was detected,
+        //  so that the user only has to wait for the shards data to download
+        //  if none is detected already.
+        this.hasData = new Promise((resolve) => {
+            this.confirmHasData = () => {
+                console.debug('Confirmed query engine data exists');
+                resolve();
+            };
+        });
+
         this.checkForUpdates().then(hasUpdated => {
             console.debug(`Non-user data has ${hasUpdated === true ? '' : 'not '}updated`);
         });
@@ -45,6 +56,10 @@ class DatabaseService {
 
         let canUpdate = NUDVersionRemote !== null && NUDVersionRemote !== NUDVersionLocal;
 
+        if (NUDVersionLocal !== null) {
+            this.confirmHasData();
+        }
+
         if (NUDVersionRemote === null) {
             console.warn('Could not find NUDVersionRemote');
         }
@@ -58,6 +73,7 @@ class DatabaseService {
             console.debug('NUData has not been loaded, attempting to update');
             try {
                 await this.updateNonUserData(NUDVersionRemote, NUDSize);
+                this.confirmHasData();
                 return true;
             } catch (e) {
                 // This is a very bad state to be in.
@@ -97,12 +113,33 @@ class DatabaseService {
         }
     }
 
+    async getQueryEngineData() {
+        await this.hasData;
+        return {
+            partitionsData: (await this.db.bulk.get("partitionsData")).value,
+            shardMeta: (await this.db.bulk.get("shardMeta")).value
+        };
+    }
+
     async updateNonUserData(NUDVersionRemote, NUDSize) {
         // We now fetch the big data file.
         const NUData = await this.fetchJSONWithProgress(
             'NUData',
             'http://192.168.0.19/folkfriend-non-user-data.json',
             NUDSize);
+
+        // The JSON file stores the big PNG shard partitions as base64 (because
+        //  it's easy to transfer in JSON). However if we send megabyte size
+        //  base64 strings to the main thread to decode and load into an
+        //  HTMLImageElement every time we want to instantiate a QueryEngine
+        //  then we hammer the UI framerate. The solution is to convert from
+        //  Base64 to blob, once, inside this worker, and store the blob inside
+        //  IndexedDB (using Dexie).
+        for (let i = 0; i < NUData['shard-partitions'].length; i++) {
+            // data:image/png;base64,<............................>
+            const fetchedPartition = await fetch(NUData['shard-partitions'][i]);
+            NUData['shard-partitions'][i] = await fetchedPartition.blob();
+        }
 
         // Now use the big data file to update the IDB.
         //  This is a transaction so either it all works or it all rejects (thanks Dexie).
@@ -114,12 +151,12 @@ class DatabaseService {
         ], function () {
             /* Update bulk data objects */
             this.db.bulk.put({
-                name: 'shard-to-settings',
+                name: 'shardMeta',
                 value: NUData['shard-to-settings']
             });
 
             this.db.bulk.put({
-                name: 'partitions',
+                name: 'partitionsData',
                 value: NUData['shard-partitions']
             });
 

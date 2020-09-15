@@ -1,21 +1,24 @@
-// webgl_support = function() {
-//     try {
-//         let canvas = document.createElement('canvas');
-//         return !!window.WebGLRenderingContext &&
-//         (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
-//     } catch(e) {
-//         return false;
-//     }
-// };
+/*
+    A note on the event loop and stuff.
+
+    We really really want to run this whole function in another thread but
+    cannot do so without creating a WebGLRenderingContext off the main thread.
+    This is the use-case of the OffscreenCanvas, but unfortunately it is
+    not yet widely supported. So instead we throw in a few awaits the allow
+    the event loop to repaint during long tasks, such as the initialise() of
+    a GPUQueryEngine object.
+
+ */
 
 const QUERY_SHARD_SIZE = 64;
 
 import FFConfig from "@/services/folkfriend/ff-config";
+import ds from "@/services/database.worker";
+import nextFrame from 'next-frame';
 
 class QueryEngine {
-    constructor(rootURL = "") {
-        this.rootURL = rootURL;
-        this.loadShards = this.fetchShardData();
+    constructor() {
+        this.ready = this.initialise();
     }
 
     execute() {
@@ -25,17 +28,10 @@ class QueryEngine {
     }
 
     async initialise() {
-        await this.loadShards;
+        await this.loadQueryEngineData();
     }
 
-    async query(unscaledQuery) {
-        let query = unscaledQuery.slice(0);
-        for (let i = 0; i < query.length; i++) {
-            // The values are stored scaled up by a factor of 4 in the
-            //  PNG data file, so they can be seen more easily.
-            query[i] *= 4;
-        }
-
+    async query(query) {
         let shardScores = await this.execute(query);
 
         // Useful for debugging
@@ -62,38 +58,43 @@ class QueryEngine {
         return props.slice(0, 100);
     }
 
-    async fetchShardData() {
-        let queryMetaData = await fetch(`${this.rootURL}/external/query-data/query-meta-data.json`)
-            .then(r => r.json());
-
-        this.numPartitions = queryMetaData[0];
-        this.shardMeta = queryMetaData[1];
-        await this.loadShardPartitions(this.numPartitions);
+    async loadQueryEngineData() {
+        const { shardMeta, partitionsData } = await ds.getQueryEngineData();
+        this.numPartitions = partitionsData.length;
+        this.shardMeta = shardMeta;
+        this.shardData = await this.loadShardPartitions(partitionsData);
     }
 
-    loadShardPartitions(numPartitions) {
-        let partitionPromises = [];
-        for (let i = 0; i < numPartitions; i++) {
-            partitionPromises.push(this.loadShardPartition(i));
+    async loadShardPartitions(shardData) {
+        let partitions = [];
+        for (const partitionBlob of shardData) {
+            const loadedShardPartition = await this.loadShardPartition(partitionBlob)
+            partitions.push(loadedShardPartition);
+            await nextFrame();
         }
-        return Promise.all(partitionPromises).then(values => {
-            this.shardData = values;
-        });
+        return partitions;
     }
 
-    loadShardPartition(partitionNum) {
-        const imageURL = `${this.rootURL}/external/query-data/query-data-${partitionNum}.png`;
+    // loadShardPartition(partitionNum) {
+    //     const imageURL = `${this.rootURL}/external/query-data/query-data-${partitionNum}.png`;
+    //
+    //     // if(node) {
+    //     //     return loadImage(imageURL);
+    //     // }
+    //
+    //     return new Promise(resolve => {
+    //         let image = new Image();
+    //         image.src = imageURL;
+    //         image.decoding = 'sync';
+    //         image.onload = () => resolve(image);
+    //     });
+    // }
 
-        // if(node) {
-        //     return loadImage(imageURL);
-        // }
-
-        return new Promise(resolve => {
-            let image = new Image();
-            image.src = imageURL;
-            image.decoding = 'sync';
-            image.onload = () => resolve(image);
-        });
+    async loadShardPartition(blob) {
+        let image = new Image();
+        image.src = URL.createObjectURL(blob);
+        await image.decode();
+        return image;
     }
 }
 
@@ -101,12 +102,12 @@ export class QueryEngineGPU extends QueryEngine {
     constructor(props) {
         super(props);
 
-        let loadVertexShader = fetch(`${this.rootURL}/shaders/vertex.glsl`)
+        let loadVertexShader = fetch(`/shaders/vertex.glsl`)
             .then(value => value.text())
             .then(text => {
                 this.vertexShaderSource = text;
             });
-        let loadFragmentShader = fetch(`${this.rootURL}/shaders/fragment.glsl`)
+        let loadFragmentShader = fetch(`/shaders/fragment.glsl`)
             .then(value => value.text())
             .then(text => {
                 this.fragmentShaderSource = text;
@@ -125,7 +126,9 @@ export class QueryEngineGPU extends QueryEngine {
 
     async initialise() {
         await super.initialise();
+        await nextFrame();
         await this.loadShaders;
+        await nextFrame();
         console.time("gpu-query-engine-init");
 
         this.canvas = document.createElement('canvas');
@@ -134,10 +137,12 @@ export class QueryEngineGPU extends QueryEngine {
         this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
         const gl = this.gl;
 
+        await nextFrame();
+
         // Compile and initialise shaders and program from source GLSL files
-        const vertexShader = this.createShader(gl.VERTEX_SHADER, this.vertexShaderSource);
-        const fragmentShader = this.createShader(gl.FRAGMENT_SHADER, this.fragmentShaderSource);
-        this.program = this.createProgram(vertexShader, fragmentShader);
+        const vertexShader = await this.createShader(gl.VERTEX_SHADER, this.vertexShaderSource);
+        const fragmentShader = await this.createShader(gl.FRAGMENT_SHADER, this.fragmentShaderSource);
+        this.program = await this.createProgram(vertexShader, fragmentShader);
 
         // Clear the canvas
         gl.clearColor(127.0 / 255.0, 127.0 / 255.0, 0, 0);
@@ -148,13 +153,14 @@ export class QueryEngineGPU extends QueryEngine {
         // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         // document.body.appendChild(this.canvas);
 
+        await nextFrame();
         gl.useProgram(this.program);
 
         // Set up core WebGL components, including vertices and the ping
         //  pong buffers.
-        this.setupPositionBuffer();
-        this.setupPingPongTextures();
-        this.clearPingPongTextures();
+        await this.setupPositionBuffer();
+        await this.setupPingPongTextures();
+        await this.clearPingPongTextures();
 
         // Load in some global constants
         this.setUniform("shardLength", QUERY_SHARD_SIZE);
@@ -180,7 +186,8 @@ export class QueryEngineGPU extends QueryEngine {
         this.pingPongSampler = gl.getUniformLocation(this.program, "lastStage");
         gl.uniform1i(this.pingPongSampler, 0);
 
-        this.partitionTextureObjects = this.setupPartitionTextures();
+        await nextFrame();
+        this.partitionTextureObjects = await this.setupPartitionTextures();
 
         console.timeEnd("gpu-query-engine-init");
         this.finishInitialising();
@@ -195,7 +202,7 @@ export class QueryEngineGPU extends QueryEngine {
         this.setUniform("queryLength", query.length);
         const queryImgData = this.queryToImgData(query);
         this.setUniform("queryImgDataLength", queryImgData.width);
-        this.setupDataTexture(queryImgData, "query", 1);
+        await this.setupDataTexture(queryImgData, "query", 1);
 
         const numStages = query.length + QUERY_SHARD_SIZE - 1;
         let pixelArrs = [];
@@ -299,7 +306,9 @@ export class QueryEngineGPU extends QueryEngine {
         return new ImageData(pixels, numPixels, 1);
     }
 
-    setupPositionBuffer() {
+    async setupPositionBuffer() {
+        await nextFrame();
+
         const gl = this.gl;
         const program = this.program;
 
@@ -326,7 +335,9 @@ export class QueryEngineGPU extends QueryEngine {
 
     }
 
-    setupPingPongTextures() {
+    async setupPingPongTextures() {
+        await nextFrame();
+
         const gl = this.gl;
         // Set up our ping-pong textures
         for (let i = 0; i < 2; i++) {
@@ -356,7 +367,7 @@ export class QueryEngineGPU extends QueryEngine {
         }
     }
 
-    clearPingPongTextures() {
+    async clearPingPongTextures() {
         const gl = this.gl;
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.pingPongBuffers[0]);
         gl.clear(gl.COLOR_BUFFER_BIT);
@@ -364,7 +375,7 @@ export class QueryEngineGPU extends QueryEngine {
         gl.clear(gl.COLOR_BUFFER_BIT);
     }
 
-    setupDataTexture(data, name, id) {
+    async setupDataTexture(data, name, id) {
         const gl = this.gl;
         const tex = gl.createTexture();
         const sampler = gl.getUniformLocation(this.program, name);
@@ -374,16 +385,22 @@ export class QueryEngineGPU extends QueryEngine {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+        // This texImage2D is a intense blocking operation. We are guaranteed to
+        //  lose some frames here so mitigate the best we can by allowing the event
+        //  loop to repaint as much as it likes either side.
+        await nextFrame();
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
+        await nextFrame();
 
         gl.uniform1i(sampler, id);
         return {tex: tex, sampler: sampler};
     }
 
-    setupPartitionTextures() {
+    async setupPartitionTextures() {
         let partitionTextureObjects = [];
         for (let i = 0; i < this.shardData.length; i++) {
-            let pto = this.setupDataTexture(this.shardData[i], "shards", 2 + i);
+            let pto = await this.setupDataTexture(this.shardData[i], "shards", 2 + i);
             partitionTextureObjects.push(pto);
         }
         return partitionTextureObjects;
@@ -689,7 +706,9 @@ export class QueryEngineGPU extends QueryEngine {
         }
     }
 
-    createProgram(vertexShader, shardShader) {
+    async createProgram(vertexShader, shardShader) {
+        await nextFrame();
+
         // https://webglfundamentals.org/webgl/lessons/webgl-fundamentals.html
         const gl = this.gl;
         const program = gl.createProgram();
@@ -705,13 +724,22 @@ export class QueryEngineGPU extends QueryEngine {
         gl.deleteProgram(program);
     }
 
-    createShader(type, source) {
+    async createShader(type, source) {
         const gl = this.gl;
 
         // https://webglfundamentals.org/webgl/lessons/webgl-fundamentals.html
         const shader = gl.createShader(type);
+
+        await nextFrame();
+
         gl.shaderSource(shader, source);
+
+        await nextFrame();
+
         gl.compileShader(shader);
+
+        await nextFrame();
+
         const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
         if (success) {
             return shader;

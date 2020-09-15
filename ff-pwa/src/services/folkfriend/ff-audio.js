@@ -23,10 +23,6 @@ import FFConfig from "@/services/folkfriend/ff-config";
 export default class AudioService {
 
     async urlToFreqData(url) {
-        // Track how long audio takes across network
-        //  so we can actually measure performance
-        const t0 = performance.now();
-
         // Get duration of audio file
         const audio = new Audio();
         audio.src = url;
@@ -61,9 +57,6 @@ export default class AudioService {
         };
 
         source.start(0);
-
-        const networkPerf = performance.now() - t0;
-        console.debug(networkPerf);
 
         await audioContext.startRendering();
 

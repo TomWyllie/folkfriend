@@ -22,6 +22,8 @@ module.exports = {
                 patterns: [
                     // Worker needs to see this, because it has em.js inside.
                     {from: 'src/services/wasm/em.wasm', to: 'em.wasm'},
+                    {from: 'src/services/shaders/fragment.glsl', to: 'shaders/fragment.glsl'},
+                    {from: 'src/services/shaders/vertex.glsl', to: 'shaders/vertex.glsl'}
                 ],
             })
         );

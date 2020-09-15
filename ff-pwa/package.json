@@ -13,6 +13,7 @@
     "comlink-loader": "^2.0.0",
     "core-js": "^3.6.5",
     "dexie": "^3.0.2",
+    "next-frame": "^0.2.3",
     "register-service-worker": "^1.7.1",
     "vue": "^2.6.11",
     "vue-router": "^3.2.0"
