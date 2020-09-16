@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-RESOLUTION = 400
+RESOLUTION = 34
+SAMPLING = 12
 
 
 def main():
@@ -9,7 +10,7 @@ def main():
 
     # relevant angles 45 20 36
     #   34 looks right and is (45 - 20) + (45 - 36)
-    gear1 = gear(6, 34 * np.pi / 180)
+    gear1 = gear(6, 32 * np.pi / 180)
 
     gear2 = gear(10)
 
@@ -33,9 +34,13 @@ def main():
     g2_centre = (g2x, g2y)
     g3_centre = (g2x + d23, g2y + d23)
 
-    p1 = cartesian_to_svg_path(*gear1)
-    p2 = cartesian_to_svg_path(*gear2)
-    p3 = cartesian_to_svg_path(*gear3)
+    # p1 = cartesian_to_svg_path(*gear1)
+    # p2 = cartesian_to_svg_path(*gear2)
+    # p3 = cartesian_to_svg_path(*gear3)
+
+    p1 = cartesian_to_svg_path_linear(*gear1)
+    p2 = cartesian_to_svg_path_linear(*gear2)
+    p3 = cartesian_to_svg_path_linear(*gear3)
 
     with open('gears_template.html') as f:
         svg = f.read()
@@ -53,15 +58,12 @@ def main():
     with open('gears.html', 'w') as f:
         f.write(svg)
 
-    # cartesian_to_svg_path(*gear2)
-    # cartesian_to_svg_path(*gear3)
-
 
 def logistic(n):
     a = 0.1 / (n / 8.0) ** 0.8
     w = 1.0
 
-    x = np.linspace(-w, w, 10)
+    x = np.linspace(-w, w, SAMPLING)
     z = np.exp(-x / a)
     y = z / (1 + z)
 
@@ -95,37 +97,54 @@ def gear(n_teeth, rot=0):
 
 
 # noinspection PyPep8Naming
-def cartesian_to_svg_path(X, Y):
-    #  q dx1 dy1, dx dy
-    n = X.size
-    offset = 10
-    assert offset < n
-    X = np.array(RESOLUTION * X, np.int16)
-    Y = np.array(RESOLUTION * Y, np.int16)
+# def cartesian_to_svg_path(X, Y):
+#     #  q dx1 dy1, dx dy
+#     n = X.size
+#     offset = 10
+#     assert offset < n
+#     X = np.array(RESOLUTION * X, np.int16)
+#     Y = np.array(RESOLUTION * Y, np.int16)
+#
+#     X = np.tile(X, 2)
+#     Y = np.tile(Y, 2)
+#     x = X[1:] - X[:-1]
+#     y = Y[1:] - Y[:-1]
+#
+#     d = [f'M {X[offset]} {Y[offset]} ']
+#     # d = [f'M 0 0 ']
+#
+#     cx1, cx2 = compute_control_points(X)
+#     cy1, cy2 = compute_control_points(Y)
+#
+#     cx1 -= X[:-1]
+#     cx2 -= X[:-1]
+#     cy1 -= Y[:-1]
+#     cy2 -= Y[:-1]
+#
+#     print(cx1)
+#     print(cx2)
+#
+#     # Add an arbitrary offset of 10 to move away from edge effects
+#     for i in range(offset, offset + n):
+#         d.append(f'c {cx1[i]} {cy1[i]} {cx2[i]} {cy2[i]} {x[i]} {y[i]}')
+#
+#     d.append(' z')
+#
+#     return ''.join(d)
 
-    X = np.tile(X, 2)
-    Y = np.tile(Y, 2)
+
+# noinspection PyPep8Naming
+def cartesian_to_svg_path_linear(X, Y):
+    X = np.array(RESOLUTION * X, np.float32)
+    Y = np.array(RESOLUTION * Y, np.float32)
     x = X[1:] - X[:-1]
     y = Y[1:] - Y[:-1]
 
-    d = [f'M {X[offset]} {Y[offset]} ']
-    # d = [f'M 0 0 ']
-
-    cx1, cx2 = compute_control_points(X)
-    cy1, cy2 = compute_control_points(Y)
-
-    cx1 -= X[:-1]
-    cx2 -= X[:-1]
-    cy1 -= Y[:-1]
-    cy2 -= Y[:-1]
-
-    print(cx1)
-    print(cx2)
+    d = [f'M {X[0]} {Y[0]} ']
 
     # Add an arbitrary offset of 10 to move away from edge effects
-    for i in range(offset, offset + n):
-        d.append(f'c {cx1[i]} {cy1[i]} {cx2[i]} {cy2[i]} {x[i]} {y[i]}')
-
+    for dx, dy in zip(x, y):
+        d.append('l {:.2f} {:.2f}'.format(dx, dy))
     d.append(' z')
 
     return ''.join(d)
@@ -178,7 +197,8 @@ def compute_control_points(k):
         p2[i] = 2 * k[i + 1] - p1[i + 1]
         p2[n - 1] = 0.5 * (k[n] + p1[n - 1])
 
-    return np.asarray(p1, dtype=np.int16), np.asarray(p2, dtype=np.int16)
+    # return np.asarray(p1, dtype=np.int16), np.asarray(p2, dtype=np.int16)
+    return np.asarray(p1, dtype=np.float32), np.asarray(p2, dtype=np.float32)
 
 
 def polar_to_cartesian(r, theta):

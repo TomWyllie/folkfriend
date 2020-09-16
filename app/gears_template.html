@@ -1,58 +1,66 @@
 <?xml version="1.0" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg"
-     width="400pt" height="400pt" viewBox="-6000 -6000 12000 12000"
+     width="400pt" height="400pt" viewBox="-400 -400 800 800"
      preserveAspectRatio="xMidYMid meet">
-<g id="gear-1-wrapper">
     <path id="ff-gear-1" d="[GEAR_1_PATH]"/>
-    <circle r="400"></circle>
-</g>
-<g id="gear-2-wrapper">
+    <circle id="ff-centre-1" r="36"></circle>
     <path id="ff-gear-2" d="[GEAR_2_PATH]"/>
-    <circle r="400"></circle>
-</g>
-<g id="gear-3-wrapper">
+    <circle id="ff-centre-2" r="36"></circle>
     <path id="ff-gear-3" d="[GEAR_3_PATH]"/>
-    <circle r="400"></circle>
-</g>
-<!--suppress CssInvalidFunction -->
+    <circle id="ff-centre-3" r="36"></circle>
+
+    <!--suppress CssInvalidFunction, CssInvalidPropertyValue -->
     <style>
-    #gear-1-wrapper {
-        transform: translate([G1X]px, [G1Y]px);
-    }
-
-    #gear-2-wrapper {
-        transform: translate([G2X]px, [G2Y]px);
-    }
-
-    #gear-3-wrapper {
-        transform: translate([G3X]px, [G3Y]px);
-    }
 
     /* Smallest */
     #ff-gear-1 {
-        animation: spin 6s infinite linear reverse;
+        animation: spin1 6s infinite linear reverse;
+        transform-origin: [G1X]px [G1Y]px;
+    }
+    #ff-centre-1 {
+        transform: translate([G1X]px, [G1Y]px);
     }
 
     /* Largest */
     #ff-gear-2 {
-        animation: spin 10s infinite linear;
+        animation: spin2 10s infinite linear;
+        transform-origin: [G2X]px [G2Y]px;
+    }
+    #ff-centre-2 {
+        transform: translate([G2X]px, [G2Y]px);
     }
 
     /* Medium */
     #ff-gear-3 {
-        animation: spin 8s infinite linear reverse;
+        animation: spin3 8s infinite linear reverse;
+        transform-origin: [G3X]px [G3Y]px;
+    }
+    #ff-centre-3 {
+        transform: translate([G3X]px, [G3Y]px);
     }
 
     #ff-gear-1, #ff-gear-2, #ff-gear-3, circle {
         fill: none;
         stroke: black;
-        stroke-width: 100px;
+        stroke-width: 10px;
+        stroke-linejoin: round;
+        will-change: transform;
     }
 
-   @keyframes spin {
-       100% {
-           transform: rotate(360deg);
-       }
+   @keyframes spin1 {
+       from { transform: rotate(0deg) translate([G1X]px, [G1Y]px);}
+       to { transform: rotate(360deg) translate([G1X]px, [G1Y]px);}
    }
+
+   @keyframes spin2 {
+       from { transform: rotate(0deg) translate([G2X]px, [G2Y]px);}
+       to { transform: rotate(360deg) translate([G2X]px, [G2Y]px);}
+   }
+
+   @keyframes spin3 {
+       from { transform: rotate(0deg) translate([G3X]px, [G3Y]px);}
+       to { transform: rotate(360deg) translate([G3X]px, [G3Y]px);}
+   }
+
 </style>
 </svg>
