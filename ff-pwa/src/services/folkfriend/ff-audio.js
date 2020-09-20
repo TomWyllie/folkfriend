@@ -19,8 +19,28 @@
 * */
 
 import FFConfig from "@/services/folkfriend/ff-config";
+import transcriber from "@/services/folkfriend/ff-transcriber";
 
-export default class AudioService {
+const AUDIO_CONSTRAINTS = {
+    audio: {
+        echoCancellation: false,
+        sampleRate: FFConfig.SAMPLE_RATE
+    }
+};
+
+class AudioService {
+    constructor() {
+        this.micActive = false;
+
+        this.audioCtx = null;
+        // this.processorNode = null;
+        this.micAnalyser = null;
+
+        // this.debug = [];
+
+        this.micSamplerInterval = 1000 * FFConfig.SPEC_WINDOW_SIZE / FFConfig.SAMPLE_RATE;
+    }
+
 
     async urlToFreqData(url) {
         // Get duration of audio file
@@ -43,6 +63,15 @@ export default class AudioService {
         const arrayBuffer = await response.arrayBuffer();
         source.buffer = await audioContext.decodeAudioData(arrayBuffer);
 
+        /* IMPORTANT NOTE */
+        // The audioContext.decodeAudioData function automatically resamples the file to
+        //  be the sample rate specified in the audioContext. There's a thread about people
+        //  having issues with this (not unreasonably) linked below but in our case it's
+        //  super handy. We don't have to worry about differing sample rates in input files,
+        //  as this auto-resampling means the script processor always sees FFConfig.SAMPLE_RATE
+        //  (ie 48k) data.
+        //  https://github.com/WebAudio/web-audio-api/issues/30
+
         // Connect things up
         source.connect(analyser);
         processor.connect(audioContext.destination);
@@ -52,7 +81,6 @@ export default class AudioService {
         // noinspection JSDeprecatedSymbols
         processor.onaudioprocess = () => {
             analyser.getFloatFrequencyData(frequencyData);
-            // console.debug(frequencyData);
             freqDataQueue.push(frequencyData.slice(0));
         };
 
@@ -62,4 +90,82 @@ export default class AudioService {
 
         return freqDataQueue;
     }
+
+    async startRecording() {
+        if (this.micActive) {
+            return;
+        }
+
+        this.micActive = true;
+
+        await transcriber.flush();
+
+        // This is the case on ios/chrome, when clicking links from within ios/slack (sometimes), etc.
+        if (!navigator || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert('Missing support for navigator.mediaDevices.getUserMedia'); // temp: helps when testing for strange issues on ios/safari
+            return;
+        }
+
+        this.micCtx = new AudioContext({sampleRate: FFConfig.SAMPLE_RATE});
+        this.micAnalyser = new AnalyserNode(this.micCtx, {
+            fftSize: FFConfig.SPEC_WINDOW_SIZE,
+            smoothingTimeConstant: 0
+        });
+
+        try {
+            this.micStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
+        } catch (e) {
+            console.error(e);
+            this.micActive = false;
+            return;
+        }
+
+        console.debug(this.micCtx.sampleRate);
+
+        this.micSource = this.micCtx.createMediaStreamSource(this.micStream);
+
+        // Connect things up
+        this.micSource.connect(this.micAnalyser);
+
+        // this.frequencyData = new Float32Array(this.micAnalyser.frequencyBinCount);
+        this.frequencyData = new Float32Array(FFConfig.SPEC_WINDOW_SIZE);
+        // noinspection JSDeprecatedSymbols
+
+        this.micSampler = setInterval(() => {
+            // Race condition can occur where this is asynchronously called
+            //  mid-way through us tearing down the pipeline.
+            if (!this.micAnalyser) {
+                return;
+            }
+            this.micAnalyser.getFloatTimeDomainData(this.frequencyData);
+            // this.debug.push(frequencyData.slice());
+            transcriber.feedFreqData(this.frequencyData.slice(0, 512));
+        }, this.micSamplerInterval)
+    }
+
+    async stopRecording() {
+        if (!this.micActive) {
+            return;
+        }
+
+        clearInterval(this.micSampler)
+
+        await transcriber.close();
+
+        if (this.micAnalyser) {
+            this.micAnalyser.disconnect();
+            this.micAnalyser = null;
+        }
+
+        this.micStream.getTracks().forEach((track) => track.stop());
+        this.micStream = null;
+
+        await this.micCtx.close();
+        this.micCtx = null;
+
+        this.micActive = false;
+    }
 }
+
+const audioService = new AudioService();
+export default audioService;

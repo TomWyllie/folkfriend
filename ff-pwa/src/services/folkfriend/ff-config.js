@@ -10,5 +10,5 @@ const FFConfig = {
     "SPEC_NUM_FRAMES": 375,
     "CONTEXT_FRAMES": 10
 };
-FFConfig.debug = false;
+FFConfig.debug = true;
 export default FFConfig;

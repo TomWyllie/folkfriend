@@ -8,6 +8,7 @@ class Transcriber {
         this.featureDecoder = new FeatureDecoder();
         this.featureExtractor = featureExtractor;
         this.abcConverter = new ABCConverter();
+        this.fedFramesNum = 0;
     }
 
     async transcribeFreqData(freqDataQueue) {
@@ -20,17 +21,30 @@ class Transcriber {
         return this.decode();
     }
 
+    feedFreqData(freqData) {
+        this.fedFramesNum++;
+        this.featureExtractor.feedFreqData(freqData, this.fedFramesNum).then();
+    }
+
     async decode() {
         await this.featureExtractor.finished;
         const denoisedFramesSparse = await this.featureExtractor.getDenoisedFramesSparse();
         const featureContour = contourBeamSearch(denoisedFramesSparse);
         this.decoded = await this.featureDecoder.decode(featureContour);
+        if(!this.decoded) { return this.decoded; }
         this.decoded.abc = await this.abcConverter.decodedToAbc(this.decoded.decoded);
         return this.decoded;
     }
 
     async flush() {
+        this.fedFramesNum = 0;
         this.featureExtractor.flush();
+    }
+
+    async close() {
+        // This doesn't shut down this object, it just closes off the featureExtractor
+        //  to any new input for this transcription.
+        await this.featureExtractor.close();
     }
 }
 
@@ -38,7 +52,3 @@ class Transcriber {
 const transcriber = new Transcriber();
 export default transcriber;
 
-// class MicrophoneTranscriber extends Transcriber {
-// TODO
-// this.freqDataQueue.push(frequencyData.slice(0));
-// }

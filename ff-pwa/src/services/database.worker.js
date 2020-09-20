@@ -235,6 +235,10 @@ class DatabaseService {
         // NO time travelling >:c
         return Math.max(0, daysSince2020);
     }
+
+    async tunesFromQueryResults(results) {
+        return this.db.settings.bulkGet(results.map(({setting}) => setting));
+    }
 }
 
 const ds = new DatabaseService();

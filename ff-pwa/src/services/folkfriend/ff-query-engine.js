@@ -50,10 +50,10 @@ class QueryEngine {
         }
 
         let props = Object.keys(settingsScores).map(function (key) {
-            return {key: key, value: this[key]};
+            return {setting: parseInt(key), score: this[key]};
         }, settingsScores);
         props.sort(function (p1, p2) {
-            return p2.value - p1.value;
+            return p2.score - p1.score;
         });
         return props.slice(0, 100);
     }
@@ -75,21 +75,6 @@ class QueryEngine {
         return partitions;
     }
 
-    // loadShardPartition(partitionNum) {
-    //     const imageURL = `${this.rootURL}/external/query-data/query-data-${partitionNum}.png`;
-    //
-    //     // if(node) {
-    //     //     return loadImage(imageURL);
-    //     // }
-    //
-    //     return new Promise(resolve => {
-    //         let image = new Image();
-    //         image.src = imageURL;
-    //         image.decoding = 'sync';
-    //         image.onload = () => resolve(image);
-    //     });
-    // }
-
     async loadShardPartition(blob) {
         let image = new Image();
         image.src = URL.createObjectURL(blob);
@@ -98,7 +83,7 @@ class QueryEngine {
     }
 }
 
-export class QueryEngineGPU extends QueryEngine {
+class QueryEngineGPU extends QueryEngine {
     constructor(props) {
         super(props);
 
@@ -113,11 +98,6 @@ export class QueryEngineGPU extends QueryEngine {
                 this.fragmentShaderSource = text;
             });
         this.loadShaders = Promise.all([loadVertexShader, loadFragmentShader]);
-
-        // This promise is resolved by this.initialise();
-        this.initialised = new Promise(resolve => {
-            this.finishInitialising = resolve;
-        });
 
         this.pingPongBuffers = [];
         this.pingPongTextures = [];
@@ -190,11 +170,10 @@ export class QueryEngineGPU extends QueryEngine {
         this.partitionTextureObjects = await this.setupPartitionTextures();
 
         console.timeEnd("gpu-query-engine-init");
-        this.finishInitialising();
     }
 
     async execute(query) {
-        await this.initialised;
+        await this.ready;
 
         // console.time("execute pre-draw");
         const gl = this.gl;
@@ -750,7 +729,8 @@ export class QueryEngineGPU extends QueryEngine {
     }
 }
 
-export class QueryEngineCPU extends QueryEngine {
+// eslint-disable-next-line no-unused-vars
+class QueryEngineCPU extends QueryEngine {
     constructor(props) {
         super(props);
         this.matchScore = 2;
@@ -863,3 +843,6 @@ export class QueryEngineCPU extends QueryEngine {
         return Math.max(...lastRow);
     }
 }
+
+const queryEngineGPU = new QueryEngineGPU();
+export default queryEngineGPU;

@@ -11,7 +11,6 @@ import '@tensorflow/tfjs-backend-wasm';
 import {setWasmPath} from '@tensorflow/tfjs-backend-wasm';
 
 setWasmPath('http://localhost:8080/tf/tfjs-backend-wasm.wasm');
-// import wasmPath from '../../../node_modules/@tensorflow/tfjs-backend-wasm/dist/tfjs-backend-wasm.wasm';
 
 // Set the backend to WASM and wait for the module to be ready.
 const backendSet = tf.setBackend('wasm');
@@ -20,8 +19,7 @@ import FFConfig from "@/services/folkfriend/ff-config";
 import audioDSP from "@/services/folkfriend/ff-dsp";
 
 class FeatureExtractor {
-    constructor(rootURL = "") {
-        this.rootURL = rootURL;
+    constructor() {
 
         this.flush();
         this.cnnBatchSize = 32;
@@ -47,7 +45,7 @@ class FeatureExtractor {
 
         this.model = null;
 
-        this.ready = this.initialise().then();
+        this.ready = this.initialise();
     }
 
     flush() {
@@ -65,8 +63,12 @@ class FeatureExtractor {
         this.cnnRunningMaxBatches = [];
 
         this.closed = false;
+        this.hasFinished = false;
         this.finished = new Promise(resolve => {
-            this.finish = resolve;
+            this.finish = () => {
+                this.hasFinished = true;
+                resolve();
+            };
         });
 
         // Debugging
@@ -92,13 +94,33 @@ class FeatureExtractor {
         console.timeEnd("feature-extractor-init");
     }
 
+    async close() {
+        this.closed = true;
+        // Need to trigger process after close so it knows
+        //  to use up the last few buffered frames
+        await this.bulkProceed();
+    }
+
     async freqDataToFrame(freqData) {
         return await this.audioDSP.processFreqData(freqData);
     }
 
+    async feedFreqData(freqData, expectedFedFramesNum) {
+        this.freqDataQueue.push(freqData);
+        const numReceivedFrames = this.framesQueue.length + this.freqDataQueue.length;
+        if (expectedFedFramesNum !== numReceivedFrames) {
+            console.warn(`Possible desynchronisation of audio frames!! ${expectedFedFramesNum} != ${numReceivedFrames}`);
+        }
+        await this.process();
+    }
+
     cleanup() {
+        this.proceedRequests = 0;
         this.cnnRunningMaxBatches.forEach(t => t.dispose());
         const mem = tf.memory();
+        if(FFConfig.debug) {
+            console.debug(mem);
+        }
         if (mem.numTensors > 10) {
             console.warn("Unexpectedly many tensors remain allocated at end of transcription");
             console.warn(mem);
@@ -133,6 +155,7 @@ class FeatureExtractor {
             //  another request could come through, ad infinitum
             while (this.proceedRequests > 0) {
                 await this.process();
+                // console.debug(`${this.proceedRequests} requests remaining`);
                 this.proceedRequests--;
             }
             this.proceeding = false;
@@ -145,7 +168,15 @@ class FeatureExtractor {
         // Proceed as much as possible. Start by converting all raw
         //  frequency data into frames to be used by the CNN.
         while (this.freqDataQueue.length) {
-            const frame = await this.freqDataToFrame(this.freqDataQueue.shift());
+            const floatFreqData = this.freqDataQueue.shift();
+            const frame = await this.freqDataToFrame(floatFreqData);
+
+            // View second FFT output
+            if(FFConfig.debug) {
+                console.debug(frame.length);
+                this.debugDenoised.push(frame.slice());
+            }
+
             this.framesQueue.push(frame);
         }
 
@@ -153,6 +184,7 @@ class FeatureExtractor {
         let padding = FFConfig.CONTEXT_FRAMES / 2;
 
         if (!this.closed && framesToTheRight < FFConfig.CONTEXT_FRAMES) {
+            console.debug('Exiting processing - not yet enough frames to the right');
             return;
         }
 
@@ -175,19 +207,25 @@ class FeatureExtractor {
             return tf.expandDims(cnnInput, 2);
         });
 
-        // if(lo === this.frameIndex - padding) {
-        //     // We can safely dispose this frame as it will not be reused.
-        //     this.framesQueue[lo].dispose();
-        // }
-
         this.frameIndex++;
         this.cnnBatchQueue.push(cnnInput);
 
-        if (!(this.cnnBatchQueue.length >= this.cnnBatchSize || (this.closed && this.frameIndex === this.framesQueue.length))) {
+        const batchFilled = this.cnnBatchQueue.length >= this.cnnBatchSize;
+        if (!batchFilled && (!this.closed || framesToTheRight >= this.cnnBatchSize)) {
+            // console.debug("Exiting processing - not enough windows to form a batch but more are on their way");
+            return;
+        }
+        if (this.closed && this.frameIndex === this.framesQueue.length) {
+            console.debug("Exiting processing - all windows already processed");
+            if(!this.hasFinished) {
+                this.finish();
+                this.cleanup();
+            }
             return;
         }
 
         let cnnBatchArray = this.cnnBatchQueue.splice(0, this.cnnBatchSize);
+        console.debug("Spliced a batch for the CNN");
 
         const denoised = tf.tidy(() => {
 
@@ -224,11 +262,6 @@ class FeatureExtractor {
             centreFrame.dispose();
             prediction.dispose();
 
-            if (FFConfig.debug) {
-                tf.keep(denoised);
-                this.debugDenoised.push(denoised);
-            }
-
             //  TODO use this once it's been written in TF-JS...
             //      https://js.tensorflow.org/api/latest/#topk
             // const {midiEnergies, midiNotes} = tf.topk(denoised, 1);
@@ -236,16 +269,13 @@ class FeatureExtractor {
         });
 
         let denoisedData = await denoised.data();
+        denoised.dispose();
 
-        if (!FFConfig.debug) {
-            denoised.dispose();
-        }
-
-        // for(let i = 0; i < midiEnergyData.length; i++) {
-        // Recall the frequency is descending with index, so
-        //  argmax indices in the reverse order. We want low values
-        //  to correspond to low notes, for the decoder.
-        // midiNoteData[i] = FFConfig.MIDI_NUM - midiNoteData[i] - 1;
+        // View CNN output
+        // if (FFConfig.debug) {
+        //     for (let i = 0; i < denoisedData.length; i += FFConfig.MIDI_NUM) {
+        //         this.debugDenoised.push(denoisedData.slice(i, i + FFConfig.MIDI_NUM));
+        //     }
         // }
 
         // Sparsify the data at each frame
@@ -262,6 +292,10 @@ class FeatureExtractor {
 
     async getDenoisedFramesSparse() {
         return this.denoisedFramesSparse;
+    }
+
+    async getDenoisedFrames() {
+        return this.debugDenoised;
     }
 }
 
