@@ -1,7 +1,7 @@
-import FeatureDecoder from "@/services/folkfriend/ff-feature-decoder";
-import ABCConverter from "@/services/folkfriend/ff-abc";
-import featureExtractor from "@/services/folkfriend/ff-feature-extractor.worker";
-import contourBeamSearch from "@/services/folkfriend/ff-beam-search";
+import FeatureDecoder from "@/folkfriend/ff-feature-decoder";
+import ABCConverter from "@/folkfriend/ff-abc";
+import featureExtractor from "@/folkfriend/ff-feature-extractor.worker";
+import contourBeamSearch from "@/folkfriend/ff-beam-search";
 
 class Transcriber {
     constructor() {

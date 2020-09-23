@@ -34,19 +34,25 @@ const TRANSITION_LIKELIHOODS = {
 const BEAM_MIN_EVENT_LENGTH = 5;
 
 // Async purely because it's been workerfied by comlink
-export default function contourBeamSearch(sparse_frames, max_beams = 5) {
+class SpectrogramBeamSearcher {
+    constructor() {
+        
+    }
+}
+
+function contourBeamSearch(sparseFrames, maxBeams = 5) {
 
     // Initialise our beams with one on each of the first 10 midis
     //   that are encountered in sparse_frames
-    const initial_midis = new Set();
+    const initialMidis = new Set();
 
     // Lol WTF who knew you could label for loops in native JS.
     //  https://stackoverflow.com/questions/183161/whats-the-best-way-to-break-from-nested-loops-in-javascript
     //  Not me that's for sure.
-    outerLoop: for (const sf of sparse_frames) {
+    outerLoop: for (const sf of sparseFrames) {
         for (const midi of Object.keys(sf)) {
-            initial_midis.add(parseInt(midi));
-            if (initial_midis.length >= max_beams) {
+            initialMidis.add(parseInt(midi));
+            if (initialMidis.length >= maxBeams) {
                 break outerLoop;
             }
         }
@@ -55,24 +61,24 @@ export default function contourBeamSearch(sparse_frames, max_beams = 5) {
     const initial_beam = new Beam();
 
     let beams = [];
-    for (const midi of initial_midis) {
+    for (const midi of initialMidis) {
         // Some of the first 10 midis must have appeared in the first frame
         //  but many may have not. This is actually pretty important - we
         //  don't want to constrain the contour to always start on the first
         //  non-zero bin as there's a very good chance it's wrong - we have no
         //  information at this point.
-        const energy = sparse_frames[0][midi] || 0;
+        const energy = sparseFrames[0][midi] || 0;
         const candidate = initial_beam.test_candidate(midi, energy);
         beams.push(new Beam().apply_candidate(candidate));
     }
 
-    for (const sf of sparse_frames.slice(1)) {
+    for (const sf of sparseFrames.slice(1)) {
 
         let candidates = [];
 
-        for (const [next_midi, next_energy] of Object.entries(sf)) {
+        for (const [nextMidi, nextEnergy] of Object.entries(sf)) {
             for (const beam of beams) {
-                const candidate = beam.test_candidate(parseInt(next_midi), next_energy);
+                const candidate = beam.test_candidate(parseInt(nextMidi), nextEnergy);
                 if (candidate !== false) {
                     candidates.push([beam, candidate]);
                 }
@@ -93,6 +99,7 @@ export default function contourBeamSearch(sparse_frames, max_beams = 5) {
             }
         }
 
+        // BC = beam candidate
         // Remove redundant beams candidates, and keep N best beam candidates.
         //   Sort by score <desc>
         //   Any beam candidate A scored below any other beam candidate B, such
@@ -101,26 +108,26 @@ export default function contourBeamSearch(sparse_frames, max_beams = 5) {
         //   paths possibly traversed by B but is on a lower score, so can
         //   never be better than A.
         candidates = candidates.sort((a, b) => a[1].score < b[1].score ? 1 : -1);
-        let original_num_candidates = candidates.length;
-        let non_redundant_bcs = 0;
-        let redundant_bc_indices = [];
-        let observed_midis = {};
+        let originalNumCandidates = candidates.length;
+        let nonRedundantBCs = 0;
+        let redundantBCIndices = [];
+        let observedMidis = {};
 
-        for (const i of Array(original_num_candidates).keys()) {
-            if (non_redundant_bcs > max_beams) {
+        for (const i of Array(originalNumCandidates).keys()) {
+            if (nonRedundantBCs > maxBeams) {
                 break;
             }
 
             const cand = candidates[i][1];
 
-            if (!Object.prototype.hasOwnProperty.call(observed_midis, cand.next_midi)) {
-                observed_midis[
+            if (!Object.prototype.hasOwnProperty.call(observedMidis, cand.next_midi)) {
+                observedMidis[
                     cand.next_midi
                     ] = cand.new_frames_since_last_change;
-                non_redundant_bcs += 1;
+                nonRedundantBCs += 1;
             } else {
                 // fslc = frames since last change
-                const previous_high_fslc = observed_midis[cand.next_midi];
+                const previous_high_fslc = observedMidis[cand.next_midi];
 
                 const this_cand_fslc = cand.new_frames_since_last_change;
 
@@ -132,25 +139,25 @@ export default function contourBeamSearch(sparse_frames, max_beams = 5) {
                 //   making it increasingly unlikely that low scoring beam
                 //   candidates are non-redundant on this note.
                 if (this_cand_fslc <= previous_high_fslc) {
-                    redundant_bc_indices.push(i);
+                    redundantBCIndices.push(i);
                 } else {
                     // Upgrade the FSLC to an even higher value for this midi
-                    observed_midis[
+                    observedMidis[
                         cand.next_midi
                         ] = cand.new_frames_since_last_change;
-                    non_redundant_bcs += 1;
+                    nonRedundantBCs += 1;
                 }
             }
         }
 
         // Now remove the beam candidates determined to be redundant.
         //   Reversing is important or we break the index values!
-        for (const redundant_bc_index of redundant_bc_indices.reverse()) {
+        for (const redundant_bc_index of redundantBCIndices.reverse()) {
             candidates.splice(redundant_bc_index);
         }
 
         // There may yet be many beams left, so only choose the top N.
-        candidates = candidates.slice(0, max_beams);
+        candidates = candidates.slice(0, maxBeams);
 
         // Finally apply save the surviving candidates as beams to use for the
         //   next frame.
@@ -177,7 +184,7 @@ export default function contourBeamSearch(sparse_frames, max_beams = 5) {
     const contourEnergies = [];
     for (const [i, m] of contourMidis.entries()) {
         // Zero energy bins may well be on the optimal path
-        contourEnergies.push(sparse_frames[i][m] || 0);
+        contourEnergies.push(sparseFrames[i][m] || 0);
     }
 
     return {
@@ -186,12 +193,42 @@ export default function contourBeamSearch(sparse_frames, max_beams = 5) {
     };
 }
 
-function score_transition_likelihood(m1, m2) {
+function scoreTransitionLikelihood(m1, m2) {
     // Transition from m1 to m2.
     const d = String(m2 - m1);
 
     //  Anything more than an octave assigned score -10
     return TRANSITION_LIKELIHOODS[d] || -10;
+}
+
+function topK(inp, count, flip = true) {
+    if (flip) {
+        // Remember that previously as we increased the index the
+        //  frequency descended. But now we want index 0 to correspond
+        //  to the lowest midi note.
+        inp = inp.reverse();
+    }
+
+    let indices = [];
+    for (let i = 0; i < inp.length; i++) {
+        indices.push(i); // add index to output array
+        if (indices.length > count) {
+            indices.sort(function (a, b) {
+                return inp[b] - inp[a];
+            }); // descending sort the output array
+            indices.pop(); // remove the last index (index of smallest element in output array)
+        }
+    }
+    let sparse = {};
+    sparse[indices[0]] = inp[indices[0]];
+    for (let i = 1; i < count; i++) {
+        // Make sure any value we add is at least 5% of the maximum.
+        //  Otherwise we deem it to be meaningless.
+        if (inp[indices[i]] >= 0.1 * sparse[indices[0]]) {
+            sparse[indices[i]] = inp[indices[i]];
+        }
+    }
+    return sparse;
 }
 
 class BeamCandidate {
@@ -218,7 +255,7 @@ class BeamCandidate {
         let avg_transition_prob;
         if (this.new_num_changes === 0) {
             // Treat one note as a one tone up transition (ie the most likely)
-            avg_transition_prob = score_transition_likelihood(0, 2);
+            avg_transition_prob = scoreTransitionLikelihood(0, 2);
         } else {
             avg_transition_prob = this.new_cum_transition_prob / this.new_num_changes;
         }
@@ -266,7 +303,7 @@ class Beam {
 
         if (has_changed) {
             new_num_changes += 1;
-            new_cum_transition_prob += score_transition_likelihood(
+            new_cum_transition_prob += scoreTransitionLikelihood(
                 this.previous_midi, next_midi
             );
         }

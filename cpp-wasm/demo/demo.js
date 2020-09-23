@@ -1,29 +1,25 @@
-const FFConfig = {
-    "SAMPLE_RATE": 48000,
-    "AUDIO_QUERY_SECS": 8,
-    "SPEC_WINDOW_SIZE": 1024,
-    "MIDI_HIGH": 95,
-    "MIDI_LOW": 48,
-    "MIDI_NUM": 48,
-    "SPEC_BINS_PER_MIDI": 3,
-    "SPEC_NUM_BINS": 144,
-    "SPEC_NUM_FRAMES": 375,
-    "CONTEXT_FRAMES": 10
-};
-
-let dsp;
+// noinspection JSFileReferences
+import FFConfig from "./ff-config.js";
+// noinspection JSFileReferences
+import featureExtractor from "./ff-cnn.js";
+// noinspection JSFileReferences
+import dsp from "./ff-dsp.js";
 
 function main() {
-    dsp = new DSP()
     dsp.initialise().then();
+    featureExtractor.initialise().then();
+
     document.getElementById("begin").onclick = () => {
         demo().then();
     };
 }
 
 async function demo() {
-    const timeDomainDataQueue = await urlToTimeDomainData('audio/fiddle.wav');
+    const timeDomainDataQueue = await urlToTimeDomainData('fiddle.wav');
     await dsp.ready;
+
+    await featureExtractor.ready;
+    await featureExtractor.flush();
 
     let processedFrames = [];
 
@@ -33,8 +29,17 @@ async function demo() {
         processedFrames.push(frame);
     }
     console.timeEnd('ff-dsp');
-
     renderDebugImage(processedFrames);
+
+    console.time('ff-cnn');
+    for(let [i, frame] of processedFrames.entries()) {
+        await featureExtractor.feed(frame, i);
+    }
+    await featureExtractor.advance();
+    const features = await featureExtractor.gather();
+
+    console.timeEnd('ff-cnn');
+    renderDebugImage(features);
 
 }
 

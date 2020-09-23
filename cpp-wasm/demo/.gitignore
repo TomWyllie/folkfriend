@@ -1,2 +1,7 @@
+ff-config.js
+ff-cnn.js
+ff-dsp.js
 ff-wasm.js
 ff-wasm.wasm
+fiddle.wav
+model/*

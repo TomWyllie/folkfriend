@@ -15,8 +15,8 @@ setWasmPath('http://localhost:8080/tf/tfjs-backend-wasm.wasm');
 // Set the backend to WASM and wait for the module to be ready.
 const backendSet = tf.setBackend('wasm');
 
-import FFConfig from "@/services/folkfriend/ff-config";
-import audioDSP from "@/services/folkfriend/ff-dsp";
+import FFConfig from "@/folkfriend/ff-config";
+import audioDSP from "@/folkfriend/ff-dsp";
 
 class FeatureExtractor {
     constructor() {
@@ -297,36 +297,6 @@ class FeatureExtractor {
     async getDenoisedFrames() {
         return this.debugDenoised;
     }
-}
-
-function topK(inp, count, flip = true) {
-    if (flip) {
-        // Remember that previously as we increased the index the
-        //  frequency descended. But now we want index 0 to correspond
-        //  to the lowest midi note.
-        inp = inp.reverse();
-    }
-
-    let indices = [];
-    for (let i = 0; i < inp.length; i++) {
-        indices.push(i); // add index to output array
-        if (indices.length > count) {
-            indices.sort(function (a, b) {
-                return inp[b] - inp[a];
-            }); // descending sort the output array
-            indices.pop(); // remove the last index (index of smallest element in output array)
-        }
-    }
-    let sparse = {};
-    sparse[indices[0]] = inp[indices[0]];
-    for (let i = 1; i < count; i++) {
-        // Make sure any value we add is at least 5% of the maximum.
-        //  Otherwise we deem it to be meaningless.
-        if (inp[indices[i]] >= 0.1 * sparse[indices[0]]) {
-            sparse[indices[i]] = inp[indices[i]];
-        }
-    }
-    return sparse;
 }
 
 // We only want one instance of this, otherwise we have to keep reloading the

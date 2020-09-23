@@ -18,8 +18,8 @@
 *       https://stackoverflow.com/questions/28134330/can-i-render-to-an-offline-context-in-a-web-worker
 * */
 
-import FFConfig from "@/services/folkfriend/ff-config";
-import transcriber from "@/services/folkfriend/ff-transcriber";
+import FFConfig from "@/folkfriend/ff-config";
+import transcriber from "@/folkfriend/ff-transcriber";
 
 const AUDIO_CONSTRAINTS = {
     audio: {

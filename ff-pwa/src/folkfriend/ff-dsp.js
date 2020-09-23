@@ -1,7 +1,8 @@
 // If in a module, otherwise include js file globally with <script>
-// import loadDSPWasmModule from "../wasm/em";
-
 let DSPModule;
+
+import FFConfig from './ff-config.js';
+
 
 class DSP {
     constructor() {
@@ -238,3 +239,6 @@ function binToMidi(autocorrIndex, sampleRate) {
     const base = 2 ** (1. / 12.);
     return 69 + Math.log(arr) / Math.log(base);
 }
+
+const dsp = new DSP();
+export default dsp;

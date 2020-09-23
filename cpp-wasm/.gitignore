@@ -1,5 +1,2 @@
-wasm-dependencies-folkfriend/*
-*.h5
-folkfriend-cnn.json
 build/*
 *build*/*

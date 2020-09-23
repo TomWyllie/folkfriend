@@ -8,3 +8,4 @@
 *.png binary
 *.gz binary
 *.bin binary
+*.wasm binary

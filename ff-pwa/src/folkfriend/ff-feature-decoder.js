@@ -1,7 +1,7 @@
 // This is used on a worker thread, but is not a worker itself, because it is
 //  always imported by the transcriber, which runs in a worker thread.
 
-import FFConfig from "@/services/folkfriend/ff-config";
+import FFConfig from "@/folkfriend/ff-config";
 
 export default class FeatureDecoder {
     constructor() {

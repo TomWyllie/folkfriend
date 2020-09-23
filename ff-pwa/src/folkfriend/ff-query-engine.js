@@ -12,7 +12,7 @@
 
 const QUERY_SHARD_SIZE = 64;
 
-import FFConfig from "@/services/folkfriend/ff-config";
+import FFConfig from "@/folkfriend/ff-config";
 import ds from "@/services/database.worker";
 import nextFrame from 'next-frame';
 

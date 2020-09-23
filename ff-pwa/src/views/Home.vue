@@ -33,10 +33,10 @@
 // @ is an alias to /src
 import HelloWorld from "@/components/HelloWorld.vue";
 
-import FFConfig from "@/services/folkfriend/ff-config";
-import audioService from "@/services/folkfriend/ff-audio";
-import transcriber from "@/services/folkfriend/ff-transcriber";
-import queryEngine from "@/services/folkfriend/ff-query-engine";
+import FFConfig from "@/folkfriend/ff-config";
+import audioService from "@/folkfriend/ff-audio";
+import transcriber from "@/folkfriend/ff-transcriber";
+import queryEngine from "@/folkfriend/ff-query-engine";
 import ds from "../services/database.worker";
 
 export default {
