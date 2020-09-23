@@ -11,13 +11,19 @@ import matplotlib.pyplot as plt
 
 
 def compute_ac_spectrogram(signal, window_size=ff_config.SPEC_WINDOW_SIZE):
+    # WebAudio in JS seems to be adding a first quantum of zeros so for
+    #   comparison between JS and Python adding in 128 samples
+    #   is useful, so the frames are aligned (debugging).
+    signal = np.concatenate((np.zeros(128), signal))
+    signal /= 32768
+
     # 1024 / 48000 = 21.33 ms
     num_frames = signal.size // window_size
 
     signal_windowed = np.reshape(
         signal[:window_size * num_frames], (num_frames, window_size))
 
-    signal = (signal_windowed * np.blackman(window_size))
+    signal = (signal_windowed * np.hanning(window_size))
 
     # Cube root of power spectrum
     spectra = np.fft.fft(signal)
@@ -26,7 +32,15 @@ def compute_ac_spectrogram(signal, window_size=ff_config.SPEC_WINDOW_SIZE):
     #   as the best value for magnitude compression in
     #   https://labrosa.ee.columbia.edu/~dpwe/papers/ToloK2000-mupitch.pdf
     # TODO we are now actually using (1/2)*(1/3) = (1/6)
-    spectrogram = np.cbrt(np.abs(spectra))
+    # spectrogram = np.cbrt(np.abs(spectra))
+    spectrogram = np.abs(spectra)
+
+    print('\n'.join(map(str, spectrogram[1])))
+    exit(0)
+
+    # print(','.join(map(str, spectrogram[0])))
+    # plt.plot(spectrogram[0])
+    # plt.show()
 
     # Forwards FFT is equivalent to IFFT here so either can be used.
     #   This was useful when running our own implementation of FFT
