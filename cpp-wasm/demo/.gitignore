@@ -4,4 +4,4 @@ ff-dsp.js
 ff-wasm.js
 ff-wasm.wasm
 fiddle.wav
-model/*
+tf/model/*

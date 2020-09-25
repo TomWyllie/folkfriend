@@ -35,6 +35,6 @@ cp -v ../ff-pwa/src/folkfriend/ff-cnn.js demo/
 cp -v ../ff-pwa/src/folkfriend/ff-config.js demo/
 cp -v ../ff-pwa/src/folkfriend/ff-dsp.js demo/
 cp -v ../ff-pwa/public/audio/fiddle.wav demo/
-mkdir -p demo/model/
-rm demo/model/*
-cp -vr ../ff-pwa/public/model/* demo/model/
+mkdir -p demo/tf/model/
+rm -f demo/tf/model/*
+cp -vr ../ff-pwa/public/tf/model/* demo/tf/model/

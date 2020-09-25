@@ -15,7 +15,12 @@ def assemble_model():
     model.add(Conv2D(4, kernel_size=3, activation='relu', padding='same'))
     model.add(MaxPooling2D(pool_size=(1, ff_config.SPEC_BINS_PER_MIDI), strides=(1, ff_config.SPEC_BINS_PER_MIDI)))
     model.add(Conv2D(8, kernel_size=3, activation='relu', padding='valid'))
+    model.add(MaxPooling2D(pool_size=(2, 1), strides=(2, 1)))
     model.add(Conv2D(8, kernel_size=3, activation='relu', padding='valid'))
+
+    # So the time feature for each note is a 3 wide (time) by 1 midi note wide (freq) strip,
+    #   for each of the 8 CNN filters.
+    #   We then just densely map these to the outputs for simplicity.
 
     model.add(Flatten())
     model.add(Dropout(0.10))

@@ -31,8 +31,6 @@ class CNNDenoiser:
         self.model = tf.keras.models.load_model(model_path)
 
     def denoise(self, spectrogram):
-        # X shape: (NUM_EXAMPLES, 16, 275)
-        # Y shape: (NUM_EXAMPLES, 275)
         input_mat = spec_to_cnn_input(spectrogram)
         prediction = self.model(input_mat, training=False)
 

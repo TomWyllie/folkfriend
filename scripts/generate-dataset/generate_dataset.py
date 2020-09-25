@@ -36,6 +36,10 @@ logging.basicConfig(level=logging.DEBUG,
 log = logging.getLogger(os.path.basename(__file__))
 
 
+# TODO generate melody lines individually and merge, and base the
+#   CNN mask on the loudest one, or pick the higher one if they're
+#   roughly equal.
+
 def generate(config_files):
     log.info(f'Beginning processing {len(config_files)} files')
     start_time = timeit.default_timer()
@@ -73,46 +77,33 @@ def create_entry_wrapper(config):
 
 
 def build_meta_files(config_files):
-    # RNN requires train.txt/val.txt in format <PATH> <LABEL>
-    #   as well as table.txt.
-    annotations = []
+    files_list = []
     for config in config_files:
         index = config['index']
+        png_in_path = png_dir.chunk_path(index, '{:d}a.png')
 
-        label_path = label_dir.chunk_path(index, '{:d}.txt')
-        png_path = png_dir.chunk_path(index, '{:d}d.png')
-
-        if not os.path.exists(png_path):
-            continue
-
-        try:
-            with open(label_path, 'r') as f:
-                label_text = f.read()
-        except FileNotFoundError:
+        if not os.path.exists(png_in_path):
             continue
 
         # Use local path
-        # TODO tidy this up a bit
-        dir_string_no_slash = args.dir
-        if args.dir.endswith('/'):
-            dir_string_no_slash = dir_string_no_slash[:-1]
-        annotations.append('{} {}\n'.format(png_path.replace(
-            dir_string_no_slash, '.'), label_text))
+        dir_path_with_slash = args.dir
+        if not args.dir.endswith('/'):
+            dir_path_with_slash += '/'
 
-    val_index = int(val_fraction * len(annotations))
+        png_in_path = png_in_path.replace(dir_path_with_slash, '')
+        png_out_path = png_in_path.replace('a.png', 'c.png')
 
+        files_list.append('{} {}'.format(png_in_path, png_out_path))
+
+    val_index = int(val_fraction * len(files_list))
     train = os.path.join(args.dir, 'train.txt')
     val = os.path.join(args.dir, 'val.txt')
-    table = os.path.join(args.dir, 'table.txt')
 
     with open(train, 'w') as f:
-        f.writelines(annotations[:-val_index])
+        f.write('\n'.join(files_list[:-val_index]))
 
     with open(val, 'w') as f:
-        f.writelines(annotations[-val_index:])
-
-    with open(table, 'w') as f:
-        f.write('\n'.join(ff_config.MIDI_MAP_))
+        f.write('\n'.join(files_list[-val_index:]))
 
 
 if __name__ == '__main__':
@@ -150,10 +141,9 @@ if __name__ == '__main__':
     midi_dir = DatasetSubDir('midis', purge=True)
     audio_dir = DatasetSubDir('audio', purge=True)
     png_dir = DatasetSubDir('pngs', purge=True)
-    label_dir = DatasetSubDir('labels', purge=True)
 
     Dirs = collections.namedtuple('dirs', field_names=[
-        'abc_dir', 'midi_dir', 'audio_dir', 'png_dir', 'label_dir'])
-    dirs = Dirs(abc_dir, midi_dir, audio_dir, png_dir, label_dir)
+        'abc_dir', 'midi_dir', 'audio_dir', 'png_dir'])
+    dirs = Dirs(abc_dir, midi_dir, audio_dir, png_dir)
 
     generate(configs)

@@ -1,8 +1,8 @@
 // If in a module, otherwise include js file globally with <script>
-let DSPModule;
-
+import loadDSPWasmModule from './ff-wasm.js';
 import FFConfig from './ff-config.js';
 
+let DSPModule;
 
 class DSP {
     constructor() {
@@ -19,6 +19,7 @@ class DSP {
 
     async initialise() {
         DSPModule = await loadDSPWasmModule();
+        // eslint-disable-next-line no-undef
         this.api = {
             processFrame: DSPModule.cwrap(
                 "processFreqData", null, ["number"]),

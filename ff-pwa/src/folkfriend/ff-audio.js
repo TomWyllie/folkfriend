@@ -1,18 +1,16 @@
 /*
-*   This is the only proper FolkFriend code we run on the main thread.
+*   This is the only proper transcription code we run on the main thread.
 *       This is the seam between the frontend app and backend. All we
-*       are concerned with is getting the raw audio data out of the
+*       are concerned with is getting the raw audio samples out of the
 *       WebAudio API and getting into the worker for further processing,
 *       feature extraction and decoding. All that the main thread needs
 *       to get back from all these raw audio data is the transcribed midis
-*       values. Remember that because we use do of the two FFTs using
-*       the web audio API the 'raw audio data' is actually the output
-*       of AnalyserNode.getFloatFrequencyData() and not the raw samples.
+*       values.
 *
 *   Note that for offline mode it might seem a bad idea to be decoding
-*       potentially compressed audio (eg MP3) and performing the first FFT,
-*       all on the main thread, but actually if we're using an
-*       OfflineAudioContext it happens in another thread anyway.
+*       potentially compressed audio (eg MP3) on the main thread, but
+*       actually if we're using an OfflineAudioContext it happens in
+*       another thread anyway.
 *
 *   See
 *       https://stackoverflow.com/questions/28134330/can-i-render-to-an-offline-context-in-a-web-worker
@@ -42,7 +40,7 @@ class AudioService {
     }
 
 
-    async urlToFreqData(url) {
+    async urlToTimeDomainData(url) {
         // Get duration of audio file
         const audio = new Audio();
         audio.src = url;
@@ -55,7 +53,7 @@ class AudioService {
         // Create WebAudio objects
         const audioContext = new OfflineAudioContext(1, offlineNumSamples, FFConfig.SAMPLE_RATE);
         const source = audioContext.createBufferSource();
-        const analyser = new AnalyserNode(audioContext, {fftSize: FFConfig.SPEC_WINDOW_SIZE, smoothingTimeConstant: 0});
+        const analyser = new AnalyserNode(audioContext);
         const processor = audioContext.createScriptProcessor(FFConfig.SPEC_WINDOW_SIZE, 1, 1);
 
         // Load data into source
@@ -75,20 +73,20 @@ class AudioService {
         // Connect things up
         source.connect(analyser);
         processor.connect(audioContext.destination);
-        const frequencyData = new Float32Array(analyser.frequencyBinCount);
-        const freqDataQueue = [];
+        const timeDomainData = new Float32Array(FFConfig.SPEC_WINDOW_SIZE);
+        const timeDomainDataQueue = [];
 
         // noinspection JSDeprecatedSymbols
         processor.onaudioprocess = () => {
-            analyser.getFloatFrequencyData(frequencyData);
-            freqDataQueue.push(frequencyData.slice(0));
+            analyser.getFloatTimeDomainData(timeDomainData);
+            timeDomainDataQueue.push(timeDomainData.slice(0));
         };
 
         source.start(0);
 
         await audioContext.startRendering();
 
-        return freqDataQueue;
+        return timeDomainDataQueue;
     }
 
     async startRecording() {
@@ -127,8 +125,7 @@ class AudioService {
         // Connect things up
         this.micSource.connect(this.micAnalyser);
 
-        // this.frequencyData = new Float32Array(this.micAnalyser.frequencyBinCount);
-        this.frequencyData = new Float32Array(FFConfig.SPEC_WINDOW_SIZE);
+        this.timeDomainData = new Float32Array(FFConfig.SPEC_WINDOW_SIZE);
         // noinspection JSDeprecatedSymbols
 
         this.micSampler = setInterval(() => {
@@ -137,9 +134,8 @@ class AudioService {
             if (!this.micAnalyser) {
                 return;
             }
-            this.micAnalyser.getFloatTimeDomainData(this.frequencyData);
-            // this.debug.push(frequencyData.slice());
-            transcriber.feedFreqData(this.frequencyData.slice(0, 512));
+            this.micAnalyser.getFloatTimeDomainData(this.timeDomainData);
+            transcriber.feed(this.timeDomainData.slice(0));
         }, this.micSamplerInterval)
     }
 

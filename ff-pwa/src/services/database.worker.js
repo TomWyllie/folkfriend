@@ -5,6 +5,15 @@ class DatabaseService {
     MAX_NUD_AGE = 0;   // 0 = always use latest version
 
     constructor() {
+        this.db = null;
+        this.networkProgress = {};
+
+        this.ready = new Promise((resolve) => {
+            this.setReady = resolve;
+        });
+    }
+
+    async initialise() {
         console.debug(`${this.constructor.name} init`);
 
         let db = new Dexie('folkfriend');
@@ -28,25 +37,46 @@ class DatabaseService {
         });
 
         this.db = db;
-        this.networkProgress = {};
 
-        // We use a promise to track whether or not some data was detected,
-        //  so that the user only has to wait for the shards data to download
-        //  if none is detected already.
-        this.hasData = new Promise((resolve) => {
-            this.confirmHasData = () => {
-                console.debug('Confirmed query engine data exists');
-                resolve();
-            };
-        });
+        let NUDVersionLocal = await this.getNUDVersionLocal();
 
-        this.checkForUpdates().then(hasUpdated => {
-            console.debug(`Non-user data has ${hasUpdated === true ? '' : 'not '}updated`);
-        });
+        if (NUDVersionLocal === null) {
+            // We need to update the database to get some data.
+            console.debug('NUData has not been loaded, attempting to update');
+            try {
+                // Block this function from resolving until we have updated
+                await this.checkForUpdates(NUDVersionLocal);
+                console.debug('NUData installed for first time')
+            } catch (e) {
+                // This is a very bad state to be in.
+                //  No tune database was found and we failed to install one.
+                //  This is not a fatal error but needs a graceful fallback.
+                console.error(e);
+            }
+        } else {
+            // Here we do not block this function from resolving as we want
+            //  to get to initialising other parts of the app ASAP. We even
+            //  delay this update from happening for a few seconds as the
+            //  update can be quite intensive on network / CPU especially
+            //  if indexing / decoding downloaded data. If the user is on a
+            //  slow device we probably don't want this to conflict with
+            //  initialising the query engine so just update whenever is a
+            //  good time. 20 seconds from now is deemed to be a good time.
+            setTimeout(() => {
+                this.checkForUpdates(NUDVersionLocal).then((didUpdate) => {
+                    if(didUpdate) {
+                        console.debug('NUData has been updated to latest version');
+                    }
+                }).catch((e) => {
+                    console.warn(e);
+                    console.warn('NUData could not update');
+                })
+            }, 2000);   // Debug
+            // }, 20000);       // Production
+        }
     }
 
-    async checkForUpdates() {
-        let NUDVersionLocal = await this.getNUDVersionLocal();
+    async checkForUpdates(NUDVersionLocal) {
         let NUDMetaRemote = await this.getNUDMetaRemote();
         let NUDVersionRemote = NUDMetaRemote['v'];
         let NUDSize = NUDMetaRemote['size'];
@@ -54,45 +84,26 @@ class DatabaseService {
         console.debug('NUDVersionLocal', NUDVersionLocal);
         console.debug('NUDMetaRemote', NUDMetaRemote);
 
-        let canUpdate = NUDVersionRemote !== null && NUDVersionRemote !== NUDVersionLocal;
-
-        if (NUDVersionLocal !== null) {
-            this.confirmHasData();
-        }
-
         if (NUDVersionRemote === null) {
-            console.warn('Could not find NUDVersionRemote');
+            throw 'Could not find NUDVersionRemote';
         }
-        if (!canUpdate) {
-            return;
+
+        if (NUDVersionRemote === NUDVersionLocal) {
+            console.debug('Database already latest version');
+            return false;
         }
 
         let NUDExpired = this.daysSince2020() - NUDVersionLocal > this.MAX_NUD_AGE;
-
-        if (NUDVersionLocal === null) {
-            console.debug('NUData has not been loaded, attempting to update');
-            try {
-                await this.updateNonUserData(NUDVersionRemote, NUDSize);
-                this.confirmHasData();
-                return true;
-            } catch (e) {
-                // This is a very bad state to be in.
-                //  No tune database was found and we failed to install one.
-                //  This is not a critical error but needs a graceful fallback.
-                console.error(e);
-            }
-        } else if (NUDExpired) {
-            console.debug('NUData has expired, attempting to update');
-            try {
-                await this.updateNonUserData(NUDVersionRemote, NUDSize);
-                return true;
-            } catch (e) {
-                // This is a not so bad state to be in.
-                //  A tune database was found but we failed to upgrade.
-                //  This is only concerning if it keeps happening.
-                console.warn(e);
-            }
+        if (!NUDExpired) {
+            console.debug('Database could update but current version has not yet expired');
+            return false;
         }
+
+        // Okay we should actually update the data then
+        await this.updateNonUserData(NUDVersionRemote, NUDSize);
+
+        // We updated
+        return true;
     }
 
     async getNUDVersionLocal() {
@@ -172,7 +183,6 @@ class DatabaseService {
                 v: NUDVersionRemote
             });
         });
-        console.log('complete');
     }
 
     async fetchJSONWithProgress(requestLabel, url, size) {

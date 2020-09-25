@@ -29,11 +29,10 @@
 </template>
 
 <script>
+/* eslint-disable */
 
-// @ is an alias to /src
 import HelloWorld from "@/components/HelloWorld.vue";
 
-import FFConfig from "@/folkfriend/ff-config";
 import audioService from "@/folkfriend/ff-audio";
 import transcriber from "@/folkfriend/ff-transcriber";
 import queryEngine from "@/folkfriend/ff-query-engine";
@@ -52,52 +51,53 @@ export default {
     },
     methods: {
         demo: async function () {
-            const freqDataQueue = await audioService.urlToFreqData('audio/fiddle.wav');
-            const decoded = await transcriber.transcribeFreqData(freqDataQueue);
-
-            if (FFConfig.debug) {
-                const denoisedFrames = await transcriber.featureExtractor.getDenoisedFrames();
-                this.renderImageForDebug(denoisedFrames);
-            }
-
-            const result = await queryEngine.query(decoded.decoded);
-            console.debug(result);
-        },
-        startRecording: async function () {
-            await audioService.startRecording();
-        },
-        stopRecording: async function () {
-            console.debug('Stopping');
-            await audioService.stopRecording();
-            console.debug('stopped');
-
-            // this.renderImageForDebug(audioService.debug);
-            // return;
-
-            /* eslint-disable */
-            const decoded = await transcriber.decode();
-
-            if (FFConfig.debug) {
-                const denoisedFrames = await transcriber.featureExtractor.getDenoisedFrames();
-                this.renderImageForDebug(denoisedFrames);
-            }
-
+            const timeDomainDataQueue = await audioService.urlToTimeDomainData('audio/fiddle.wav');
+            const decoded = await transcriber.transcribeTimeDomainData(timeDomainDataQueue);
             console.debug(decoded);
-
-            if (!decoded) {
-                console.debug('No notes detected');
-                return;
-            }
-
-
-            const result = await queryEngine.query(decoded.decoded);
+            
+            const result = await queryEngine.query(decoded.midis);
             console.debug(result);
 
             let tunes = await ds.tunesFromQueryResults(result);
             console.debug(tunes);
-
-            this.$data.tunesTable = tunes.slice(0, 10);
         },
+
+        startRecording: async function () {
+        //     await audioService.startRecording();
+        },
+        stopRecording: async function () {
+        //     console.debug('Stopping');
+        //     await audioService.stopRecording();
+        //     console.debug('stopped');
+        //
+        //     // this.renderImageForDebug(audioService.debug);
+        //     // return;
+        //
+        //     /* eslint-disable */
+        //     const decoded = await transcriber.decode();
+        //
+        //     if (FFConfig.debug) {
+        //         const denoisedFrames = await transcriber.featureExtractor.getDenoisedFrames();
+        //         this.renderImageForDebug(denoisedFrames);
+        //     }
+        //
+        //     console.debug(decoded);
+        //
+        //     if (!decoded) {
+        //         console.debug('No notes detected');
+        //         return;
+        //     }
+        //
+        //
+        //     const result = await queryEngine.query(decoded.decoded);
+        //     console.debug(result);
+        //
+        //     let tunes = await ds.tunesFromQueryResults(result);
+        //     console.debug(tunes);
+        //
+        //     this.$data.tunesTable = tunes.slice(0, 10);
+        },
+
         renderImageForDebug: function (typedArrays) {
             console.debug(typedArrays);
 

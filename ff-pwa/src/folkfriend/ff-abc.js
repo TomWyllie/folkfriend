@@ -1,6 +1,6 @@
 import FFConfig from "./ff-config";
 
-export default class ABCConverter {
+class ABCConverter {
     constructor() {
         this.baseMap = {
             72: 'c',
@@ -73,3 +73,6 @@ export default class ABCConverter {
         return abcMap;
     }
 }
+
+const abcConverter = new ABCConverter();
+export default abcConverter;

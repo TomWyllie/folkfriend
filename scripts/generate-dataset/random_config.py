@@ -41,7 +41,7 @@ def generate_random_config(ds_dir, num):
     # Relative probabilities of sampling different instruments for melody
     melody_probs = {
         0: 1.,
-        1: 6.,
+        1: 8.,
         2: 4.,
         3: 3.,
         4: 3.,  # Recorder ~= Whistle (no good tin whistle sound-font)
@@ -150,4 +150,4 @@ def get_random_tempo():
     if random.random() > 0.80:
         return random.choice(range(50, 100))
     else:
-        return random.choice(range(100, 230))
+        return random.choice(range(100, 280))

@@ -33,10 +33,24 @@ const TRANSITION_LIKELIHOODS = {
 };
 const BEAM_MIN_EVENT_LENGTH = 5;
 
-// Async purely because it's been workerfied by comlink
-class SpectrogramBeamSearcher {
+class ContourExtractor {
     constructor() {
-        
+
+    }
+
+    // Async purely because it's been workerfied by comlink
+    async contourFromFeatures(typedArrays) {
+
+        const sparseFeatureFrames = [];
+        for(const featureFrame of typedArrays) {
+            // Reverse is in place
+            featureFrame.reverse();
+            sparseFeatureFrames.push(topK(featureFrame, 4));
+            featureFrame.reverse();
+        }
+
+        return contourBeamSearch(sparseFeatureFrames);
+
     }
 }
 
@@ -131,8 +145,8 @@ function contourBeamSearch(sparseFrames, maxBeams = 5) {
 
                 const this_cand_fslc = cand.new_frames_since_last_change;
 
-                // If this condition is true, then this candidate has
-                //   more restrictions than a previous one on the same note
+                // If this condition is true, then this candidate has equal
+                //   or more restrictions then a previous one on the same note
                 //   and has a lower score, so it's redundant. If it's not,
                 //   then we save this_cand_fslc as an even higher bound for
                 //   any other candidate also coming to this note to beat,
@@ -201,14 +215,7 @@ function scoreTransitionLikelihood(m1, m2) {
     return TRANSITION_LIKELIHOODS[d] || -10;
 }
 
-function topK(inp, count, flip = true) {
-    if (flip) {
-        // Remember that previously as we increased the index the
-        //  frequency descended. But now we want index 0 to correspond
-        //  to the lowest midi note.
-        inp = inp.reverse();
-    }
-
+function topK(inp, count=4) {
     let indices = [];
     for (let i = 0; i < inp.length; i++) {
         indices.push(i); // add index to output array
@@ -331,3 +338,6 @@ class Beam {
         return this;
     }
 }
+
+const contourExtractor = new ContourExtractor();
+export default contourExtractor;

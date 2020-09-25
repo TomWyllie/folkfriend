@@ -18,7 +18,9 @@ import nextFrame from 'next-frame';
 
 class QueryEngine {
     constructor() {
-        this.ready = this.initialise();
+        this.ready = new Promise((resolve) => {
+            this.setReady = resolve;
+        });
     }
 
     execute() {
@@ -109,7 +111,6 @@ class QueryEngineGPU extends QueryEngine {
         await nextFrame();
         await this.loadShaders;
         await nextFrame();
-        console.time("gpu-query-engine-init");
 
         this.canvas = document.createElement('canvas');
         this.canvas.width = this.shardData[0].width;
@@ -169,7 +170,7 @@ class QueryEngineGPU extends QueryEngine {
         await nextFrame();
         this.partitionTextureObjects = await this.setupPartitionTextures();
 
-        console.timeEnd("gpu-query-engine-init");
+        this.setReady();
     }
 
     async execute(query) {
@@ -844,5 +845,5 @@ class QueryEngineCPU extends QueryEngine {
     }
 }
 
-const queryEngineGPU = new QueryEngineGPU();
-export default queryEngineGPU;
+const queryEngine = new QueryEngineGPU();
+export default queryEngine;

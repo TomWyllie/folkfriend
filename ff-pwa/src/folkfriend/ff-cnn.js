@@ -1,3 +1,10 @@
+// Basic import tensorflow, including WASM backend
+const tf = require('@tensorflow/tfjs');
+import '@tensorflow/tfjs-backend-wasm';
+import {setWasmPath} from '@tensorflow/tfjs-backend-wasm';
+setWasmPath('/tf/tfjs-backend-wasm.wasm');
+// If running in cpp-wasm/demo comment out the above lines as imports are done by index.html
+
 import FFConfig from './ff-config.js';
 
 class FeatureExtractor {
@@ -19,7 +26,7 @@ class FeatureExtractor {
         //  2500 - 4000 ms.
         await tf.setBackend('wasm', true);
         await tf.ready();
-        this.model = await tf.loadLayersModel(`model/model.json`);
+        this.model = await tf.loadLayersModel('tf/model/model.json');
         this.setReady();
     }
 

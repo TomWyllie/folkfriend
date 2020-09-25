@@ -3,7 +3,7 @@
 
 import FFConfig from "@/folkfriend/ff-config";
 
-export default class FeatureDecoder {
+class ContourDecoder {
     constructor() {
         let lowBPM = 50;
         let highBPM = 300;
@@ -35,8 +35,14 @@ export default class FeatureDecoder {
             );
         }
 
-        return candidateDecodes.reduce(
+        const bestCandidateDecode = candidateDecodes.reduce(
             (a, b) => a.score > b.score ? a : b);
+
+        // Send back the result as a slightly more formal object
+        return new DecodedAudio(
+            bestCandidateDecode.decoded,
+            bestCandidateDecode.tempo
+        );
     }
 
     normaliseEventsByTempo(events, tempo) {
@@ -174,3 +180,14 @@ export default class FeatureDecoder {
         return framesPS / quaversPS;  // Frames per quaver
     }
 }
+
+class DecodedAudio {
+    // Simple wrapper for relevant variables at the end of a transcription
+    constructor(decodedOutput, tempo) {
+        this.midis = decodedOutput;
+        this.tempo = tempo;
+    }
+}
+
+const contourDecoder = new ContourDecoder();
+export default contourDecoder;

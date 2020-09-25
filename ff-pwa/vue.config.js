@@ -20,27 +20,26 @@ module.exports = {
         config.plugins.push(
             new CopyPlugin({
                 patterns: [
-                    // Worker needs to see this, because it has em.js inside.
-                    {from: 'src/services/wasm/em.wasm', to: 'em.wasm'},
-                    {from: 'src/services/shaders/fragment.glsl', to: 'shaders/fragment.glsl'},
-                    {from: 'src/services/shaders/vertex.glsl', to: 'shaders/vertex.glsl'}
+                    {from: 'src/folkfriend/ff-wasm.wasm', to: 'js/ff-wasm.wasm'},
+                    {from: 'src/folkfriend/shaders/fragment.glsl', to: 'shaders/fragment.glsl'},
+                    {from: 'src/folkfriend/shaders/vertex.glsl', to: 'shaders/vertex.glsl'}
                 ],
             })
         );
 
         // https://github.com/tensorflow/tfjs/tree/master/tfjs-backend-wasm/starter/webpack
-        config.module.rules.unshift({
-                test: /\.wasm$/i,
-                type: 'javascript/auto',
-                loader: 'file-loader',
-                options: {
-                    publicPath: "dist/"
-                }
-            },
-        );
+        // config.module.rules.unshift({
+        //         test: /\.wasm$/i,
+        //         type: 'javascript/auto',
+        //         loader: 'file-loader',
+        //         options: {
+        //             publicPath: "dist/"
+        //         }
+        //     },
+        // );
 
-        config.node = {
-            fs: "empty"
-        };
+        // config.node = {
+        //     fs: "empty"
+        // };
     }
 };

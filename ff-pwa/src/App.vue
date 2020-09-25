@@ -12,9 +12,23 @@
 <script>
 
 import ds from './services/database.worker';
+import transcriber from "@/folkfriend/ff-transcriber";
+import queryEngine from "@/folkfriend/ff-query-engine";
 
-console.debug('from App.vue', ds);
+async function readyServices() {
+    // Order non-trivial here, we initialise things likely
+    //  to be needed sooner, first.
+    const start = Date.now();
+    await transcriber.initialise();
+    console.debug(`Transcriber ready in ${Date.now() - start} ms`);
+    await ds.initialise();
+    console.debug(`Database worker ready in ${Date.now() - start} ms`);
+    await queryEngine.initialise();
+    console.debug(`Query engine ready in ${Date.now() - start} ms`);
+    console.debug(`All services ready in ${Date.now() - start} ms`);
+}
 
+readyServices().then();
 export default {};
 
 </script>
