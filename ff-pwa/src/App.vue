@@ -12,7 +12,7 @@
 <script>
 
 import ds from './services/database.worker';
-import transcriber from "@/folkfriend/ff-transcriber";
+import transcriber from "@/folkfriend/ff-transcriber.worker";
 import queryEngine from "@/folkfriend/ff-query-engine";
 
 async function readyServices() {

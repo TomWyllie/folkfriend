@@ -3,18 +3,18 @@ import FFConfig from "./ff-config";
 class ABCConverter {
     constructor() {
         this.baseMap = {
-            72: 'c',
+            72: '=c',
             73: '^c',
-            74: 'd',
+            74: '=d',
             75: '^d',
-            76: 'e',
-            77: 'f',
+            76: '=e',
+            77: '=f',
             78: '^f',
-            79: 'g',
+            79: '=g',
             80: '^g',
-            81: 'a',
+            81: '=a',
             82: '^a',
-            83: 'b',
+            83: '=b',
         };
 
         this.abcMap = this.getAbcMap();

@@ -1,16 +1,31 @@
 import Dexie from "dexie";
+import utils from "@/folkfriend/ff-utils";
 
 class DatabaseService {
     // MAX_NUD_AGE = 28;   // 28 days = 4 weeks
     MAX_NUD_AGE = 0;   // 0 = always use latest version
 
     constructor() {
+        this.dbHost = 'https://raw.githubusercontent.com/TomWyllie/folkfriend-app-data/master';
         this.db = null;
+        this.loaded = null;
         this.networkProgress = {};
+
+        this._bulkSettings = null;
+        this._bulkAlises = null;
+        this.settingBySettingID = null;
+        this.settingByTuneID = null;
 
         this.ready = new Promise((resolve) => {
             this.setReady = resolve;
         });
+    }
+
+    async verifyLoaded() {
+        await this.ready;
+        if (this.loaded === false) {
+            throw 'Database failed to load';
+        }
     }
 
     async initialise() {
@@ -24,8 +39,8 @@ class DatabaseService {
 
             /* Non-user data */
             // settings: '&setting, tune, name, type, meter, mode',    // 'abc' added but not indexed
-            settings: '&setting, tune, name',    // 'abc, type, meter, mode' added but not indexed for performance reasons
-            aliases: '&tune, *aliases',
+            // settings: '&setting, tune, name',    // 'abc, type, meter, mode' added but not indexed for performance reasons
+            // aliases: '&tune, *aliases',
 
             // Generic table for our bulky objects. Bulky objects are NOT!!! indexed.
             // These are the shard meta JSON and the partitioned shards pngs in base 64.
@@ -43,17 +58,23 @@ class DatabaseService {
         if (NUDVersionLocal === null) {
             // We need to update the database to get some data.
             console.debug('NUData has not been loaded, attempting to update');
+
             try {
                 // Block this function from resolving until we have updated
                 await this.checkForUpdates(NUDVersionLocal);
-                console.debug('NUData installed for first time')
+                await this.loadBulkData();
+                console.debug('NUData installed for first time');
+                this.loaded = true;
             } catch (e) {
                 // This is a very bad state to be in.
                 //  No tune database was found and we failed to install one.
                 //  This is not a fatal error but needs a graceful fallback.
                 console.error(e);
+                this.loaded = false;
             }
         } else {
+            await this.loadBulkData();
+
             // Here we do not block this function from resolving as we want
             //  to get to initialising other parts of the app ASAP. We even
             //  delay this update from happening for a few seconds as the
@@ -64,16 +85,33 @@ class DatabaseService {
             //  good time. 20 seconds from now is deemed to be a good time.
             setTimeout(() => {
                 this.checkForUpdates(NUDVersionLocal).then((didUpdate) => {
-                    if(didUpdate) {
+                    if (didUpdate) {
                         console.debug('NUData has been updated to latest version');
                     }
                 }).catch((e) => {
                     console.warn(e);
                     console.warn('NUData could not update');
-                })
+                });
             }, 2000);   // Debug
             // }, 20000);       // Production
+            this.loaded = true;
         }
+
+        this.setReady();
+    }
+
+    async loadBulkData() {
+        // But wait isn't this pointless?? Why use a fancy database backend and
+        //  then just store the whole database of 30k-40k tunes as an object in
+        //  the worker?? Doesn't that defeat the point of having a database??
+        //  Answer: it certainly isn't ideal but on first load on a slow phone
+        //  the indexing takes unacceptably long (~1 minute) and so we just do
+        //  it the easy way. At least Dexie means all the versioning and stuff
+        //  is done nicely.
+        this._bulkSettings = this._bulkSettings || (await this.db.bulk.get({name: 'settings'})).value;
+        this._bulkAlises = this._bulkAlises || (await this.db.bulk.get('aliases')).value;
+        this.settingBySettingID = this.settingBySettingID || (await this.db.bulk.get('tuneBySettingID')).value;
+        this.settingByTuneID = this.settingByTuneID || (await this.db.bulk.get('tuneByTuneID')).value;
     }
 
     async checkForUpdates(NUDVersionLocal) {
@@ -93,7 +131,7 @@ class DatabaseService {
             return false;
         }
 
-        let NUDExpired = this.daysSince2020() - NUDVersionLocal > this.MAX_NUD_AGE;
+        let NUDExpired = utils.daysSince2020() - NUDVersionLocal > this.MAX_NUD_AGE;
         if (!NUDExpired) {
             console.debug('Database could update but current version has not yet expired');
             return false;
@@ -117,7 +155,7 @@ class DatabaseService {
 
     async getNUDMetaRemote() {
         try {
-            let response = await fetch('http://192.168.0.19//nud-meta.json');
+            let response = await fetch(`${this.dbHost}/nud-meta.json`);
             return await response.json();
         } catch (e) {
             return {"v": null, "size": null};
@@ -125,10 +163,10 @@ class DatabaseService {
     }
 
     async getQueryEngineData() {
-        await this.hasData;
+        await this.verifyLoaded();
         return {
-            partitionsData: (await this.db.bulk.get("partitionsData")).value,
-            shardMeta: (await this.db.bulk.get("shardMeta")).value
+            partitionsData: (await this.db.bulk.get('partitionsData')).value,
+            shardMeta: (await this.db.bulk.get('shardMeta')).value
         };
     }
 
@@ -136,7 +174,7 @@ class DatabaseService {
         // We now fetch the big data file.
         const NUData = await this.fetchJSONWithProgress(
             'NUData',
-            'http://192.168.0.19/folkfriend-non-user-data.json',
+            `${this.dbHost}/folkfriend-non-user-data.json`,
             NUDSize);
 
         // The JSON file stores the big PNG shard partitions as base64 (because
@@ -152,12 +190,21 @@ class DatabaseService {
             NUData['shard-partitions'][i] = await fetchedPartition.blob();
         }
 
+        // Now we have to generate a few database mapping things ourselves
+        //  (Dexie too slow for this as discussed previously).
+        const settingBySettingID = {};
+        const settingByTuneID = {};
+
+        for (let i = 0; i < NUData['tunes'].length; i++) {
+            const tune = NUData['tunes'][i];
+            settingBySettingID[tune['setting']] = i;
+            settingByTuneID[tune['tune']] = i;
+        }
+
         // Now use the big data file to update the IDB.
         //  This is a transaction so either it all works or it all rejects (thanks Dexie).
         await this.db.transaction('rw', [
             this.db.NUDVersion,
-            this.db.settings,
-            this.db.aliases,
             this.db.bulk
         ], function () {
             /* Update bulk data objects */
@@ -172,10 +219,26 @@ class DatabaseService {
             });
 
             /* Update tune settings */
-            this.db.settings.bulkPut(NUData['tunes']);
+            this.db.bulk.put({
+                name: 'settings',
+                value: NUData['tunes']
+            });
+
+            this.db.bulk.put({
+                name: 'tuneBySettingID',
+                value: settingBySettingID
+            });
+
+            this.db.bulk.put({
+                name: 'tuneByTuneID',
+                value: settingByTuneID
+            });
 
             /* Update aliases */
-            this.db.aliases.bulkPut(NUData['aliases']);
+            this.db.bulk.put({
+                name: 'aliases',
+                value: NUData['aliases']
+            });
 
             /* Now bump version */
             this.db.NUDVersion.put({
@@ -183,6 +246,13 @@ class DatabaseService {
                 v: NUDVersionRemote
             });
         });
+
+        // Saves us loading in these from the database if we've only
+        //  just put them in.
+        this._bulkSettings = NUData['tunes'];
+        this._bulkAlises = NUData['aliases'];
+        this.settingBySettingID = settingBySettingID;
+        this.settingByTuneID = settingByTuneID;
     }
 
     async fetchJSONWithProgress(requestLabel, url, size) {
@@ -234,20 +304,18 @@ class DatabaseService {
         return JSON.parse(result);
     }
 
-    daysSince2020() {
-        const unixMs = Date.now();
-        const unixS = Math.round(unixMs / 1000);
-
-        // 1577836800 = 2020-01-01T00:00:00+00:00 in ISO 8601
-        const secsSince2020 = unixS - 1577836800;
-        const daysSince2020 = Math.round(secsSince2020 / (24 * 3600));
-
-        // NO time travelling >:c
-        return Math.max(0, daysSince2020);
+    async tunesFromQueryResults(results) {
+        await this.verifyLoaded();
+        console.debug(this.settingBySettingID);
+        return results.map(({setting}) => this.setting(setting));
     }
 
-    async tunesFromQueryResults(results) {
-        return this.db.settings.bulkGet(results.map(({setting}) => setting));
+    setting(sID) {
+        return this._bulkSettings[this.settingBySettingID[sID]];
+    }
+
+    tune(tID) {
+        return this._bulkSettings[this.settingByTuneID[tID]];
     }
 }
 

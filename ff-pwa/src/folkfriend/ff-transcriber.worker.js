@@ -1,9 +1,9 @@
-/* eslint-disable */
 import abcConverter from "@/folkfriend/ff-abc";
-import dsp from "@/folkfriend/ff-dsp"
-import featureExtractor from "@/folkfriend/ff-cnn";
+import FFConfig from "@/folkfriend/ff-config";
 import contourExtractor from "@/folkfriend/ff-contour";
+import featureExtractor from "@/folkfriend/ff-cnn";
 import contourDecoder from "@/folkfriend/ff-decoder";
+import dsp from "@/folkfriend/ff-dsp"
 
 class Transcriber {
     constructor() {
@@ -30,33 +30,48 @@ class Transcriber {
         await this.ready;
         await this.flush();
 
-        let processedFrames = [];
-
         for(let timeDomainData of timeDomainDataQueue) {
-            let spectrogramFrame = dsp.processTimeDomainData(timeDomainData.slice());
-            processedFrames.push(spectrogramFrame);
-        }
-
-        for(let frame of processedFrames) {
-            await this.feed(frame);
+            await this.feed(timeDomainData);
         }
 
         await featureExtractor.advance();
+        return this.gatherAndDecode();
+    }
+
+    async gatherAndDecode() {
         const features = await featureExtractor.gather();
         const contour = await contourExtractor.contourFromFeatures(features);
         const decodedAudio = await contourDecoder.decode(contour);
-        decodedAudio.abc = abcConverter.decodedToAbc(decodedAudio.midis);
+        if(decodedAudio) {
+            decodedAudio.abc = abcConverter.decodedToAbc(decodedAudio.midis);
+        }
         return decodedAudio;
     }
 
-    async feed(frame) {
-        await featureExtractor.feed(frame, this.fedFramesNum);
-        this.fedFramesNum++;
+    async feed(timeDomainData) {
+        const frames = timeDomainData.length / FFConfig.SPEC_WINDOW_SIZE;
+        for(let i = 0; i < frames; i++) {
+            const timeDomainWindow = timeDomainData.slice(
+                FFConfig.SPEC_WINDOW_SIZE * i,
+                FFConfig.SPEC_WINDOW_SIZE * (i + 1)
+            );
+            let spectrogramFrame = dsp.processTimeDomainData(timeDomainWindow);
+            await featureExtractor.feed(spectrogramFrame, this.fedFramesNum);
+            this.fedFramesNum++;
+        }
     }
 
     async flush() {
         this.fedFramesNum = 0;
         await featureExtractor.flush();
+    }
+
+    async setSampleRate(sampleRate) {
+        // This wrapper is necessary as we can't directly call dsp (which lives
+        //  on a worker thread, because it's imported by this transcriber,
+        //  lives on a worker thread) from the main thread. But we can async
+        //  call this worker from the main thread, which can in turn call dsp.
+        await dsp.setSampleRate(sampleRate);
     }
 }
 

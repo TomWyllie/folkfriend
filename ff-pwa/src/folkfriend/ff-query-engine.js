@@ -26,7 +26,7 @@ class QueryEngine {
     execute() {
         // Return an array of scores of same size and corresponding
         //  to the shards of partitionMeta
-        throw {name: "NotImplementedError"};
+        throw {name: 'NotImplementedError'};
     }
 
     async initialise() {

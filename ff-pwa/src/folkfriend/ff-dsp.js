@@ -125,6 +125,7 @@ class DSP {
             };
         }
 
+        console.debug('Updating resampling coefficients');
         this.resamplingArrs.loIndices.set(loIndices);
         this.resamplingArrs.hiIndices.set(hiIndices);
         this.resamplingArrs.loWeights.set(loWeights);

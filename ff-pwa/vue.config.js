@@ -20,7 +20,11 @@ module.exports = {
         config.plugins.push(
             new CopyPlugin({
                 patterns: [
-                    {from: 'src/folkfriend/ff-wasm.wasm', to: 'js/ff-wasm.wasm'},
+                    // Non com-linked transcriber expects js/ff-wasm.wasm because inline with app.js
+                    // {from: 'src/folkfriend/ff-wasm.wasm', to: 'js/ff-wasm.wasm'},
+                    //  Com-linked worker JS lives in separate file and so expects ff-wasm.wasm
+                    {from: 'src/folkfriend/ff-wasm.wasm', to: 'ff-wasm.wasm'},
+
                     {from: 'src/folkfriend/shaders/fragment.glsl', to: 'shaders/fragment.glsl'},
                     {from: 'src/folkfriend/shaders/vertex.glsl', to: 'shaders/vertex.glsl'}
                 ],

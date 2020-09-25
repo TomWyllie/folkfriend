@@ -17,7 +17,9 @@
 * */
 
 import FFConfig from "@/folkfriend/ff-config";
-import transcriber from "@/folkfriend/ff-transcriber";
+import featureExtractor from "@/folkfriend/ff-cnn";
+import transcriber from "@/folkfriend/ff-transcriber.worker";
+import utils from "@/folkfriend/ff-utils";
 
 const AUDIO_CONSTRAINTS = {
     audio: {
@@ -29,16 +31,10 @@ const AUDIO_CONSTRAINTS = {
 class AudioService {
     constructor() {
         this.micActive = false;
-
         this.audioCtx = null;
-        // this.processorNode = null;
         this.micAnalyser = null;
-
-        // this.debug = [];
-
-        this.micSamplerInterval = 1000 * FFConfig.SPEC_WINDOW_SIZE / FFConfig.SAMPLE_RATE;
+        this.timeDomainBufferSize = 4096;
     }
-
 
     async urlToTimeDomainData(url) {
         // Get duration of audio file
@@ -53,7 +49,16 @@ class AudioService {
         // Create WebAudio objects
         const audioContext = new OfflineAudioContext(1, offlineNumSamples, FFConfig.SAMPLE_RATE);
         const source = audioContext.createBufferSource();
-        const analyser = new AnalyserNode(audioContext);
+
+        // Specify fftSize even though we don't use the getFloatFrequencyData
+        //  here we only use getTimeDomainData, but setting fftSize means
+        //  WebAudio will allow us to access that many samples. As this
+        //  is done offline we can set fftSize low and not worry about real
+        //  time issues causing glitches.
+        const analyser = new AnalyserNode(audioContext, {
+            fftSize: FFConfig.SPEC_WINDOW_SIZE,
+            smoothingTimeConstant: 0
+        });
         const processor = audioContext.createScriptProcessor(FFConfig.SPEC_WINDOW_SIZE, 1, 1);
 
         // Load data into source
@@ -104,30 +109,61 @@ class AudioService {
             return;
         }
 
-        this.micCtx = new AudioContext({sampleRate: FFConfig.SAMPLE_RATE});
-        this.micAnalyser = new AnalyserNode(this.micCtx, {
-            fftSize: FFConfig.SPEC_WINDOW_SIZE,
-            smoothingTimeConstant: 0
-        });
-
+        let sampleRate;
         try {
             this.micStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
+            sampleRate = this.micStream.getTracks()[0].getSettings().sampleRate;
+            const nyq = sampleRate / 2;
+
+            // Recall the highest interpolated value in the spectral frame from
+            //  the dsp functions is greater than the midi value (up to half a
+            //  note higher). Give ourselves some space to breathe.
+            if (utils.midiToHertz(FFConfig.MIDI_HIGH + 1) > nyq) {
+                // noinspection ExceptionCaughtLocallyJS
+                throw `Sample rate too low: ${sampleRate}`;
+            }
+
+            console.debug(`Using context sample rate ${sampleRate}Hz`);
+            await transcriber.setSampleRate(sampleRate);
+
         } catch (e) {
             console.error(e);
             this.micActive = false;
             return;
         }
 
-        console.debug(this.micCtx.sampleRate);
+        // IMPORTANT NODE: we can simply set
+        //  { sampleRate: FFConfig.SAMPLE_RATE }
+        //  as a config for this constructor and Chrome magically resamples
+        //  everything into our desired sample rate. Unfortunately I don't
+        //  trust that this works in Safari etc so we allow arbitrary
+        //  sampleRates (within reason), which we detect after getUserMedia.
+        //  The WebAssembly DSP functions can handle arbitrary sample rates.
+        this.micCtx = new AudioContext({ sampleRate: sampleRate});
+
+        // TODO this needs investigated further and confirmed the value is high
+        //  enough for different devices.
+        // Ideally we would set fftSize to FFConfig.SPEC_WINDOW_SIZE but on
+        //  some devices (confirmed on Tom's old Samsung Galaxy S6) this
+        //  introduces glitches where WebAudio can't update itself fast
+        //  enough, so each frame is duplicated three or four times without
+        //  changing (disastrously bad for audio quality). We choose a longer
+        //  size which introduces more latency (which doesn't really matter)
+        //  which reduces glitches. The latency doesn't matter because we're
+        //  not doing any real-time processing of audio that is *sent back* to
+        //  to the user.
+        this.micAnalyser = new AnalyserNode(this.micCtx, {
+            fftSize: this.timeDomainBufferSize,
+            smoothingTimeConstant: 0
+        });
 
         this.micSource = this.micCtx.createMediaStreamSource(this.micStream);
 
         // Connect things up
         this.micSource.connect(this.micAnalyser);
 
-        this.timeDomainData = new Float32Array(FFConfig.SPEC_WINDOW_SIZE);
-        // noinspection JSDeprecatedSymbols
-
+        let micSamplerInterval = this.getMicSamplerInterval(sampleRate);
+        this.timeDomainData = new Float32Array(this.timeDomainBufferSize);
         this.micSampler = setInterval(() => {
             // Race condition can occur where this is asynchronously called
             //  mid-way through us tearing down the pipeline.
@@ -135,8 +171,10 @@ class AudioService {
                 return;
             }
             this.micAnalyser.getFloatTimeDomainData(this.timeDomainData);
-            transcriber.feed(this.timeDomainData.slice(0));
-        }, this.micSamplerInterval)
+            transcriber.feed(this.timeDomainData.slice(0)).then(() => {
+                featureExtractor.advance().then();
+            });
+        }, micSamplerInterval);
     }
 
     async stopRecording() {
@@ -144,9 +182,7 @@ class AudioService {
             return;
         }
 
-        clearInterval(this.micSampler)
-
-        await transcriber.close();
+        clearInterval(this.micSampler);
 
         if (this.micAnalyser) {
             this.micAnalyser.disconnect();
@@ -160,6 +196,10 @@ class AudioService {
         this.micCtx = null;
 
         this.micActive = false;
+    }
+
+    getMicSamplerInterval(sampleRate) {
+        return 1000 * this.timeDomainBufferSize / sampleRate;
     }
 }
 
