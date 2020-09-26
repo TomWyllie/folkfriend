@@ -32,7 +32,8 @@ class DSP {
         };
 
         // This is the default.
-        this.setSampleRate(FFConfig.SAMPLE_RATE);
+        await this.setSampleRate(FFConfig.SAMPLE_RATE, true);
+
         this.setReady();
     }
 
@@ -94,9 +95,13 @@ class DSP {
         return timeDomainData.slice(0, FFConfig.SPEC_NUM_BINS);
     }
 
-    setSampleRate(sampleRate) {
+    async setSampleRate(sampleRate, initial=false) {
         if (this.sampleRate === sampleRate) {
             return;
+        }
+
+        if(!initial) {
+            await this.ready;
         }
 
         // Generate the Float32Arrays that store the relevant data for WASM

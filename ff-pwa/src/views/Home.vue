@@ -70,7 +70,6 @@ export default {
             let tunes = await ds.tunesFromQueryResults(result);
             console.debug(tunes);
 
-
             this.$data.postProcPerf = Math.round(Date.now() - t0);
             this.$data.tunesTable = tunes.slice(0, 10);
         },
@@ -86,6 +85,7 @@ export default {
             console.debug('Audio stopped');
 
             const decoded = await transcriber.gatherAndDecode();
+            // this.renderImageForDebug(decoded);
             console.debug(decoded);
 
             if (!decoded) {

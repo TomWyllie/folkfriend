@@ -11,7 +11,7 @@
 
 <script>
 
-import ds from './services/database.worker';
+import ds from '@/services/database.worker';
 import transcriber from "@/folkfriend/ff-transcriber.worker";
 import queryEngine from "@/folkfriend/ff-query-engine";
 
@@ -28,8 +28,11 @@ async function readyServices() {
     console.debug(`All services ready in ${Date.now() - start} ms`);
 }
 
-readyServices().then();
-export default {};
+export default {
+    mounted() {
+        readyServices().then();
+    }
+};
 
 </script>
 
