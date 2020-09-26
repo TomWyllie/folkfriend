@@ -31,19 +31,5 @@ module.exports = {
             })
         );
 
-        // https://github.com/tensorflow/tfjs/tree/master/tfjs-backend-wasm/starter/webpack
-        // config.module.rules.unshift({
-        //         test: /\.wasm$/i,
-        //         type: 'javascript/auto',
-        //         loader: 'file-loader',
-        //         options: {
-        //             publicPath: "dist/"
-        //         }
-        //     },
-        // );
-
-        // config.node = {
-        //     fs: "empty"
-        // };
     }
 };

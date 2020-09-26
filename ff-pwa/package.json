@@ -13,10 +13,12 @@
     "comlink-loader": "^2.0.0",
     "core-js": "^3.6.5",
     "dexie": "^3.0.2",
+    "fibers": "^5.0.0",
     "next-frame": "^0.2.3",
     "register-service-worker": "^1.7.1",
     "vue": "^2.6.11",
-    "vue-router": "^3.2.0"
+    "vue-router": "^3.2.0",
+    "vuetify": "^2.3.10"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "~4.5.0",
@@ -29,6 +31,11 @@
     "eslint": "^6.7.2",
     "eslint-plugin-vue": "^6.2.2",
     "file-loader": "^6.1.0",
-    "vue-template-compiler": "^2.6.11"
+    "node-sass": "^4.14.1",
+    "sass": "^1.26.11",
+    "sass-loader": "^8.0.2",
+    "vue-cli-plugin-vuetify": "~2.0.7",
+    "vue-template-compiler": "^2.6.11",
+    "vuetify-loader": "^1.3.0"
   }
 }
