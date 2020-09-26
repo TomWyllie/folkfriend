@@ -19,6 +19,7 @@
 import FFConfig from "@/folkfriend/ff-config";
 import transcriber from "@/folkfriend/ff-transcriber.worker";
 import utils from "@/folkfriend/ff-utils";
+import {AudioContext, OfflineAudioContext} from 'standardized-audio-context';
 
 const AUDIO_CONSTRAINTS = {
     audio: {
@@ -45,25 +46,13 @@ class AudioService {
         const offlineNumSamples = audio.duration * FFConfig.SAMPLE_RATE;
         audio.removeAttribute('src'); // Don't yet load in the rest of the file
 
-        // Create WebAudio objects
+        // Get context (using polyfill)
         const audioContext = new OfflineAudioContext(1, offlineNumSamples, FFConfig.SAMPLE_RATE);
-        const source = audioContext.createBufferSource();
-
-        // Specify fftSize even though we don't use the getFloatFrequencyData
-        //  here we only use getTimeDomainData, but setting fftSize means
-        //  WebAudio will allow us to access that many samples. As this
-        //  is done offline we can set fftSize low and not worry about real
-        //  time issues causing glitches.
-        const analyser = new AnalyserNode(audioContext, {
-            fftSize: FFConfig.SPEC_WINDOW_SIZE,
-            smoothingTimeConstant: 0
-        });
-        const processor = audioContext.createScriptProcessor(FFConfig.SPEC_WINDOW_SIZE, 1, 1);
 
         // Load data into source
         const response = await fetch(url);
         const arrayBuffer = await response.arrayBuffer();
-        source.buffer = await audioContext.decodeAudioData(arrayBuffer);
+        const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
         /* IMPORTANT NOTE */
         // The audioContext.decodeAudioData function automatically resamples the file to
@@ -73,24 +62,7 @@ class AudioService {
         //  as this auto-resampling means the script processor always sees FFConfig.SAMPLE_RATE
         //  (ie 48k) data.
         //  https://github.com/WebAudio/web-audio-api/issues/30
-
-        // Connect things up
-        source.connect(analyser);
-        processor.connect(audioContext.destination);
-        const timeDomainData = new Float32Array(FFConfig.SPEC_WINDOW_SIZE);
-        const timeDomainDataQueue = [];
-
-        // noinspection JSDeprecatedSymbols
-        processor.onaudioprocess = () => {
-            analyser.getFloatTimeDomainData(timeDomainData);
-            timeDomainDataQueue.push(timeDomainData.slice(0));
-        };
-
-        source.start(0);
-
-        await audioContext.startRendering();
-
-        return timeDomainDataQueue;
+        return [decodedBuffer.getChannelData(0)];
     }
 
     async startRecording() {
@@ -138,7 +110,7 @@ class AudioService {
         //  trust that this works in Safari etc so we allow arbitrary
         //  sampleRates (within reason), which we detect after getUserMedia.
         //  The WebAssembly DSP functions can handle arbitrary sample rates.
-        this.micCtx = new AudioContext({ sampleRate: sampleRate});
+        this.micCtx = new AudioContext({sampleRate: sampleRate});
 
         // TODO this needs investigated further and confirmed the value is high
         //  enough for different devices.
@@ -151,7 +123,7 @@ class AudioService {
         //  which reduces glitches. The latency doesn't matter because we're
         //  not doing any real-time processing of audio that is *sent back* to
         //  to the user.
-        this.micAnalyser = new AnalyserNode(this.micCtx, {
+        this.micAnalyser = this.micCtx.createAnalyser({
             fftSize: this.timeDomainBufferSize,
             smoothingTimeConstant: 0
         });

@@ -49,7 +49,10 @@ class Transcriber {
     }
 
     async feed(timeDomainData) {
-        const frames = timeDomainData.length / FFConfig.SPEC_WINDOW_SIZE;
+        const frames = Math.floor(timeDomainData.length / FFConfig.SPEC_WINDOW_SIZE);
+        if(frames === 0) {
+            throw 'Frame too short';
+        }
         for(let i = 0; i < frames; i++) {
             const timeDomainWindow = timeDomainData.slice(
                 FFConfig.SPEC_WINDOW_SIZE * i,

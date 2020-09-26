@@ -5,7 +5,8 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "lint": "vue-cli-service lint",
+    "public": "vue-cli-service serve --https --port 8081"
   },
   "dependencies": {
     "@tensorflow/tfjs": "2.4.0",
@@ -15,6 +16,7 @@
     "dexie": "^3.0.2",
     "next-frame": "^0.2.3",
     "register-service-worker": "^1.7.1",
+    "standardized-audio-context": "^25.1.0",
     "vue": "^2.6.11",
     "vue-router": "^3.2.0",
     "vuetify": "^2.3.10"
