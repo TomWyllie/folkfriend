@@ -1,8 +1,9 @@
 // Basic import tensorflow, including WASM backend
 const tf = require('@tensorflow/tfjs');
+// import '@tensorflow/tfjs-layers';
 import '@tensorflow/tfjs-backend-wasm';
-import {setWasmPath} from '@tensorflow/tfjs-backend-wasm';
-setWasmPath('/tf/tfjs-backend-wasm.wasm');
+import {setWasmPaths} from '@tensorflow/tfjs-backend-wasm';
+setWasmPaths('/tf/');
 // If running in cpp-wasm/demo comment out the above lines as imports are done by index.html
 
 import FFConfig from './ff-config.js';

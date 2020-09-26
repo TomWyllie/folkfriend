@@ -73,6 +73,14 @@ class Transcriber {
         //  call this worker from the main thread, which can in turn call dsp.
         await dsp.setSampleRate(sampleRate);
     }
+
+    async advance() {
+        // This wrapper allows us to access featureExtractor functions through
+        //  the worker. If we import featureExtractor onto the main thread,
+        //  then Webpack re-bundles TensorflowJS into both worker and
+        //  non-worker code!!
+        await featureExtractor.advance();
+    }
 }
 
 // Export this as singleton worker.

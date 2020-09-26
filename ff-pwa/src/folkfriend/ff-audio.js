@@ -17,7 +17,6 @@
 * */
 
 import FFConfig from "@/folkfriend/ff-config";
-import featureExtractor from "@/folkfriend/ff-cnn";
 import transcriber from "@/folkfriend/ff-transcriber.worker";
 import utils from "@/folkfriend/ff-utils";
 
@@ -172,7 +171,7 @@ class AudioService {
             }
             this.micAnalyser.getFloatTimeDomainData(this.timeDomainData);
             transcriber.feed(this.timeDomainData.slice(0)).then(() => {
-                featureExtractor.advance().then();
+                transcriber.advance().then();
             });
         }, micSamplerInterval);
     }

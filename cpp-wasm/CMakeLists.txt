@@ -19,11 +19,9 @@ set_target_properties(ff-wasm PROPERTIES LINK_FLAGS "\
 		-O3\
 		-s ALLOW_MEMORY_GROWTH=1\
 		-s DISABLE_EXCEPTION_CATCHING=0\
+		-s ENVIRONMENT=worker\
 		-s EXPORT_NAME='loadDSPWasmModule'\
 		-s EXPORTED_FUNCTIONS='[_main, _processFreqData, _updateResamplingCoefficients, _mallocWrapper, _freeWrapper]'\
 		-s EXTRA_EXPORTED_RUNTIME_METHODS='[cwrap]'\
 		-s MODULARIZE=1 \
 		-s WASM=1")
-
-# Runs with node
-#set_target_properties(ff-dsp PROPERTIES LINK_FLAGS "-O3 -s WASM=0 -s EXPORTED_FUNCTIONS='[_main]' -s DISABLE_EXCEPTION_CATCHING=0 --embed-file folkfriend-cnn.json")

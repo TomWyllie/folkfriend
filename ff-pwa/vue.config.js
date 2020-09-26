@@ -1,4 +1,6 @@
 const CopyPlugin = require('copy-webpack-plugin');
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+const StatsPlugin = require('stats-webpack-plugin')
 
 module.exports = {
     configureWebpack: (config) => {
@@ -28,8 +30,9 @@ module.exports = {
                     {from: 'src/folkfriend/shaders/fragment.glsl', to: 'shaders/fragment.glsl'},
                     {from: 'src/folkfriend/shaders/vertex.glsl', to: 'shaders/vertex.glsl'}
                 ],
-            })
-        );
-
+            }),
+            new BundleAnalyzerPlugin(),
+            new StatsPlugin('stats.json')
+        )
     }
 };

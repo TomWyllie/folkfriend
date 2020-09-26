@@ -4,9 +4,12 @@
         <!--suppress CssInvalidFunction, CssInvalidPropertyValue -->
         <HelloWorld/>
 
-        <button v-on:click="startRecording">Start Recording</button>
-        <button v-on:click="stopRecording">Stop Recording</button>
-        <button v-on:click="demo">Demo from .WAV file</button>
+        <v-container>
+            <v-btn v-on:click="startRecording">Start Recording</v-btn>
+            <v-btn v-on:click="stopRecording">Stop Recording</v-btn>
+            <v-btn v-on:click="demo">Demo from .WAV file</v-btn>
+        </v-container>
+
         <span class="block">Performance: {{ this.$data.postProcPerf }} ms</span>
         <ul id="results">
             <li v-for="item in this.$data.tunesTable" v-bind:key="item.setting">

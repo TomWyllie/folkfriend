@@ -29,8 +29,6 @@ class DatabaseService {
     }
 
     async initialise() {
-        console.debug(`${this.constructor.name} init`);
-
         let db = new Dexie('folkfriend');
         // Setup database schema
         db.version(1).stores({
@@ -306,7 +304,6 @@ class DatabaseService {
 
     async tunesFromQueryResults(results) {
         await this.verifyLoaded();
-        console.debug(this.settingBySettingID);
         return results.map(({setting}) => this.setting(setting));
     }
 
