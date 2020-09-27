@@ -76,8 +76,7 @@ class AudioService {
 
         // This is the case on ios/chrome, when clicking links from within ios/slack (sometimes), etc.
         if (!navigator || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert('Missing support for navigator.mediaDevices.getUserMedia'); // temp: helps when testing for strange issues on ios/safari
-            return;
+            throw 'Missing support for navigator.mediaDevices.getUserMedia';
         }
 
         let sampleRate;
@@ -98,9 +97,8 @@ class AudioService {
             await transcriber.setSampleRate(sampleRate);
 
         } catch (e) {
-            console.error(e);
             this.micActive = false;
-            return;
+            throw e;
         }
 
         // IMPORTANT NODE: we can simply set
@@ -160,11 +158,15 @@ class AudioService {
             this.micAnalyser = null;
         }
 
-        this.micStream.getTracks().forEach((track) => track.stop());
-        this.micStream = null;
+        if (this.micStream) {
+            this.micStream.getTracks().forEach((track) => track.stop());
+            this.micStream = null;
+        }
 
-        await this.micCtx.close();
-        this.micCtx = null;
+        if (this.micCtx) {
+            await this.micCtx.close();
+            this.micCtx = null;
+        }
 
         this.micActive = false;
     }
