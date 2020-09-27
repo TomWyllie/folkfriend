@@ -25,9 +25,19 @@
             </v-list>
         </v-navigation-drawer>
 
-        <v-app-bar app color="indigo" dark>
-            <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
-            <v-toolbar-title>Application</v-toolbar-title>
+        <v-app-bar app color="white" elevate-on-scroll>
+            <v-app-bar-nav-icon color="primary" @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
+            <v-img
+                src="@/assets/logo.svg"
+                max-height="90%"
+                max-width="75%"
+                class="mx-auto MainLogo"
+                align-center
+                center
+                contain></v-img>
+            <v-btn icon color="primary" >
+                <v-icon>mdi-dots-vertical</v-icon>
+            </v-btn>
         </v-app-bar>
 
         <v-main>
@@ -60,9 +70,10 @@ export default {
     name: 'App',
     data: () => ({
         drawer: null,
+        menu: null,
     }),
     mounted() {
         readyServices().then();
-    }
+    },
 };
 </script>
