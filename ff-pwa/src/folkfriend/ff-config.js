@@ -8,7 +8,8 @@ const FFConfig = {
     "SPEC_BINS_PER_MIDI": 3,
     "SPEC_NUM_BINS": 144,
     "SPEC_NUM_FRAMES": 375,
-    "CONTEXT_FRAMES": 10
+    "CONTEXT_FRAMES": 10,
+    "MAX_SHORT_QUERY_MS": 12000
 };
 FFConfig.debug = true;
 export default FFConfig;

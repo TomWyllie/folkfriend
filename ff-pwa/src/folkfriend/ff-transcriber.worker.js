@@ -3,7 +3,7 @@ import FFConfig from "@/folkfriend/ff-config";
 import contourExtractor from "@/folkfriend/ff-contour";
 import featureExtractor from "@/folkfriend/ff-cnn";
 import contourDecoder from "@/folkfriend/ff-decoder";
-import dsp from "@/folkfriend/ff-dsp"
+import dsp from "@/folkfriend/ff-dsp";
 
 class Transcriber {
     constructor() {
@@ -11,6 +11,10 @@ class Transcriber {
         this.ready = new Promise((resolve) => {
             this.setReady = resolve;
         });
+
+        // Can intercept input samples for debugging
+        // Can intercept WASM DSP output for debugging
+        // this.debugQueue = [];
     }
 
     async initialise() {
@@ -30,7 +34,7 @@ class Transcriber {
         await this.ready;
         await this.flush();
 
-        for(let timeDomainData of timeDomainDataQueue) {
+        for (let timeDomainData of timeDomainDataQueue) {
             await this.feed(timeDomainData);
         }
 
@@ -39,10 +43,14 @@ class Transcriber {
     }
 
     async gatherAndDecode() {
+        // return this.debugQueue;
         const features = await featureExtractor.gather();
+        if (features.length === 0) {
+            return false;
+        }
         const contour = await contourExtractor.contourFromFeatures(features);
         const decodedAudio = await contourDecoder.decode(contour);
-        if(decodedAudio) {
+        if (decodedAudio) {
             decodedAudio.abc = abcConverter.decodedToAbc(decodedAudio.midis);
         }
         return decodedAudio;
@@ -50,15 +58,19 @@ class Transcriber {
 
     async feed(timeDomainData) {
         const frames = Math.floor(timeDomainData.length / FFConfig.SPEC_WINDOW_SIZE);
-        if(frames === 0) {
+        if (frames === 0) {
             throw 'Frame too short';
         }
-        for(let i = 0; i < frames; i++) {
+        for (let i = 0; i < frames; i++) {
             const timeDomainWindow = timeDomainData.slice(
                 FFConfig.SPEC_WINDOW_SIZE * i,
                 FFConfig.SPEC_WINDOW_SIZE * (i + 1)
             );
             let spectrogramFrame = dsp.processTimeDomainData(timeDomainWindow);
+
+            // this.debugQueue.push(spectrogramFrame);
+            // this.debugQueue.push(timeDomainWindow.slice());
+
             await featureExtractor.feed(spectrogramFrame, this.fedFramesNum);
             this.fedFramesNum++;
         }

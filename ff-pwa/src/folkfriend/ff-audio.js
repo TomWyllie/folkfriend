@@ -33,7 +33,12 @@ class AudioService {
         this.micActive = false;
         this.audioCtx = null;
         this.micAnalyser = null;
-        this.timeDomainBufferSize = 4096;
+        // IMPORTANT - issues with standardized-audio-context not respecting
+        //  this value going above 2048 and missing out 50% of frames.
+        //  (needs further examination)
+        this.timeDomainBufferSize = 2048;
+        this.opening = Promise.resolve();
+        this.finishOpening = null;
     }
 
     async urlToTimeDomainData(url) {
@@ -71,6 +76,14 @@ class AudioService {
         }
 
         this.micActive = true;
+
+        // It's possible for a call to stopRecording to come in whilst we are
+        //  still running startRecording (if the button is pushed very quickly).
+        //  Track how we're doing setting up the audio pipeline so we can
+        //  block stopRecording until this is finished.
+        this.opening = new Promise((resolve) => {
+            this.finishOpening = resolve;
+        });
 
         await transcriber.flush();
 
@@ -144,12 +157,18 @@ class AudioService {
                 transcriber.advance().then();
             });
         }, micSamplerInterval);
+
+        this.finishOpening();
     }
 
     async stopRecording() {
         if (!this.micActive) {
             return;
         }
+
+        // Make sure we don't try to close whilst in the process
+        //  of opening.
+        await this.opening;
 
         clearInterval(this.micSampler);
 

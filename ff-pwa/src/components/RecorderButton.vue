@@ -51,24 +51,25 @@
                 <circle class="ff-centre-3" r="36" :style="cssProps"></circle>
             </svg>
         </transition>
-        <v-snackbar class="text-center" v-model="snackbar" :timeout="-1">
+        <v-snackbar class="text-center" v-model="snackbar" :timeout="5000">
             {{ snackbarText }}
-            <template v-slot:action="{ attrs }">
-                <v-btn
-                    color="red"
-                    text
-                    v-bind="attrs"
-                    @click="snackbar = false"
-                >
-                    Close
-                </v-btn>
-            </template>
+            <!--            <template v-slot:action="{ attrs }">-->
+            <!--                <v-btn-->
+            <!--                    color="red"-->
+            <!--                    text-->
+            <!--                    v-bind="attrs"-->
+            <!--                    @click="snackbar = false"-->
+            <!--                >-->
+            <!--                    Close-->
+            <!--                </v-btn>-->
+            <!--            </template>-->
         </v-snackbar>
     </div>
 </template>
 
 <script>
 import audioService from "@/folkfriend/ff-audio";
+import FFConfig from "@/folkfriend/ff-config";
 
 export default {
     name: "RecorderButton",
@@ -85,6 +86,7 @@ export default {
             recording: null,
             working: null,
             transcriptionMode: null,
+            transcriptionShortTimer: null,
 
             snackbar: null,
             snackbarText: null,
@@ -92,31 +94,30 @@ export default {
     },
     methods: {
         clicked: async function () {
-            if (this.recording) {
-                await this.stopRecording();
-            } else {
+            if (!this.recording) {
                 await this.startRecording();
+            } else {
+                this.working = true;
+                await this.stopRecording();
             }
-            this.recording = !this.recording;
         },
         startRecording: async function () {
             if (this.recording) {
                 return;
             }
+            this.recording = true;
+
             try {
                 // TODO nicely ask permission etc
-                // Don't await as it feels like UI lag
-                //  Creating AudioContext takes several hundred ms
-                audioService.startRecording().then(() => {
-                    setTimeout(() => {
-                        if (this.recording) {
-                            this.stopRecording();
-                            this.snackbar = true;
-                            this.snackbarText = 'Maximum duration reached';
-                        }
+                await audioService.startRecording()
+                this.transcriptionShortTimer = setTimeout(() => {
+                    if (this.recording) {
+                        this.stopRecording();
+                        this.snackbar = true;
+                        this.snackbarText = 'Maximum duration reached';
+                    }
 
-                    }, 5000);
-                });
+                }, FFConfig.MAX_SHORT_QUERY_MS);
             } catch (e) {
                 console.error(e);
                 alert(e);
@@ -129,8 +130,9 @@ export default {
             if (!this.recording) {
                 return;
             }
+            this.recording = false;
 
-            this.working = true;
+            clearTimeout(this.transcriptionShortTimer);
             await audioService.stopRecording();
             this.$emit('recording-finish');
         }
@@ -139,6 +141,14 @@ export default {
 </script>
 
 <style scoped>
+
+.RecorderButton {
+    transition: filter ease-in-out 200ms;
+}
+
+.RecorderButton:hover {
+    filter: brightness(0.9);
+}
 
 /* State transition animation */
 /* See https://vuejs.org/v2/guide/transitions.html#Transitioning-Single-Elements-Components */
@@ -154,8 +164,9 @@ export default {
 
 .RecorderButton, .WorkingGears {
     display: block;
-    max-width: min(25vh, 25vw);
+    max-width: min(35vh, 35vw);
     user-select: none;
+
 }
 
 .RecorderMic {
