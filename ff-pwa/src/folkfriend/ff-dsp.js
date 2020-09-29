@@ -11,6 +11,7 @@ class DSP {
         this.timeDomainDataArr = null;
         this.resamplingArrs = null;
         this.sampleRate = null;
+        this.lastDCComponent = 0;
 
         this.ready = new Promise((resolve) => {
             this.setReady = resolve;
@@ -25,6 +26,8 @@ class DSP {
                 "processFreqData", null, ["number"]),
             updateResamplingCoefficients: DSPModule.cwrap(
                 "updateResamplingCoefficients", null, ["number", "number", "number", "number"]),
+            getLastDCComponent: DSPModule.cwrap(
+                "getLastDCComponent", "number", []),
             malloc: DSPModule.cwrap(
                 "mallocWrapper", "number", ["number"]),
             free: DSPModule.cwrap(
@@ -93,6 +96,12 @@ class DSP {
         timeDomainData.set(this.timeDomainDataArr);
 
         return timeDomainData.slice(0, FFConfig.SPEC_NUM_BINS);
+    }
+
+    getLastDCComponent() {
+        // Retrieve the most recent DC value. Used for the fancy
+        //  button animation.
+        return this.api.getLastDCComponent();
     }
 
     async setSampleRate(sampleRate, initial=false) {

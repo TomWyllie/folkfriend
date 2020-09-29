@@ -21,6 +21,8 @@ float powerSpectrum[1024] = {};
 kiss_fft_cpx firstFFT[512] = {};
 kiss_fft_cpx secondFFT[512] = {};
 
+float lastDCComponent = 0.0;
+
 extern "C"
 void processFreqData(float *data) {
     // First compute the cube-root power spectrum, then take another FFT to get
@@ -60,9 +62,8 @@ void processFreqData(float *data) {
         powerSpectrum[(specWindowSize - i) % specWindowSize] = binPower;
     }
 
-    for(int i = 0; i < specWindowSize; i++) {
-        data[i] = powerSpectrum[i];
-    }
+    // Un-cube-rooted
+    lastDCComponent = std::hypot(firstFFT[0].r, firstFFT[0].i);
 
     // Now carry out the second FFT.
     kiss_fftr_cfg cfg2 = kiss_fftr_alloc(specWindowSize, 0, NULL, NULL);
@@ -96,8 +97,13 @@ void updateResamplingCoefficients(int *loIndicesNew,
     std::cout << "WASM: Update resampling coefficients\n";
 }
 
+extern "C"
+float getLastDCComponent() {
+    return lastDCComponent;
+}
+
 void calcHann(int length) {
-//    std::cout << "WASM: Hann compute\n";
+    std::cout << "WASM: Hann compute\n";
     for (int i = 0; i < length; i++) {
         hann[i] = 0.5 * (1 - cos(2*M_PI*i/(length - 1)));
     }

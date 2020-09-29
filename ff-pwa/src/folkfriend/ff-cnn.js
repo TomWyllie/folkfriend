@@ -6,7 +6,10 @@ import {setWasmPaths} from '@tensorflow/tfjs-backend-wasm';
 setWasmPaths('/tf/');
 // If running in cpp-wasm/demo comment out the above lines as imports are done by index.html
 
-import FFConfig from './ff-config.js';
+import FFConfig from '@/folkfriend/ff-config.js';
+
+import nextFrame from 'next-frame';
+
 
 class FeatureExtractor {
     /* This will run in a worker so everything will be async. */
@@ -79,9 +82,23 @@ class FeatureExtractor {
         });
 
         let sentinel = 0;
+        let t0 = Date.now();
         while (this.canAdvance) {
+            // If we've been a while blocking this thread (NOT the main
+            //  thread!!) then let UI update code run on this thread now.
+            if(Date.now() - t0 > 250) {
+                // Throw in a frame here so the user can get feedback on how the
+                //  transcriber is doing in offline mode, other requests to update
+                //  the UI on this progress are blocked by this function running
+                //  this function until completion (which could take minutes, no
+                //  exaggeration, for a several minute long file on a slow device).
+                await nextFrame();
+                t0 = Date.now();
+            }
+
             sentinel++;
-            if (sentinel > 1000) {
+            if (sentinel > 1000000) {
+                // 1,000,000 frames ~= 40 mins. No file should be that big.
                 throw 'too many iterations';
             }
 
@@ -143,6 +160,10 @@ class FeatureExtractor {
 
         await this.advance();
         return this.features;
+    }
+
+    async featuresProcessed() {
+        return this.features.length;
     }
 }
 

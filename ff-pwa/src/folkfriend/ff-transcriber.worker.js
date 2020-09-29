@@ -96,6 +96,19 @@ class Transcriber {
         //  non-worker code!!
         await featureExtractor.advance();
     }
+
+    async getLastDCComponent() {
+        return dsp.getLastDCComponent();
+    }
+
+    async getProgress() {
+        const framesProgress = this.fedFramesNum;
+        const featureProgress = await featureExtractor.featuresProcessed();
+        return {
+            audio: framesProgress,
+            features: featureProgress
+        }
+    }
 }
 
 // Export this as singleton worker.

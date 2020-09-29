@@ -11,5 +11,5 @@ const FFConfig = {
     "CONTEXT_FRAMES": 10,
     "MAX_SHORT_QUERY_MS": 12000
 };
-FFConfig.debug = true;
+FFConfig.debug = false;
 export default FFConfig;

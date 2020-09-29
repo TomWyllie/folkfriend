@@ -21,7 +21,7 @@ set_target_properties(ff-wasm PROPERTIES LINK_FLAGS "\
 		-s DISABLE_EXCEPTION_CATCHING=0\
 		-s ENVIRONMENT=worker\
 		-s EXPORT_NAME='loadDSPWasmModule'\
-		-s EXPORTED_FUNCTIONS='[_main, _processFreqData, _updateResamplingCoefficients, _mallocWrapper, _freeWrapper]'\
+		-s EXPORTED_FUNCTIONS='[_main, _processFreqData, _updateResamplingCoefficients, _getLastDCComponent, _mallocWrapper, _freeWrapper]'\
 		-s EXTRA_EXPORTED_RUNTIME_METHODS='[cwrap]'\
 		-s MODULARIZE=1 \
 		-s WASM=1")

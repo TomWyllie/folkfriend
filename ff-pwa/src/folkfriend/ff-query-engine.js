@@ -36,6 +36,8 @@ class QueryEngine {
     async query(query) {
         let shardScores = await this.execute(query);
 
+        /* TODO from here down this could actually run in a worker */
+
         // Useful for debugging
         if (FFConfig.debug) {
             this.shardScores = shardScores;

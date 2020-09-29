@@ -70,6 +70,7 @@
 <script>
 import audioService from "@/folkfriend/ff-audio";
 import FFConfig from "@/folkfriend/ff-config";
+import transcriber from "@/folkfriend/ff-transcriber.worker";
 
 export default {
     name: "RecorderButton",
@@ -78,6 +79,7 @@ export default {
             return {
                 '--primary-colour': this.$vuetify.theme.currentTheme.primary,
                 '--secondary-colour': this.$vuetify.theme.currentTheme.secondary,
+                '--recorder-circle-scale': this.recorderCircleScale,
             };
         }
     },
@@ -88,6 +90,9 @@ export default {
             transcriptionMode: null,
             transcriptionShortTimer: null,
 
+            lastAudioVolume: 0,
+            recorderCircleScale: null,
+
             snackbar: null,
             snackbarText: null,
         };
@@ -96,8 +101,8 @@ export default {
         clicked: async function () {
             if (!this.recording) {
                 await this.startRecording();
+                this.$emit('recording-started');
             } else {
-                this.working = true;
                 await this.stopRecording();
             }
         },
@@ -107,17 +112,32 @@ export default {
             }
             this.recording = true;
 
+            this.lastAudioVolume = 0;
+            this.updateRecorderCircleScale();
+
             try {
                 // TODO nicely ask permission etc
                 await audioService.startRecording()
+
+                // Set timeout to auto stop recording
                 this.transcriptionShortTimer = setTimeout(() => {
                     if (this.recording) {
                         this.stopRecording();
                         this.snackbar = true;
                         this.snackbarText = 'Maximum duration reached';
                     }
-
                 }, FFConfig.MAX_SHORT_QUERY_MS);
+
+                // Begin fancy button animation
+                let recB = this;
+                const buttonAnimation = async function() {
+                    recB.lastAudioVolume = await transcriber.getLastDCComponent();
+                    recB.updateRecorderCircleScale();
+                    if(recB.recording) {
+                        window.requestAnimationFrame(buttonAnimation);
+                    }
+                }
+                window.requestAnimationFrame(buttonAnimation);
             } catch (e) {
                 console.error(e);
                 alert(e);
@@ -132,9 +152,19 @@ export default {
             }
             this.recording = false;
 
+            // Always set this, because even if we want to go straight back to
+            //  the microphone (because no music was heard) we have to think
+            //  a bit first and run through the CNN to determine that no music
+            //  was heard.
+            this.working = true;
+
             clearTimeout(this.transcriptionShortTimer);
             await audioService.stopRecording();
-            this.$emit('recording-finish');
+            this.$emit('recording-finished');
+        },
+        updateRecorderCircleScale: function() {
+            // [0.8, 1.0]
+            this.recorderCircleScale = 0.8 + Math.min(0.2, Math.max(0, 0.05 * this.lastAudioVolume));
         }
     }
 };
@@ -143,7 +173,8 @@ export default {
 <style scoped>
 
 .RecorderButton {
-    transition: filter ease-in-out 200ms;
+    transition: filter ease-in-out 10ms;
+    /*transition: filter ease-in-out 150ms;*/
 }
 
 .RecorderButton:hover {
@@ -202,7 +233,7 @@ export default {
 
 .RecorderCircle.RecorderActive {
     fill: var(--secondary-colour);
-    transform: scale(0.8);
+    transform: scale(var(--recorder-circle-scale));
 }
 
 /* Working Gears */

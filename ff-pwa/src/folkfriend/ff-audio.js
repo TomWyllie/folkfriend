@@ -19,6 +19,9 @@
 import FFConfig from "@/folkfriend/ff-config";
 import transcriber from "@/folkfriend/ff-transcriber.worker";
 import utils from "@/folkfriend/ff-utils";
+
+// TODO lazy load this and only on iOS / if OfflineAudioContext or other
+//  features not supported
 import {AudioContext, OfflineAudioContext} from 'standardized-audio-context';
 
 const AUDIO_CONSTRAINTS = {
@@ -39,6 +42,7 @@ class AudioService {
         this.timeDomainBufferSize = 2048;
         this.opening = Promise.resolve();
         this.finishOpening = null;
+        this.usingSampleRate = FFConfig.SAMPLE_RATE;
     }
 
     async urlToTimeDomainData(url) {
@@ -48,6 +52,8 @@ class AudioService {
         await new Promise(resolve => {
             audio.onloadedmetadata = resolve;
         });
+        this.usingSampleRate = FFConfig.SAMPLE_RATE;
+        await transcriber.setSampleRate(FFConfig.SAMPLE_RATE);
         const offlineNumSamples = audio.duration * FFConfig.SAMPLE_RATE;
         audio.removeAttribute('src'); // Don't yet load in the rest of the file
 
@@ -97,6 +103,7 @@ class AudioService {
             this.micStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
             sampleRate = this.micStream.getTracks()[0].getSettings().sampleRate;
             const nyq = sampleRate / 2;
+            this.usingSampleRate = sampleRate;
 
             // Recall the highest interpolated value in the spectral frame from
             //  the dsp functions is greater than the midi value (up to half a

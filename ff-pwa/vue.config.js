@@ -1,5 +1,5 @@
 const CopyPlugin = require('copy-webpack-plugin');
-// const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 // const StatsPlugin = require('stats-webpack-plugin')
 
 module.exports = {
@@ -34,7 +34,7 @@ module.exports = {
             // If running `npm run build` with the --modern flag it tries to
             //  plugin twice but cannot bind the same port twice... so turn it
             //  on and off if we need to deploy with legacy mode.
-            // new BundleAnalyzerPlugin(),
+            new BundleAnalyzerPlugin(),
             // new StatsPlugin('stats.json')
         )
     }
