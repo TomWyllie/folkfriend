@@ -11,13 +11,18 @@
             v-on:offline-start="offlineStarted"
         />
 
-        <v-container class="my-xl-5">
-            <v-btn v-on:click="demo" class="mx-auto block">Upload Audio File</v-btn>
+        <v-container>
+            <v-row wrap justify="center">
+                <v-btn v-on:click="demo" class="mx-auto">Upload Audio File</v-btn>
+            </v-row>
         </v-container>
 
-        <v-container class="my-xl-5">
-            <v-btn class="mx-auto block">Placeholder Text Search</v-btn>
+        <v-container>
+            <v-row wrap justify="center">
+                <v-btn class="mx-auto">Placeholder Text Search</v-btn>
+            </v-row>
         </v-container>
+
         <v-spacer></v-spacer>
 
         <v-container class="tuneProgress">
@@ -29,11 +34,21 @@
             ></v-progress-linear>
         </v-container>
 
-        <div id="sheetMusicDemo"></div>
+        <v-row wrap justify="center">
+            <v-switch
+                v-model="transcriptionMode"
+                inset
+                class="mx-auto"
+                :label="`Transcription Mode (Removes recording limit, doesn't search database)`"
+            ></v-switch>
+        </v-row>
+
         <ul id="results">
-            <li v-for="item in this.$data.tunesTable" v-bind:key="item.setting">
-                {{ item.name }} - {{ item.tune }} - {{ item.setting }}
-            </li>
+            <AbcDisplay
+                v-for="item in this.$data.tunesTable"
+                :key="item.setting"
+                :abc="item.abc"
+            ></AbcDisplay>
         </ul>
         <v-spacer></v-spacer>
 
@@ -45,6 +60,8 @@
 
 <script>
 import RecorderButton from "@/components/RecorderButton";
+import AbcDisplay from "@/components/AbcDisplay";
+import EventBus from '@/event-bus';
 
 import audioService from "@/folkfriend/ff-audio";
 import FFConfig from "@/folkfriend/ff-config";
@@ -57,6 +74,7 @@ import abcjs from "abcjs";
 export default {
     name: 'Search',
     components: {
+        AbcDisplay,
         RecorderButton,
     },
     mounted: function () {
@@ -68,6 +86,8 @@ export default {
             postProcPerf: 0,
             snackbar: null,
             snackbarText: null,
+
+            transcriptionMode: null,
 
             progressBar: null,
             progressSearching: null,
@@ -81,17 +101,24 @@ export default {
             // Doesn't matter if this isn't a short query (transcription mode)
             //  because in that case we don't show the progress bar at all.
             this.maxFramesProgress = Math.floor(0.001 * FFConfig.MAX_SHORT_QUERY_MS * audioService.usingSampleRate / FFConfig.SPEC_WINDOW_SIZE);
-            this.startProgressBarAnimation();
+            if (!this.transcriptionMode) {
+                this.startProgressBarAnimation();
+            }
         },
         recordingFinished: async function () {
             console.debug('Recording Stopped');
+
+            if (this.transcriptionMode) {
+                this.maxFramesProgress = (await transcriber.getProgress()).audio;
+                await this.startProgressBarAnimation();
+            }
 
             const decoded = await transcriber.gatherAndDecode();
             this.progressSearching = true;
 
             // For debugging to "throttle" computer
             await new Promise((resolve => {
-                setTimeout(resolve, 2000);
+                setTimeout(resolve, 1000);
             }));
 
             if (!decoded) {
@@ -99,13 +126,16 @@ export default {
                 return;
             }
 
-            const result = await queryEngine.query(decoded.midis);
-            let tunes = await ds.tunesFromQueryResults(result);
-            console.debug(tunes);
+            if (this.transcriptionMode) {
+                // Switch to transcriptions panel and show transcription
+                // this.renderAbc(decoded.abc);
+            } else {
+                const midiQuery = await queryEngine.query(decoded.midis);
+                let tunes = await ds.settingsFromMidiQuery(midiQuery);
+                EventBus.$emit('new-search', tunes);
+                // this.$data.tunesTable = tunes.slice(0, 10);
+            }
 
-            this.renderAbc(tunes[0].abc);
-
-            this.$data.tunesTable = tunes.slice(0, 10);
             this.progressBar = false;
             this.$refs.recorderButton.working = false;
         },
@@ -113,9 +143,6 @@ export default {
             // TODO access audioService's sample rate that is has determined
             //  compute times
             //  animate
-        },
-        computeSearchProgress: async function () {
-
         },
         noMusicHeard: function () {
             console.warn('No music decoded');
@@ -127,38 +154,29 @@ export default {
         demo: async function () {
             this.$refs.recorderButton.working = true;
 
-            const t0 = Date.now();
-
             const timeDomainDataQueue = await audioService.urlToTimeDomainData('audio/fiddle.wav');
 
             this.maxFramesProgress = Math.floor(timeDomainDataQueue[0].length / FFConfig.SPEC_WINDOW_SIZE);
-            console.debug(this.maxFramesProgress);
             this.startProgressBarAnimation();
 
             const decoded = await transcriber.transcribeTimeDomainData(timeDomainDataQueue);
-            console.debug(decoded);
 
             this.progressSearching = true;
 
             // For debugging to "throttle" computer
             await new Promise((resolve => {
-                setTimeout(resolve, 2000);
+                setTimeout(resolve, 1000);
             }));
 
             if (!decoded) {
                 this.noMusicHeard();
             }
 
-            const result = await queryEngine.query(decoded.midis);
-            console.debug(result);
+            const midiQuery = await queryEngine.query(decoded.midis);
+            let tunes = await ds.settingsFromMidiQuery(midiQuery);
+            EventBus.$emit('new-search', tunes);
 
-            let tunes = await ds.tunesFromQueryResults(result);
-            console.debug(tunes);
-
-            this.renderAbc(tunes[0].abc);
-
-            this.$data.postProcPerf = Math.round(Date.now() - t0);
-            this.$data.tunesTable = tunes.slice(0, 10);
+            // this.$data.tunesTable = tunes.slice(0, 10);
 
             this.progressBar = false;
             this.$refs.recorderButton.working = false;
@@ -219,6 +237,13 @@ export default {
             // }, 200);    // IE run animation at 5ps (but transitions make it smooth)
         }
     },
+    watch: {
+        transcriptionMode: function () {
+            // TODO this is an anti-pattern. Should be replaced by better
+            //  separation between button and this search, or vuex.
+            this.$refs.recorderButton.transcriptionMode = this.transcriptionMode;
+        }
+    }
 };
 
 </script>

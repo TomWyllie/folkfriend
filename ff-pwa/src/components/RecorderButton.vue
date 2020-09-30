@@ -90,6 +90,7 @@ export default {
             transcriptionMode: null,
             transcriptionShortTimer: null,
 
+
             lastAudioVolume: 0,
             recorderCircleScale: null,
 
@@ -121,7 +122,9 @@ export default {
 
                 // Set timeout to auto stop recording
                 this.transcriptionShortTimer = setTimeout(() => {
-                    if (this.recording) {
+                    // So users can turn on transcription mode even if they
+                    //  start in short query mode.
+                    if (this.recording && !this.transcriptionMode) {
                         this.stopRecording();
                         this.snackbar = true;
                         this.snackbarText = 'Maximum duration reached';

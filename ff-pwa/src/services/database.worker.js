@@ -302,9 +302,19 @@ class DatabaseService {
         return JSON.parse(result);
     }
 
-    async tunesFromQueryResults(results) {
+    async settingsFromIDs(results) {
         await this.verifyLoaded();
         return results.map(({setting}) => this.setting(setting));
+    }
+
+    async settingsFromMidiQuery(results) {
+        const settings = await this.settingsFromIDs(results);
+        // let seenTuneIDs = new Set();
+        /* eslint-disable */
+        for(const [i, setting] of settings.entries()) {
+            settings[i].score = results[i];
+        }
+        return settings;
     }
 
     setting(sID) {
