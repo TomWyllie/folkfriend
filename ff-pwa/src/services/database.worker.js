@@ -197,8 +197,8 @@ class DatabaseService {
             // TODO the NUData field I confusingly called 'tunes'
             //  it should probably be 'settings'
             const setting = NUData['tunes'][i];
-            const sid = setting['loadSetting'];     // Setting ID
-            const tid = setting['loadTune'];     // Setting ID
+            const sid = setting['setting'];     // Setting ID
+            const tid = setting['tune'];     // Setting ID
 
             // Store the index of the NUData settings object that corresponds
             //  to this setting. This is not quite an 'i to i' mapping as there
@@ -319,7 +319,7 @@ class DatabaseService {
 
     async settingsFromIDs(results) {
         await this.verifyLoaded();
-        return results.map(({setting}) => this.loadSetting(setting));
+        return results.map(({setting}) => this._loadSetting(setting));
     }
 
     async settingsFromMidiQuery(results) {
@@ -332,15 +332,38 @@ class DatabaseService {
         return settings;
     }
 
-    loadSetting(sID) {
+    /* These asynchronous wrappers are purely because we're using comlink.
+    *   comlink wants all functions to be async because they run on the
+    *   worker thread, but we might want to use some of the functionality
+    *   underneath these functions internally, ie on this thread, ie
+    *   synchronously.
+    * */
+    async loadSetting(x) {
+        return this._loadSetting(x);
+    }
+    
+    async loadTune(x) {
+        return this._loadTune(x);
+    }
+    
+    async loadAliases(x) {
+        return this._loadAliases(x);
+    }
+    
+    _loadSetting(sID) {
         // Setting from setting ID
         return this._bulkSettings[this.settingBySettingID[sID]];
     }
 
-    loadTune(tID) {
+    _loadTune(tID) {
         // Settings from tune ID
         const settingIDs = this.settingsByTuneID[tID];
-        return settingIDs.map(s => this.loadSetting(s));
+        return settingIDs.map(s => this._loadSetting(s));
+    }
+
+    _loadAliases(tID) {
+        // Aliases from tune ID
+        return this._bulkAlises[tID.toString()];
     }
 }
 
