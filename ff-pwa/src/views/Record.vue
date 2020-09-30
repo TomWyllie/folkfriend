@@ -16,7 +16,8 @@
                 <v-btn
                     v-on:click="demo"
                     :disabled="!offlineButton"
-                    class="mx-auto">Upload Audio File</v-btn>
+                    class="mx-auto">Upload Audio File
+                </v-btn>
             </v-row>
         </v-container>
 
@@ -70,7 +71,7 @@ import FFConfig from "@/folkfriend/ff-config";
 import queryEngine from "@/folkfriend/ff-query-engine";
 import transcriber from "@/folkfriend/ff-transcriber.worker";
 import ds from "@/services/database.worker";
-import store from '@/services/store';
+import store from "@/services/store";
 
 
 import abcjs from "abcjs";
@@ -137,7 +138,7 @@ export default {
             } else {
                 const midiQuery = await queryEngine.query(decoded.midis);
                 let tunes = await ds.settingsFromMidiQuery(midiQuery);
-                this.saveAsNewSearch(tunes);
+                this.registerNewSearch(tunes);
             }
 
             this.progressBar = false;
@@ -182,7 +183,7 @@ export default {
 
                 const midiQuery = await queryEngine.query(decoded.midis);
                 let tunes = await ds.settingsFromMidiQuery(midiQuery);
-                this.saveAsNewSearch(tunes);
+                this.registerNewSearch(tunes);
             } catch (e) {
                 // We need to make sure that the UI update code at the
                 //  end runs even if there's any exceptions. Otherwise
@@ -195,8 +196,9 @@ export default {
             this.progressBar = false;
             this.$refs.recorderButton.working = false;
         },
-        saveAsNewSearch: function(tunes) {
+        registerNewSearch: function (tunes) {
             store.setEntry('lastSearch', tunes.slice(0, 20));
+            this.$router.push({name: 'searches'});
         },
         renderAbc: function (abc) {
 

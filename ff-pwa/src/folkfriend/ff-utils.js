@@ -35,6 +35,10 @@ export default class utils {
         return words.join(" ");
     }
 
+    static parseDisplayableDescription(setting) {
+        return `${setting.type} in ${setting.mode.slice(0, 4)}`;
+    }
+
     static midiToHertz(midi) {
         return 440 * Math.pow(2, (midi - 69) / 12);
     }

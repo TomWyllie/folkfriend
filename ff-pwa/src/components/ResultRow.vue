@@ -1,5 +1,11 @@
 <template>
-    <router-link tag="div" :to="{ name: 'tune', params: {setting: this.result.setting, tune: this.result.tune}}">
+    <router-link tag="div"
+                 :to="{ name: 'tune',
+                        params: {
+                            settingID: this.result.setting,
+                            tuneID: this.result.tune
+                        }
+                 }">
         <v-container v-ripple>
             <v-row>
                 <v-col class="py-0">
@@ -26,7 +32,7 @@ export default {
     props: ['result'],
     computed: {
         descriptor: function () {
-            return `${this.result.type} in ${this.result.mode.slice(0, 4)}`;
+            return utils.parseDisplayableDescription(this.result);
         },
         name: function () {
             return utils.parseDisplayableName(this.result.name);
@@ -68,8 +74,11 @@ export default {
 
 <style scoped>
 .descriptor {
-    text-transform: capitalize;
     font-style: italic;
+}
+
+.descriptor::first-letter {
+    text-transform: uppercase;
 }
 
 .score {

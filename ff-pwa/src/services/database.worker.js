@@ -14,7 +14,7 @@ class DatabaseService {
         this._bulkSettings = null;
         this._bulkAlises = null;
         this.settingBySettingID = null;
-        this.settingByTuneID = null;
+        this.settingsByTuneID = null;
 
         this.ready = new Promise((resolve) => {
             this.setReady = resolve;
@@ -108,8 +108,8 @@ class DatabaseService {
         //  is done nicely.
         this._bulkSettings = this._bulkSettings || (await this.db.bulk.get({name: 'settings'})).value;
         this._bulkAlises = this._bulkAlises || (await this.db.bulk.get('aliases')).value;
-        this.settingBySettingID = this.settingBySettingID || (await this.db.bulk.get('tuneBySettingID')).value;
-        this.settingByTuneID = this.settingByTuneID || (await this.db.bulk.get('tuneByTuneID')).value;
+        this.settingBySettingID = this.settingBySettingID || (await this.db.bulk.get('settingBySettingID')).value;
+        this.settingsByTuneID = this.settingsByTuneID || (await this.db.bulk.get('settingsByTuneID')).value;
     }
 
     async checkForUpdates(NUDVersionLocal) {
@@ -191,12 +191,27 @@ class DatabaseService {
         // Now we have to generate a few database mapping things ourselves
         //  (Dexie too slow for this as discussed previously).
         const settingBySettingID = {};
-        const settingByTuneID = {};
+        const settingsByTuneID = {};
 
         for (let i = 0; i < NUData['tunes'].length; i++) {
-            const tune = NUData['tunes'][i];
-            settingBySettingID[tune['setting']] = i;
-            settingByTuneID[tune['tune']] = i;
+            // TODO the NUData field I confusingly called 'tunes'
+            //  it should probably be 'settings'
+            const setting = NUData['tunes'][i];
+            const sid = setting['loadSetting'];     // Setting ID
+            const tid = setting['loadTune'];     // Setting ID
+
+            // Store the index of the NUData settings object that corresponds
+            //  to this setting. This is not quite an 'i to i' mapping as there
+            //  are some setting IDs missing from the NUData settings object
+            //  because they've been removed from the website etc.
+            settingBySettingID[sid] = i;
+
+            // One tune ID maps to one or more setting IDs.
+            if (settingsByTuneID[tid]) {
+                settingsByTuneID[tid].push(sid);
+            } else {
+                settingsByTuneID[tid] = [sid];
+            }
         }
 
         // Now use the big data file to update the IDB.
@@ -223,13 +238,13 @@ class DatabaseService {
             });
 
             this.db.bulk.put({
-                name: 'tuneBySettingID',
+                name: 'settingBySettingID',
                 value: settingBySettingID
             });
 
             this.db.bulk.put({
-                name: 'tuneByTuneID',
-                value: settingByTuneID
+                name: 'settingsByTuneID',
+                value: settingsByTuneID
             });
 
             /* Update aliases */
@@ -250,7 +265,7 @@ class DatabaseService {
         this._bulkSettings = NUData['tunes'];
         this._bulkAlises = NUData['aliases'];
         this.settingBySettingID = settingBySettingID;
-        this.settingByTuneID = settingByTuneID;
+        this.settingsByTuneID = settingsByTuneID;
     }
 
     async fetchJSONWithProgress(requestLabel, url, size) {
@@ -304,25 +319,28 @@ class DatabaseService {
 
     async settingsFromIDs(results) {
         await this.verifyLoaded();
-        return results.map(({setting}) => this.setting(setting));
+        return results.map(({setting}) => this.loadSetting(setting));
     }
 
     async settingsFromMidiQuery(results) {
         const settings = await this.settingsFromIDs(results);
         // let seenTuneIDs = new Set();
         /* eslint-disable */
-        for(const [i, setting] of settings.entries()) {
+        for (const [i, setting] of settings.entries()) {
             settings[i].score = results[i].score;
         }
         return settings;
     }
 
-    setting(sID) {
+    loadSetting(sID) {
+        // Setting from setting ID
         return this._bulkSettings[this.settingBySettingID[sID]];
     }
 
-    tune(tID) {
-        return this._bulkSettings[this.settingByTuneID[tID]];
+    loadTune(tID) {
+        // Settings from tune ID
+        const settingIDs = this.settingsByTuneID[tID];
+        return settingIDs.map(s => this.loadSetting(s));
     }
 }
 
