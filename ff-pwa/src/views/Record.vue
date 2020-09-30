@@ -38,7 +38,7 @@
             ></v-progress-linear>
         </v-container>
 
-        <v-row wrap justify="center">
+        <v-row wrap justify="center" class="transcriptionSwitch mx-auto">
             <v-switch
                 v-model="transcriptionMode"
                 inset
@@ -216,7 +216,7 @@ export default {
             let svgWidth = sheetMusicSvg.width.baseVal.value;
             let svgHeight = sheetMusicSvg.height.baseVal.value;
 
-            // Get rid of the unflexible auto created dimensions / scaling code from the ABCJS library
+            // Get rid of the inflexible auto created dimensions / scaling code from the ABCJS library
             sheetMusicSvg.removeAttribute('height');
             sheetMusicSvg.removeAttribute('width');
             sheetMusicWrapper.removeAttribute('style');
@@ -247,13 +247,7 @@ export default {
             this.audioProgress = 100 * audio / this.maxFramesProgress; // Percent
             this.featureProgress = 100 * features / this.maxFramesProgress; // Percent
 
-            // If we update too quickly the bar actually doesn't update.
-            //  IMO this represents a problem that the Vuetify people should
-            //  probably fix...
-            //  See https://stackoverflow.com/a/56709798/7919125
-            // setTimeout(() => {
             window.requestAnimationFrame(this.progressBarAnimation);
-            // }, 200);    // IE run animation at 5ps (but transitions make it smooth)
         }
     },
     watch: {
@@ -270,5 +264,8 @@ export default {
 <style scoped>
 .tuneProgress {
     max-width: 60%;
+}
+.transcriptionSwitch {
+    max-width: 70%;
 }
 </style>

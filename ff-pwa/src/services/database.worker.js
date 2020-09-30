@@ -12,7 +12,7 @@ class DatabaseService {
         this.networkProgress = {};
 
         this._bulkSettings = null;
-        this._bulkAlises = null;
+        this._bulkAliases = null;
         this.settingBySettingID = null;
         this.settingsByTuneID = null;
 
@@ -107,7 +107,7 @@ class DatabaseService {
         //  it the easy way. At least Dexie means all the versioning and stuff
         //  is done nicely.
         this._bulkSettings = this._bulkSettings || (await this.db.bulk.get({name: 'settings'})).value;
-        this._bulkAlises = this._bulkAlises || (await this.db.bulk.get('aliases')).value;
+        this._bulkAliases = this._bulkAliases || (await this.db.bulk.get('aliases')).value;
         this.settingBySettingID = this.settingBySettingID || (await this.db.bulk.get('settingBySettingID')).value;
         this.settingsByTuneID = this.settingsByTuneID || (await this.db.bulk.get('settingsByTuneID')).value;
     }
@@ -263,7 +263,7 @@ class DatabaseService {
         // Saves us loading in these from the database if we've only
         //  just put them in.
         this._bulkSettings = NUData['tunes'];
-        this._bulkAlises = NUData['aliases'];
+        this._bulkAliases = NUData['aliases'];
         this.settingBySettingID = settingBySettingID;
         this.settingsByTuneID = settingsByTuneID;
     }
@@ -363,7 +363,12 @@ class DatabaseService {
 
     _loadAliases(tID) {
         // Aliases from tune ID
-        return this._bulkAlises[tID.toString()];
+        if(!(tID in this._bulkAliases)) {
+            // Plenty of tunes have one name, so no aliases.
+            return [];
+        } else {
+            return this._bulkAliases[tID];
+        }
     }
 }
 
