@@ -312,7 +312,7 @@ class DatabaseService {
         // let seenTuneIDs = new Set();
         /* eslint-disable */
         for(const [i, setting] of settings.entries()) {
-            settings[i].score = results[i];
+            settings[i].score = results[i].score;
         }
         return settings;
     }

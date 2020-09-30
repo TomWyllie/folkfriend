@@ -1,30 +1,39 @@
 <template>
-    <v-list>
-        <ResultRow
-            v-for="result in this.$route.params.results"
-            :key="result.setting"
-            :result="result"
-        ></ResultRow>
-        <!--<p>{{ this.$route.query }}</p>-->
-    </v-list>
+    <v-container class="resultsTableWrapper mx-auto">
+        <v-list class="resultsTable">
+            <ResultRow
+                v-for="result in this.sharedState.lastSearch"
+                :key="result.setting"
+                :result="result"
+            ></ResultRow>
+        </v-list>
+    </v-container>
 </template>
 
 <script>
 import ResultRow from "@/components/ResultRow";
+import store from "@/services/store";
 
 export default {
-    name: "Searches",
+    name: 'Searches',
     components: {
         ResultRow,
     },
-    props: {
-        results: {
-            type: Array
-        }
-    }
+    data: function () {
+        return {
+            sharedState: store.state
+        };
+    },
 };
 </script>
 
 <style scoped>
+.resultsTableWrapper {
+    display: block;
+    max-width: min(90vh, 90vw);
+}
 
+.resultsTable div:nth-child(odd) {
+    background: #EFEFEF;
+}
 </style>

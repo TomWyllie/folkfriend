@@ -1,5 +1,8 @@
 // Self-contained functions which come in handy throughout the project
 
+// https://grammar.yourdictionary.com/capitalization/rules-for-capitalization-in-titles.html
+const LOWER_TITLE_WORDS = new Set(["a", "an", "the", "at", "by", "for", "in", "of", "on", "to", "up", "and", "as", "but", "or", "nor"]);
+
 // Wrap in a class for ease of exports
 export default class utils {
     static daysSince2020() {
@@ -12,6 +15,24 @@ export default class utils {
 
         // NO time travelling >:c
         return Math.max(0, daysSince2020);
+    }
+
+    static parseDisplayableName(rawName) {
+        // https://bitbucket.org/Tom_Wyllie/folk-friend-web-app/src/master/app/js/folkfriend-app.js
+        if (rawName.endsWith(', The')) {
+            rawName = 'The ' + rawName.slice(0, -5);
+        }
+
+        let words = rawName.split(" ");
+
+        // Ensure small words are not capitalised, unless they are at the start of the word
+        for (let [i, word] of words.entries()) {
+            if (i === 0) continue;    // First word is always capitalised
+            if (LOWER_TITLE_WORDS.has(word.toLowerCase())) {
+                words[i] = word.toLowerCase();
+            }
+        }
+        return words.join(" ");
     }
 
     static midiToHertz(midi) {
@@ -58,5 +79,25 @@ export default class utils {
         ctx.putImageData(imageData, 0, 0);
 
         document.body.appendChild(canvas);
+    }
+
+    static lerpColor(a, b, amount) {
+        a = a.replace('#', '0x');
+        b = b.replace('#', '0x');
+
+        // https://gist.github.com/nikolas/b0cce2261f1382159b507dd492e1ceef
+        const ar = a >> 16,
+            ag = a >> 8 & 0xff,
+            ab = a & 0xff,
+
+            br = b >> 16,
+            bg = b >> 8 & 0xff,
+            bb = b & 0xff,
+
+            rr = ar + amount * (br - ar),
+            rg = ag + amount * (bg - ag),
+            rb = ab + amount * (bb - ab);
+
+        return `rgb(${Math.round(rr)}, ${Math.round(rg)}, ${Math.round(rb)})`;
     }
 }

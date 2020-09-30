@@ -3,6 +3,7 @@ import VueRouter from 'vue-router';
 import Record from '@/views/Record.vue';
 import Transcriptions from '@/views/Transcriptions.vue';
 import Searches from '@/views/Searches';
+import Tune from "@/views/Tune";
 import Settings from "@/views/Settings";
 import History from "@/views/History";
 
@@ -31,11 +32,12 @@ const routes = [
         path: '/searches',
         name: 'searches',
         component: Searches,
-        // Accept the data about this search
-        props: {
-            header: true,
-            content: true
-        }
+    },
+    {
+        path: '/tune',
+        name: 'tune',
+        component: Tune,
+        props: true
     },
     {
         path: '/history',

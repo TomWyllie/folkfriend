@@ -28,7 +28,7 @@
                     </v-list-item>
                 </router-link>
 
-                <router-link tag="div" :to="{ name: 'searches', params: {results: this.$data.lastSearch}}">
+                <router-link tag="div" to="/searches">
                     <v-list-item @click="0">
                         <v-list-item-action>
                             <v-icon>format_list_bulleted</v-icon>
@@ -89,7 +89,6 @@
 import ds from '@/services/database.worker';
 import transcriber from "@/folkfriend/ff-transcriber.worker";
 import queryEngine from "@/folkfriend/ff-query-engine";
-import EventBus from '@/event-bus';
 
 async function readyServices() {
     // Order non-trivial here, we initialise things likely
@@ -109,14 +108,9 @@ export default {
     data: () => ({
         drawer: null,
         menu: null,
-
-        lastSearch: null
     }),
-    mounted() {
+    mounted: function() {
         readyServices().then();
-        EventBus.$on('new-search', payload => {
-            this.lastSearch = payload;
-        });
     },
 };
 </script>

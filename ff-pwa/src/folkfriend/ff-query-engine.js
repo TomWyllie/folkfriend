@@ -10,6 +10,7 @@
 
  */
 
+// TODO move to FFConfig
 const QUERY_SHARD_SIZE = 64;
 
 import FFConfig from "@/folkfriend/ff-config";
@@ -53,8 +54,16 @@ class QueryEngine {
             }
         }
 
+        // We've done something nifty here - capped the norm factor at a
+        //  minimum of 12. So when there's really short queries of 5-6
+        //  notes that are likely to produce many close matches we don't
+        //  then say to the user that we are super confident that it was
+        //  a 100% match. The 'penalty' this incurs on very short queries
+        //  increases with length, ie for an 11 length query it's only a
+        //  11/12 factor reduction.
+        let normFactor = 2 * Math.min(Math.max(12, query.length), QUERY_SHARD_SIZE);
         let props = Object.keys(settingsScores).map(function (key) {
-            return {setting: parseInt(key), score: this[key]};
+            return {setting: parseInt(key), score: this[key] / normFactor};
         }, settingsScores);
         props.sort(function (p1, p2) {
             return p2.score - p1.score;

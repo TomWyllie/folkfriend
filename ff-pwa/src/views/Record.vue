@@ -13,7 +13,10 @@
 
         <v-container>
             <v-row wrap justify="center">
-                <v-btn v-on:click="demo" class="mx-auto">Upload Audio File</v-btn>
+                <v-btn
+                    v-on:click="demo"
+                    :disabled="!offlineButton"
+                    class="mx-auto">Upload Audio File</v-btn>
             </v-row>
         </v-container>
 
@@ -61,13 +64,14 @@
 <script>
 import RecorderButton from "@/components/RecorderButton";
 import AbcDisplay from "@/components/AbcDisplay";
-import EventBus from '@/event-bus';
 
 import audioService from "@/folkfriend/ff-audio";
 import FFConfig from "@/folkfriend/ff-config";
 import queryEngine from "@/folkfriend/ff-query-engine";
 import transcriber from "@/folkfriend/ff-transcriber.worker";
 import ds from "@/services/database.worker";
+import store from '@/services/store';
+
 
 import abcjs from "abcjs";
 
@@ -89,6 +93,7 @@ export default {
 
             transcriptionMode: null,
 
+            offlineButton: true,
             progressBar: null,
             progressSearching: null,
             audioProgress: null,
@@ -132,14 +137,14 @@ export default {
             } else {
                 const midiQuery = await queryEngine.query(decoded.midis);
                 let tunes = await ds.settingsFromMidiQuery(midiQuery);
-                EventBus.$emit('new-search', tunes);
-                // this.$data.tunesTable = tunes.slice(0, 10);
+                this.saveAsNewSearch(tunes);
             }
 
             this.progressBar = false;
             this.$refs.recorderButton.working = false;
         },
         offlineStarted: async function () {
+            this.offlineButton = false;
             // TODO access audioService's sample rate that is has determined
             //  compute times
             //  animate
@@ -153,33 +158,45 @@ export default {
         },
         demo: async function () {
             this.$refs.recorderButton.working = true;
+            this.offlineButton = false;
 
-            const timeDomainDataQueue = await audioService.urlToTimeDomainData('audio/fiddle.wav');
+            try {
+                const timeDomainDataQueue = await audioService.urlToTimeDomainData('audio/fiddle.wav');
 
-            this.maxFramesProgress = Math.floor(timeDomainDataQueue[0].length / FFConfig.SPEC_WINDOW_SIZE);
-            this.startProgressBarAnimation();
+                this.maxFramesProgress = Math.floor(timeDomainDataQueue[0].length / FFConfig.SPEC_WINDOW_SIZE);
+                this.startProgressBarAnimation();
 
-            const decoded = await transcriber.transcribeTimeDomainData(timeDomainDataQueue);
+                const decoded = await transcriber.transcribeTimeDomainData(timeDomainDataQueue);
+                this.progressSearching = true;
 
-            this.progressSearching = true;
+                console.debug(decoded);
 
-            // For debugging to "throttle" computer
-            await new Promise((resolve => {
-                setTimeout(resolve, 1000);
-            }));
+                // For debugging to "throttle" computer
+                await new Promise((resolve => {
+                    setTimeout(resolve, 1000);
+                }));
 
-            if (!decoded) {
-                this.noMusicHeard();
+                if (!decoded) {
+                    this.noMusicHeard();
+                }
+
+                const midiQuery = await queryEngine.query(decoded.midis);
+                let tunes = await ds.settingsFromMidiQuery(midiQuery);
+                this.saveAsNewSearch(tunes);
+            } catch (e) {
+                // We need to make sure that the UI update code at the
+                //  end runs even if there's any exceptions. Otherwise
+                //  bad things happen like the offline audio button being
+                //  stuck in the disabled state.
+                console.error(e);
             }
 
-            const midiQuery = await queryEngine.query(decoded.midis);
-            let tunes = await ds.settingsFromMidiQuery(midiQuery);
-            EventBus.$emit('new-search', tunes);
-
-            // this.$data.tunesTable = tunes.slice(0, 10);
-
+            this.offlineButton = true;
             this.progressBar = false;
             this.$refs.recorderButton.working = false;
+        },
+        saveAsNewSearch: function(tunes) {
+            store.setEntry('lastSearch', tunes.slice(0, 20));
         },
         renderAbc: function (abc) {
 
@@ -249,11 +266,6 @@ export default {
 </script>
 
 <style scoped>
-
-.block {
-    display: block;
-}
-
 .tuneProgress {
     max-width: 60%;
 }

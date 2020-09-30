@@ -99,6 +99,8 @@ export default {
         };
     },
     methods: {
+        // TODO move all the logic out of here and into Record.vue
+        //  link with an event bus
         clicked: async function () {
             if (!this.recording) {
                 await this.startRecording();
