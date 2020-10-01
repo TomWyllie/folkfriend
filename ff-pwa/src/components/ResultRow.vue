@@ -16,7 +16,10 @@
                 <v-col class="py-0 descriptor">
                     {{ this.descriptor }}
                 </v-col>
-                <v-col class="py-0 text-right score" :style="`color: ${this.scoreColour};`">
+                <v-col
+                    v-show="this.result.score"
+                    class="py-0 text-right score"
+                    :style="`color: ${this.scoreColour};`">
                     {{ this.score }}
                 </v-col>
             </v-row>
@@ -35,7 +38,15 @@ export default {
             return utils.parseDisplayableDescription(this.result);
         },
         name: function () {
-            return utils.parseDisplayableName(this.result.name);
+            // Allow the result object being passed in to override this
+            //  default behaviour. If we are doing text searches we want
+            //  to display the matched alias which isn't necessarily the
+            //  name.
+            if(this.result.displayableName) {
+                return this.result.displayableName;
+            } else {
+                return utils.parseDisplayableName(this.result.name);
+            }
         },
         score: function () {
             // This mapping is a rough guideline based on experience

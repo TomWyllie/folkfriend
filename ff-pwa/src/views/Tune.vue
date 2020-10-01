@@ -19,7 +19,7 @@
             >{{ alias }}
             </v-chip>
         </v-container>
-        <v-expansion-panels>
+        <v-expansion-panels v-model="expandedIndex" multiple>
             <v-expansion-panel
                 v-show="settings"
                 v-for="settingData in this.settings"
@@ -62,7 +62,8 @@ export default {
             empty: false,
             settings: null,
             aliases: null,
-            noAliases: true
+            noAliases: true,
+            expandedIndex: []
         };
     },
     computed: {
@@ -86,6 +87,23 @@ export default {
             this.empty = false;
         } else {
             this.empty = true;
+        }
+
+        // Auto-pop open the matched setting and scroll into view
+        if(!this.empty) {
+            if(this.settingID) {
+                for(const [i, setting] of this.settings.entries()) {
+                    if(setting.setting === this.settingID) {
+                        this.expandedIndex = [i];
+                    }
+                }
+            } else {
+                // By default, open the first tune. Only pop it open
+                //  here because otherwise if it's in data() the first
+                //  one pops open unwanted even when we've hit another
+                //  as above.
+                this.expandedIndex = [0];
+            }
         }
     },
     methods: {

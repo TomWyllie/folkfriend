@@ -23,11 +23,43 @@
 
         <v-container>
             <v-row wrap justify="center">
-                <v-btn class="mx-auto">Placeholder Text Search</v-btn>
+                <v-col
+                    class="mx-auto pt-5 pb-0"
+                    sm="6"
+                    md="8">
+                    <v-text-field
+                        label="Search By Tune Name"
+                        outlined
+                        v-model="textQuery"
+                        @keypress.enter="runTextQuery">
+                        <template v-slot:append>
+                            <v-icon @click="runTextQuery">search</v-icon>
+                        </template>
+                    </v-text-field>
+                </v-col>
             </v-row>
         </v-container>
 
-        <v-spacer></v-spacer>
+        <v-container class="transcriptionSwitch py-0">
+            <v-row wrap justify="center">
+                <!--            <v-tooltip bottom>-->
+                <!--                <template v-slot:activator="{ on, attrs }">-->
+                <!--                    <v-icon-->
+                <!--                        v-bind="attrs"-->
+                <!--                        v-on="on"-->
+                <!--                    >help-->
+                <!--                    </v-icon>-->
+                <!--                </template>-->
+                <!--                <span >Removes recording limit, doesn't search database</span>-->
+                <!--            </v-tooltip>-->
+                <v-switch
+                    v-model="transcriptionMode"
+                    inset
+                    class="mx-auto"
+                    :label="`Transcription Mode`"
+                ></v-switch>
+            </v-row>
+        </v-container>
 
         <v-container class="tuneProgress">
             <v-progress-linear
@@ -38,24 +70,6 @@
             ></v-progress-linear>
         </v-container>
 
-        <v-row wrap justify="center" class="transcriptionSwitch mx-auto">
-            <v-switch
-                v-model="transcriptionMode"
-                inset
-                class="mx-auto"
-                :label="`Transcription Mode (Removes recording limit, doesn't search database)`"
-            ></v-switch>
-        </v-row>
-
-        <ul id="results">
-            <AbcDisplay
-                v-for="item in this.$data.tunesTable"
-                :key="item.setting"
-                :abc="item.abc"
-            ></AbcDisplay>
-        </ul>
-        <v-spacer></v-spacer>
-
         <v-snackbar class="text-center" v-model="snackbar" :timeout="3000">
             {{ snackbarText }}
         </v-snackbar>
@@ -64,7 +78,6 @@
 
 <script>
 import RecorderButton from "@/components/RecorderButton";
-import AbcDisplay from "@/components/AbcDisplay";
 
 import audioService from "@/folkfriend/ff-audio";
 import FFConfig from "@/folkfriend/ff-config";
@@ -79,8 +92,7 @@ import abcjs from "abcjs";
 export default {
     name: 'Search',
     components: {
-        AbcDisplay,
-        RecorderButton,
+        RecorderButton
     },
     mounted: function () {
         console.debug('Home loaded');
@@ -93,6 +105,7 @@ export default {
             snackbarText: null,
 
             transcriptionMode: null,
+            textQuery: '',
 
             offlineButton: true,
             progressBar: null,
@@ -103,6 +116,15 @@ export default {
         };
     },
     methods: {
+        runTextQuery: async function () {
+            const textSearchResults = await ds.runNamedSearchQuery(this.textQuery);
+            if(textSearchResults === false) {
+                this.snackbarText = 'No matches found';
+                this.snackbar = true;
+            } else {
+                this.registerNewSearch(textSearchResults);
+            }
+        },
         recordingStarted: async function () {
             // Doesn't matter if this isn't a short query (transcription mode)
             //  because in that case we don't show the progress bar at all.
@@ -265,6 +287,7 @@ export default {
 .tuneProgress {
     max-width: 60%;
 }
+
 .transcriptionSwitch {
     max-width: 70%;
 }

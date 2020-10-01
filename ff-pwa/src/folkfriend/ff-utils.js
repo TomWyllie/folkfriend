@@ -17,10 +17,14 @@ export default class utils {
         return Math.max(0, daysSince2020);
     }
 
-    static parseDisplayableName(rawName) {
+    static parseDisplayableName(rawName, casing=true) {
         // https://bitbucket.org/Tom_Wyllie/folk-friend-web-app/src/master/app/js/folkfriend-app.js
         if (rawName.endsWith(', The')) {
             rawName = 'The ' + rawName.slice(0, -5);
+        }
+
+        if(!casing) {
+            return rawName;
         }
 
         let words = rawName.split(" ");
@@ -37,6 +41,10 @@ export default class utils {
 
     static parseDisplayableDescription(setting) {
         return `${setting.type} in ${setting.mode.slice(0, 4)}`;
+    }
+
+    static parseQueryableString(s) {
+        return s.toLowerCase();
     }
 
     static midiToHertz(midi) {

@@ -110,6 +110,7 @@ class DatabaseService {
         this._bulkAliases = this._bulkAliases || (await this.db.bulk.get('aliases')).value;
         this.settingBySettingID = this.settingBySettingID || (await this.db.bulk.get('settingBySettingID')).value;
         this.settingsByTuneID = this.settingsByTuneID || (await this.db.bulk.get('settingsByTuneID')).value;
+        this.textQueryByTuneID = this.textQueryByTuneID || (await this.db.bulk.get('textQueryByTuneID')).value;
     }
 
     async checkForUpdates(NUDVersionLocal) {
@@ -214,6 +215,27 @@ class DatabaseService {
             }
         }
 
+        // Saves us loading in these from the database if we will
+        //  have only just put them in.
+        this._bulkSettings = NUData['tunes'];
+        this._bulkAliases = NUData['aliases'];
+        this.settingBySettingID = settingBySettingID;
+        this.settingsByTuneID = settingsByTuneID;
+
+        // Also generate a simplified store of text for the text query search
+        const textQueryByTuneID = {};
+        for (const tuneID of Object.keys(settingsByTuneID)) {
+            const name = this._loadSetting(settingsByTuneID[tuneID][0]).name;
+            textQueryByTuneID[tuneID] = [utils.parseQueryableString(name)];
+            const aliases = this._loadAliases(tuneID);
+            if (aliases) {
+                textQueryByTuneID[tuneID].push(...aliases.map(a => utils.parseQueryableString(a)));
+            }
+        }
+
+        // As above, saves database query on first load
+        this.textQueryByTuneID = textQueryByTuneID;
+
         // Now use the big data file to update the IDB.
         //  This is a transaction so either it all works or it all rejects (thanks Dexie).
         await this.db.transaction('rw', [
@@ -247,6 +269,11 @@ class DatabaseService {
                 value: settingsByTuneID
             });
 
+            this.db.bulk.put({
+                name: 'textQueryByTuneID',
+                value: textQueryByTuneID
+            });
+
             /* Update aliases */
             this.db.bulk.put({
                 name: 'aliases',
@@ -260,12 +287,6 @@ class DatabaseService {
             });
         });
 
-        // Saves us loading in these from the database if we've only
-        //  just put them in.
-        this._bulkSettings = NUData['tunes'];
-        this._bulkAliases = NUData['aliases'];
-        this.settingBySettingID = settingBySettingID;
-        this.settingsByTuneID = settingsByTuneID;
     }
 
     async fetchJSONWithProgress(requestLabel, url, size) {
@@ -317,6 +338,82 @@ class DatabaseService {
         return JSON.parse(result);
     }
 
+    async runNamedSearchQuery(query) {
+        // Run a text search. We actually do the maths behind
+        //  the search here because I did it in FolkFriend 1.*
+        //  and it seemed to work fine.
+        // https://bitbucket.org/Tom_Wyllie/folk-friend-web-app/src/master/app/js/folkfriend-app-worker.js
+        const ktup = 3;
+        const queryTuples = [];
+
+        // Get an array of each three length string in the query name
+        query = utils.parseQueryableString(query);
+        for (let i = 0; i < query.length - ktup; i++) {
+            queryTuples.push(query.slice(i, i + ktup));
+        }
+
+        let searchResults = [];
+        for (const [tID, names] of Object.entries(this.textQueryByTuneID)) {
+            let maxScore = 0;
+            let maxAlias = 0;
+            for (let j = 0; j < names.length; j++) {
+                let score = 0;
+                queryTuples.forEach(tup => {
+                    if (names[j].includes(tup)) {
+                        score += 1;
+                    }
+                });
+                score /= Math.max(names[j].length, query.length);
+                if (score > maxScore) {
+                    maxScore = score;
+                    maxAlias = j;
+                }
+            }
+            searchResults.push({
+                tuneID: tID,
+                aliasIndex: maxAlias,                   // ID=0 => "name", ID>=1 => "alias"[ID-1]
+                maxNameLength: names[maxAlias].length,  // Needed for secondary sorting
+                score: maxScore
+            });
+        }
+
+        searchResults.sort(function (a, b) {
+            let d_score = b.score - a.score;
+            if (d_score) {
+                return d_score;
+            } else {
+                // If scores are the same, sort instead by length of name, noting that we invert order
+                //  (ie shortest names first).
+                return a.maxNameLength - b.maxNameLength;
+            }
+        });
+
+        // Return only 30 results
+        searchResults.splice(20);
+
+        // Don't return anything with 0 matches or it just goes to
+        //  all the shortest tune names.
+        searchResults = searchResults.filter(r => r.score > 0);
+
+        // Finally put the displayable name in each search entry for the component
+        for(const [i, result] of searchResults.entries()) {
+            let matchedName;
+            if(result.aliasIndex === 0) {
+                matchedName = this._loadSetting(this.settingsByTuneID[result.tuneID][0]).name;
+            } else {
+                matchedName = this._loadAliases(result.tuneID)[result.aliasIndex - 1];
+            }
+
+            // Add this in for the search table
+            searchResults[i] = this._loadSetting(this.settingsByTuneID[result.tuneID][0]);
+            searchResults[i].score = null;
+            searchResults[i].setting = null;
+            searchResults[i].displayableName = utils.parseDisplayableName(matchedName);
+        }
+
+        return searchResults.length ? searchResults : false;
+    }
+
     async settingsFromIDs(results) {
         await this.verifyLoaded();
         return results.map(({setting}) => this._loadSetting(setting));
@@ -324,12 +421,17 @@ class DatabaseService {
 
     async settingsFromMidiQuery(results) {
         const settings = await this.settingsFromIDs(results);
-        // let seenTuneIDs = new Set();
-        /* eslint-disable */
+        let seenTuneIDs = new Set();
+        const settingsNoDupedTunes = []
         for (const [i, setting] of settings.entries()) {
-            settings[i].score = results[i].score;
+            const tuneID = setting.tune;
+            if(!seenTuneIDs.has(tuneID)) {
+                seenTuneIDs.add(tuneID)
+                settings[i].score = results[i].score;
+                settingsNoDupedTunes.push(settings[i]);
+            }
         }
-        return settings;
+        return settingsNoDupedTunes;
     }
 
     /* These asynchronous wrappers are purely because we're using comlink.
@@ -341,15 +443,15 @@ class DatabaseService {
     async loadSetting(x) {
         return this._loadSetting(x);
     }
-    
+
     async loadTune(x) {
         return this._loadTune(x);
     }
-    
+
     async loadAliases(x) {
         return this._loadAliases(x);
     }
-    
+
     _loadSetting(sID) {
         // Setting from setting ID
         return this._bulkSettings[this.settingBySettingID[sID]];
@@ -363,7 +465,7 @@ class DatabaseService {
 
     _loadAliases(tID) {
         // Aliases from tune ID
-        if(!(tID in this._bulkAliases)) {
+        if (!(tID in this._bulkAliases)) {
             // Plenty of tunes have one name, so no aliases.
             return [];
         } else {

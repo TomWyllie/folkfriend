@@ -3,7 +3,7 @@
         <v-list class="resultsTable">
             <ResultRow
                 v-for="result in this.sharedState.lastSearch"
-                :key="result.setting"
+                :key="`${result.tune}#${result.setting}`"
                 :result="result"
             ></ResultRow>
         </v-list>
