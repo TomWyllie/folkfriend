@@ -62,7 +62,15 @@ class ABCConverter {
             lastN = n;
         });
 
-        return out.join("");
+        const singleLine = out.join('');
+        const notes = singleLine.split(' ');
+        const lines = [];
+        const notesPerLine = 20;
+
+        for (let line = 0; line < notes.length; line += notesPerLine) {
+            lines.push(notes.slice(line, line + notesPerLine).join(' '));
+        }
+        return lines.join('\n');
     }
 
     getAbcMap() {

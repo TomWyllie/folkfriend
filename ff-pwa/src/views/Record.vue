@@ -156,7 +156,7 @@ export default {
 
             if (this.transcriptionMode) {
                 // Switch to transcriptions panel and show transcription
-                // this.renderAbc(decoded.abc);
+                this.registerNewTranscription(decoded);
             } else {
                 const midiQuery = await queryEngine.query(decoded.midis);
                 let tunes = await ds.settingsFromMidiQuery(midiQuery);
@@ -203,9 +203,14 @@ export default {
                     this.noMusicHeard();
                 }
 
-                const midiQuery = await queryEngine.query(decoded.midis);
-                let tunes = await ds.settingsFromMidiQuery(midiQuery);
-                this.registerNewSearch(tunes);
+                if(this.transcriptionMode) {
+                    this.registerNewTranscription(decoded);
+                } else {
+                    const midiQuery = await queryEngine.query(decoded.midis);
+                    let tunes = await ds.settingsFromMidiQuery(midiQuery);
+                    this.registerNewSearch(tunes);
+                }
+
             } catch (e) {
                 // We need to make sure that the UI update code at the
                 //  end runs even if there's any exceptions. Otherwise
@@ -221,6 +226,10 @@ export default {
         registerNewSearch: function (tunes) {
             store.setEntry('lastSearch', tunes.slice(0, 20));
             this.$router.push({name: 'searches'});
+        },
+        registerNewTranscription: function(decoded) {
+            store.setEntry('lastTranscription', decoded);
+            this.$router.push({name: 'transcriptions'});
         },
         renderAbc: function (abc) {
 

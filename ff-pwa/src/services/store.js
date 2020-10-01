@@ -4,7 +4,8 @@
 
 const store = {
     state: {
-        lastSearch: null
+        lastSearch: null,
+        lastTranscription: null
     },
     setEntry(key, val) {
         // console.debug(`setEntry triggered with [${key}]`, val);
