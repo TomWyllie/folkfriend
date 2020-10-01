@@ -1,11 +1,17 @@
 <template>
-    <v-container class="resultsTableWrapper mx-auto">
+    <v-container
+        v-if="this.sharedState.lastTranscription"
+        class="resultsTableWrapper mx-auto">
         <h2
             :style="`color:${this.$vuetify.theme.currentTheme.secondary};`"
         >Auto-transcribed ABC Data</h2>
         <AbcDisplay
             :abc="this.sharedState.lastTranscription.abc"
         ></AbcDisplay>
+    </v-container>
+    <v-container
+        v-else>
+        <p>No transcriptions loaded. Please record a tune.</p>
     </v-container>
 </template>
 
