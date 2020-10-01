@@ -12,12 +12,27 @@
         />
 
         <v-container>
-            <v-row wrap justify="center">
+            <v-row wrap justify="center" class="mx-auto">
                 <v-btn
                     v-on:click="demo"
                     :disabled="!offlineButton"
-                    class="mx-auto">Upload Audio File
+                    class="mx-3">
+                    Run Demo
                 </v-btn>
+                <v-btn
+                    v-on:click="$refs.fileUpload.click();"
+                    :disabled="!offlineButton"
+                    class="mx-3">
+                    Upload Audio File
+                </v-btn>
+                <input
+                    ref="fileUpload"
+                    type="file"
+                    id="audio-upload"
+                    accept="audio/*"
+                    style="display: none;"
+                    @change="audioFileChanged"
+                >
             </v-row>
         </v-container>
 
@@ -118,12 +133,17 @@ export default {
     methods: {
         runTextQuery: async function () {
             const textSearchResults = await ds.runNamedSearchQuery(this.textQuery);
-            if(textSearchResults === false) {
+            if (textSearchResults === false) {
                 this.snackbarText = 'No matches found';
                 this.snackbar = true;
             } else {
                 this.registerNewSearch(textSearchResults);
             }
+        },
+        audioFileChanged: async function (e) {
+            const file = e.target.files[0];
+            const url = URL.createObjectURL(file);
+            await this.transcribeURL(url);
         },
         recordingStarted: async function () {
             // Doesn't matter if this isn't a short query (transcription mode)
@@ -179,12 +199,15 @@ export default {
             this.$refs.recorderButton.working = false;
             this.progressBar = false;
         },
-        demo: async function () {
+        demo: async function() {
+            await this.transcribeURL('audio/fiddle.wav');
+        },
+        transcribeURL: async function (url) {
             this.$refs.recorderButton.working = true;
             this.offlineButton = false;
 
             try {
-                const timeDomainDataQueue = await audioService.urlToTimeDomainData('audio/fiddle.wav');
+                const timeDomainDataQueue = await audioService.urlToTimeDomainData(url);
 
                 this.maxFramesProgress = Math.floor(timeDomainDataQueue[0].length / FFConfig.SPEC_WINDOW_SIZE);
                 this.startProgressBarAnimation();
@@ -203,7 +226,7 @@ export default {
                     this.noMusicHeard();
                 }
 
-                if(this.transcriptionMode) {
+                if (this.transcriptionMode) {
                     this.registerNewTranscription(decoded);
                 } else {
                     const midiQuery = await queryEngine.query(decoded.midis);
@@ -227,7 +250,7 @@ export default {
             store.setEntry('lastSearch', tunes.slice(0, 20));
             this.$router.push({name: 'searches'});
         },
-        registerNewTranscription: function(decoded) {
+        registerNewTranscription: function (decoded) {
             store.setEntry('lastTranscription', decoded);
             this.$router.push({name: 'transcriptions'});
         },

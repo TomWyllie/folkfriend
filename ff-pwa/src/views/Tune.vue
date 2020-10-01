@@ -1,6 +1,6 @@
 <template>
-    <v-container
-        v-if="!empty">
+    <v-container class="tune mx-auto"
+                 v-if="!empty">
         <h1
             class="my-2"
             :style="`color:${this.$vuetify.theme.currentTheme.secondary};`"
@@ -90,10 +90,10 @@ export default {
         }
 
         // Auto-pop open the matched setting and scroll into view
-        if(!this.empty) {
-            if(this.settingID) {
-                for(const [i, setting] of this.settings.entries()) {
-                    if(setting.setting === this.settingID) {
+        if (!this.empty) {
+            if (this.settingID) {
+                for (const [i, setting] of this.settings.entries()) {
+                    if (setting.setting === this.settingID) {
                         this.expandedIndex = [i];
                     }
                 }
@@ -124,7 +124,7 @@ export default {
     display: inline-block;
 }
 
-.nameChip {
-
+.tune {
+    max-width: 100vh;
 }
 </style>

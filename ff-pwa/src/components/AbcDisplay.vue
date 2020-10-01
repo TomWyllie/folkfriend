@@ -82,9 +82,11 @@ export default {
             abcjs.midi.startPlaying(this.midPlayDiv);
         },
         stopPlaying: function () {
+            this.paused = false;
             abcjs.midi.stopPlaying();
         },
         restartPlaying: function () {
+            this.paused = false;
             abcjs.midi.restartPlaying();
         }
     },
