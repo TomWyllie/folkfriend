@@ -1,0 +1,3 @@
+[submodule "cpp-wasm/wasm-dependencies-folkfriend/kissfft"]
+	path = cpp-wasm/wasm-dependencies-folkfriend/kissfft
+	url = https://github.com/TomWyllie/kissfft

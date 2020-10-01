@@ -47,7 +47,15 @@ def download_abcs(ds_dir):
         json.dump(indices_with_chords, f)
 
 
-def download_thesession_data(tunes_path):
+def download_thesession_aliases(aliases_path):
+    aliases_url = ff_config.THESESSION_DATA_URL_.replace(
+        'tunes.json', 'aliases.json'
+    )
+    download_thesession_data(aliases_path, aliases_url)
+
+
+def download_thesession_data(tunes_path,
+                             data_url=ff_config.THESESSION_DATA_URL_):
     if not os.path.exists(tunes_path):
         # In case we are running trial and error experiments we might be
         #   deleting and remaking many datasets in a short period.
@@ -58,12 +66,11 @@ def download_thesession_data(tunes_path):
             shutil.copy(temp_tunes_path, tunes_path)
             return
 
-            # Otherwise download it fresh from the github repository.
-        print(f'Downloading from {ff_config.THESESSION_DATA_URL_}...')
-        r = requests.get(ff_config.THESESSION_DATA_URL_)
+        # Otherwise download it fresh from the github repository.
+        print(f'Downloading from {data_url}...')
+        r = requests.get(data_url)
         with open(tunes_path, 'wb') as f:
             f.write(r.content)
 
         # Store to temp in case we need it later
         shutil.copy(tunes_path, temp_tunes_path)
-

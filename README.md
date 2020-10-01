@@ -8,3 +8,5 @@ Scripts and Web Application for folk music tune transcription and recognition
 - fluidsynth (FolkFriend soundfont file also required)
 - midicsv
 - abc2midi
+- sudo apt-get install libeigen3-dev
+- wget https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.tar.gz

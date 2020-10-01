@@ -23,22 +23,19 @@ class CNNDataset:
         self._annotations_path = os.path.join(dataset, f'{sub_dir}.txt')
 
     def build(self, batch_size):
-        a_img_paths = []
-        b_img_paths = []
+        input_paths = []
+        output_paths = []
 
         with open(self._annotations_path, 'r') as f:
             for line in f:
-                d_img_path = line.strip().split()[0]  # "<img_path> <annotation>\n"
-                a_img_path = d_img_path.replace('d.png', 'a.png')
-                c_img_path = d_img_path.replace('d.png', 'c.png')
-                a_img_paths.append(os.path.join(self._dataset, a_img_path))
-                b_img_paths.append(os.path.join(self._dataset, c_img_path))
-
-                if self._size_cap and len(a_img_paths) >= self._size_cap:
+                input_path, output_path = line.strip().split()
+                input_paths.append(os.path.join(self._dataset, input_path))
+                output_paths.append(os.path.join(self._dataset, output_path))
+                if self._size_cap and len(input_paths) >= self._size_cap:
                     break
 
         # This is now a dataset of paths
-        ds = tf.data.Dataset.from_tensor_slices((a_img_paths, b_img_paths))
+        ds = tf.data.Dataset.from_tensor_slices((input_paths, output_paths))
 
         # This is now a dataset of image matrices
         ds = ds.map(self._load_paths,
@@ -54,7 +51,7 @@ class CNNDataset:
         ds = ds.apply(tf.data.experimental.ignore_errors())
 
         # Pre-compute number of batches per epoch for convenience
-        samples = ff_config.CNN_DS_SAMPLES_PER_IMAGE_ * len(a_img_paths)
+        samples = ff_config.CNN_DS_SAMPLES_PER_IMAGE_ * len(input_paths)
         batches_per_epoch = math.floor(samples / batch_size)
 
         return ds.prefetch(tf.data.experimental.AUTOTUNE), batches_per_epoch

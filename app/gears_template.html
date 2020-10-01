@@ -1,0 +1,66 @@
+<?xml version="1.0" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="400pt" height="400pt" viewBox="-400 -400 800 800"
+     preserveAspectRatio="xMidYMid meet">
+    <path id="ff-gear-1" d="[GEAR_1_PATH]"/>
+    <circle id="ff-centre-1" r="36"></circle>
+    <path id="ff-gear-2" d="[GEAR_2_PATH]"/>
+    <circle id="ff-centre-2" r="36"></circle>
+    <path id="ff-gear-3" d="[GEAR_3_PATH]"/>
+    <circle id="ff-centre-3" r="36"></circle>
+
+    <!--suppress CssInvalidFunction, CssInvalidPropertyValue -->
+    <style>
+
+    /* Smallest */
+    #ff-gear-1 {
+        animation: spin1 6s infinite linear reverse;
+        transform-origin: [G1X]px [G1Y]px;
+    }
+    #ff-centre-1 {
+        transform: translate([G1X]px, [G1Y]px);
+    }
+
+    /* Largest */
+    #ff-gear-2 {
+        animation: spin2 10s infinite linear;
+        transform-origin: [G2X]px [G2Y]px;
+    }
+    #ff-centre-2 {
+        transform: translate([G2X]px, [G2Y]px);
+    }
+
+    /* Medium */
+    #ff-gear-3 {
+        animation: spin3 8s infinite linear reverse;
+        transform-origin: [G3X]px [G3Y]px;
+    }
+    #ff-centre-3 {
+        transform: translate([G3X]px, [G3Y]px);
+    }
+
+    #ff-gear-1, #ff-gear-2, #ff-gear-3, circle {
+        fill: none;
+        stroke: black;
+        stroke-width: 10px;
+        stroke-linejoin: round;
+        will-change: transform;
+    }
+
+   @keyframes spin1 {
+       from { transform: rotate(0deg) translate([G1X]px, [G1Y]px);}
+       to { transform: rotate(360deg) translate([G1X]px, [G1Y]px);}
+   }
+
+   @keyframes spin2 {
+       from { transform: rotate(0deg) translate([G2X]px, [G2Y]px);}
+       to { transform: rotate(360deg) translate([G2X]px, [G2Y]px);}
+   }
+
+   @keyframes spin3 {
+       from { transform: rotate(0deg) translate([G3X]px, [G3Y]px);}
+       to { transform: rotate(360deg) translate([G3X]px, [G3Y]px);}
+   }
+
+</style>
+</svg>
