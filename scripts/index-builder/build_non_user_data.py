@@ -5,6 +5,8 @@ import json
 import logging
 import math
 import os
+
+import re
 import pathlib
 import imageio
 
@@ -20,6 +22,10 @@ import numpy as np
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(name)s:%(lineno)s] %(message)s')
 log = logging.getLogger(os.path.basename(__file__))
+
+STOP_WORDS = {"a", "an", "the", "at", "by", "for", "in", "of", "on",
+                     "to", "up", "and", "as", "but", "or", "nor"}
+NON_WORD_CHARS = re.compile('[^a-zA-Z ]')
 
 
 def build_non_user_data(p_dir):
@@ -114,25 +120,59 @@ def clean_thesession_data(tune_data):
     return tune_data
 
 
-def gather_aliases(aliases):
+def gather_aliases(alias_records):
     # The aliases.json file is inefficiently structured for network
     #   distribution and we can condense it somewhat
-    condensed_aliases = {}
+    aliases = collections.defaultdict(list)
+    for alias_record in sorted(alias_records, key=lambda r: int(r['tune_id'])):
+        tid = alias_record['tune_id']
+        alias = alias_record['alias']
+        aliases[tid].append(alias)
+
+    for tid in aliases:
+        aliases[tid] = deduplicate_aliases(aliases[tid])
+
+    return aliases
+
+
+def deduplicate_aliases(aliases):
+    # TODO improve this function using string matching or similar.
+
+    seen_aliases = set()
+    deduped_aliases = []
+
+    # Remove based on minor differences in punctuation / stopwords
     for alias in aliases:
-        tid = int(alias['tune_id'])
+        cleaned_alias = clean_alias(alias)
+        if cleaned_alias not in seen_aliases:
+            seen_aliases.add(cleaned_alias)
+            deduped_aliases.append((cleaned_alias, alias))
 
-        if tid in condensed_aliases:
-            condensed_aliases[tid]['aliases'].append(alias['alias'])
-        else:
-            alias['tune'] = tid
-            alias['aliases'] = [alias['alias']]
-            del alias['alias']
-            del alias['name']
-            del alias['tune_id']
-            assert set(alias.keys()) == {'aliases', 'tune'}
-            condensed_aliases[tid] = alias
+    deduped_aliases = sorted(deduped_aliases, key=lambda c: len(c[0]))
 
-    return sorted(condensed_aliases.values(), key=lambda a: a['tune'])
+    # Remove subsets. Requires sorting by length.
+    deduped_aliases_no_subsets = []
+    for i, (cleaned, alias) in enumerate(deduped_aliases):
+        is_subset = (cleaned < c for (c, _) in deduped_aliases[i:])
+        if not any(is_subset):
+            deduped_aliases_no_subsets.append(alias)
+
+    # Back to alphabetical at the end
+    return sorted(deduped_aliases_no_subsets)
+
+
+def clean_alias(alias):
+    # Remove redundancy from each string
+    alias = alias.lower()
+    alias = NON_WORD_CHARS.sub('', alias)
+    alias = alias.split()
+    alias = (w for w in alias if w and w not in STOP_WORDS)
+    alias = ((w[:-1] if w.endswith('s') else w) for w in alias)  # Ignore plurals
+
+    # This American spelling pops up a lot. Retain the British spelling
+    #   for alias purposes.
+    alias = ((w if not w == 'favorite' else 'favourite') for w in alias)
+    return frozenset(sorted(alias))
 
 
 def generate_midi_contours(tune_data, midis_path):

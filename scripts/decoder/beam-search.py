@@ -143,8 +143,8 @@ def beam_search(sparse_frames, max_beams=5):
 
                 this_cand_fslc = cand.new_frames_since_last_change
 
-                # If this condition is true, then this candidate has
-                #   more restrictions than a previous one on the same note
+                # If this condition is true, then this candidate has equal
+                #   or more restrictions then a previous one on the same note
                 #   and has a lower score, so it's redundant. If it's not,
                 #   then we save this_cand_fslc as an even higher bound for
                 #   any other candidate also coming to this note to beat,
@@ -299,6 +299,10 @@ def topk(inp, k=5):
     """This function isn't really necessary in python but we do it in
         javascript so do it here too so the inputs to the viterbi
         function are comparable"""
+
+    # TODO an idea for an octave corrector - check if say >50% of max sparse
+    #   bins occur with another an octave higher / lower and join these up
+    #   and try merging the contours??
 
     indices = np.flip(np.argsort(inp))[:k]
 
