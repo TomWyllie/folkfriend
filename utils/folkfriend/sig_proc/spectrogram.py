@@ -1,8 +1,11 @@
 import numpy as np
 import scipy.interpolate as interp
+from scipy.signal import convolve2d
 
 from folkfriend import ff_config
 from folkfriend.sig_proc import note
+
+import matplotlib.pyplot as plt
 
 # This keeps ff_config serialisable for export to JS
 NP_LINEAR_MIDI_BINS = np.asarray(ff_config.LINEAR_MIDI_BINS_)
@@ -23,7 +26,7 @@ def compute_ac_spectrogram(signal, window_size=ff_config.SPEC_WINDOW_SIZE):
 
     signal = (signal_windowed * np.hanning(window_size))
 
-    # Cube root of power spectrum
+    # Power spectra of each window
     spectra = np.fft.fft(signal)
 
     # This next step corresponds to a "k-value" of 1/3, see
@@ -65,6 +68,92 @@ def fix_octaves(spectrogram):
     out[:, 12:] -= out[:, :-12]
     out[out < 0] = 0
     return out
+
+
+def fix_octaves_alt(spectrogram):
+    # Remove harmonics. For a frequency X, if X + octave has greater
+    #   energy then zero out X and set X + octave equal to the sum of
+    #   the two energies. Repeat twice so three harmonics can collapse to
+    #   one.
+
+    # This only makes sense if there are the same number of bins per note
+    #   i.e. if MIDI_NUM is a multiple of 12.
+    assert ff_config.MIDI_NUM % 12 == 0
+
+    spectrogram = spectrogram.copy()
+
+    # spectrogram = np.zeros_like(spectrogram)
+    # spectrogram[:, 15] = 1
+    # spectrogram[:, 15 + 12] = 0.5
+
+    # plt.imshow(spectrogram.T, cmap='gray')
+    # plt.show()
+
+    num_octaves = ff_config.MIDI_NUM // 12
+
+    # [frames, bins] -> [frames, bins (one octave), octaves]
+    spectrogram = spectrogram.reshape(
+        (-1, num_octaves, 12))
+
+    mask = spectrogram[:, 1:, :] < spectrogram[:, :-1, :]
+
+    # Now perform the zeroing / stacking on each octave, sequentially
+    for octave in range(num_octaves - 1, 0, -1):
+
+        # Carry up applicable energy by an octave
+        spectrogram[:, octave - 1, :] += (spectrogram[:, octave, :]
+                                  * mask[:, octave - 1, :])
+
+        # Zero spectrogram energy that has moved up an octave
+        spectrogram[:, octave, :] = spectrogram[:, octave, :] * (1 - mask[:, octave - 1, :])
+        
+    spectrogram = spectrogram.reshape((-1, ff_config.MIDI_NUM))
+
+    # plt.imshow(spectrogram.T, cmap='gray')
+    # plt.show()
+    # exit()
+
+    return spectrogram
+
+def detect_onsets(spectrogram):
+
+    # onset_filter = np.array([[-1, -1, -1, -1, 1, 1, 1]]).T
+    onset_filter = np.cos([np.linspace(-np.pi, 0, num=8, endpoint=True)]).T
+
+    onset = convolve2d(spectrogram, onset_filter, mode='same')
+    onset[onset < 0] = 0
+
+    # return onset
+
+    spectrogram = onset.reshape(
+        (-1, ff_config.MIDI_NUM, ff_config.SPEC_BINS_PER_MIDI))
+
+    # Sum multiple bins per note into one bin per note
+    spectrogram = np.sum(spectrogram, axis=2)
+
+    return spectrogram
+
+# def notes_only_spectrogram(spectrogram):
+#     """Bin frequencies into one octave, with one bin per note."""
+
+#     # This only makes sense if there are the same number of bins per note
+#     #   i.e. if MIDI_NUM is a multiple of 12.
+#     assert ff_config.MIDI_NUM % 12 == 0
+
+#     # [frames, bins] -> [frames, bins (one octave), octaves]
+#     spectrogram = spectrogram.reshape(
+#         (-1, 12 * ff_config.SPEC_BINS_PER_MIDI, ff_config.MIDI_NUM // 12))
+
+#     # Sum bins across octaves
+#     spectrogram = np.sum(spectrogram, axis=2)
+
+#     # Now reduce to one bin per note
+#     # spectrogram = spectrogram.reshape((-1, ff_config.SPEC_BINS_PER_MIDI, 12))
+
+#     # Sum multiple bins per note into one bin per note
+#     # spectrogram = np.sum(spectrogram, axis=1)
+
+#     return spectrogram
 
 
 if __name__ == '__main__':

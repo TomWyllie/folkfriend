@@ -5,25 +5,22 @@ import pathlib
 
 import imageio
 import numpy as np
-from folkfriend.sig_proc import spectrogram
-from folkfriend.cnn import denoiser
+from folkfriend import ff_config
 from folkfriend.data import data_ops
+from folkfriend.sig_proc import spectrogram
 from scipy.io import wavfile
-
 from tqdm import tqdm
 
 
-def main(dataset, model):
+def main(dataset):
     slices_path = os.path.join(dataset, 'slices.csv')
-
-    cnn_denoiser = denoiser.CNNDenoiser()
-    cnn_denoiser.load_model(model)
 
     with open(slices_path) as f:
         slices = list(csv.DictReader(f))
 
     dirs = set()
 
+    # TODO multiprocessing.Pool
     for audio_slice in tqdm([s['path'] for s in slices], desc='Processing Audio to Decodable Features'):
         slice_path = os.path.join(dataset, audio_slice)
 
@@ -31,30 +28,23 @@ def main(dataset, model):
         ac_path = slice_path.replace('.wav', '.png')
 
         sample_rate, signal = wavfile.read(slice_path)
+        assert sample_rate == ff_config.SAMPLE_RATE
+
         ac_spec = spectrogram.compute_ac_spectrogram(signal)
         linear_ac_spec = spectrogram.linearise_ac_spectrogram(ac_spec)
+        onset_spec = spectrogram.detect_onsets(linear_ac_spec)
+        # notes_spec = spectrogram.notes_only_spectrogram(onset_spec)
+
+        fixed_octaves = spectrogram.fix_octaves_alt(onset_spec)
 
         slice_dir = os.path.dirname(ac_path)
         if slice_dir not in dirs:
             pathlib.Path(slice_dir).mkdir(parents=True, exist_ok=True)
             dirs.add(slice_dir)
 
-        mask, denoised = cnn_denoiser.denoise(linear_ac_spec)
-
-        # Sum along values for each MIDI note
-        denoised = data_ops.spec_to_pseudo(denoised)
-
-        # This quantisation error gives rounds some zeros which is handy
-        denoised /= np.max(denoised)
-        denoised *= 255.0
-        denoised = np.asarray(denoised, dtype=np.int64)
-
-        octaves_fixed = spectrogram.fix_octaves(denoised)
-
         norm_and_save_png(ac_path.replace('.png', '-a.png'), linear_ac_spec.T)
-        norm_and_save_png(ac_path.replace('.png', '-b.png'), mask.T)
-        norm_and_save_png(ac_path.replace('.png', '-o.png'), octaves_fixed.T)
-        norm_and_save_png(ac_path, denoised.T)
+        norm_and_save_png(ac_path.replace('.png', '-b.png'), onset_spec.T)
+        norm_and_save_png(ac_path.replace('.png', '-c.png'), fixed_octaves.T)
 
 
 def norm_and_save_png(path, img):
@@ -68,7 +58,7 @@ def norm_and_save_png(path, img):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', default='/home/tom/datasets/evaluation-tunes')
-    parser.add_argument('--cnn', help='Path to trained CNN model', default='cnn.h5')
+    parser.add_argument('--dataset', default='/home/tom/datasets/tiny-folkfriend-evaluation-dataset')
+    # parser.add_argument('--cnn', help='Path to trained CNN model', default='cnn.h5')
     args = parser.parse_args()
-    main(args.dataset, args.cnn)
+    main(args.dataset)
