@@ -8,6 +8,7 @@ import numpy as np
 from folkfriend import ff_config
 from folkfriend.data import data_ops
 from folkfriend.sig_proc import spectrogram
+from folkfriend import decoder
 from scipy.io import wavfile
 from tqdm import tqdm
 
@@ -37,6 +38,10 @@ def main(dataset):
 
         fixed_octaves = spectrogram.fix_octaves_alt(onset_spec)
 
+
+        # Spectrogram -> sequence of notes
+        contour = decoder.decode(onset_spec)
+
         slice_dir = os.path.dirname(ac_path)
         if slice_dir not in dirs:
             pathlib.Path(slice_dir).mkdir(parents=True, exist_ok=True)
@@ -45,6 +50,10 @@ def main(dataset):
         norm_and_save_png(ac_path.replace('.png', '-a.png'), linear_ac_spec.T)
         norm_and_save_png(ac_path.replace('.png', '-b.png'), onset_spec.T)
         norm_and_save_png(ac_path.replace('.png', '-c.png'), fixed_octaves.T)
+        norm_and_save_png(ac_path.replace('.png', '-d.png'), contour.T)
+
+        print(slice_path)
+        exit()
 
 
 def norm_and_save_png(path, img):
