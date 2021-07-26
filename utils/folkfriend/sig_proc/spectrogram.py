@@ -117,6 +117,13 @@ def fix_octaves_alt(spectrogram):
     return spectrogram
 
 
+def detect_pitches(spectrogram):
+    pitch_filter = [[-1.0, -0.3, 0.0, 0.8, 1.0, 0.8, 0.0, -0.3, -1.0]]
+    pitches = convolve2d(spectrogram, pitch_filter, mode='same')
+    pitches[pitches < 0] = 0
+    return pitches
+
+
 def detect_onsets(spectrogram):
 
     # onset_filter = np.array([[-1, -1, -1, -1, 1, 1, 1]]).T

@@ -3,6 +3,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 
+from folkfriend import ff_config
 
 def score_note_length(length, length_scale):
     """Score the likelihood of a note being a given length"""
@@ -23,7 +24,7 @@ def score_note_length(length, length_scale):
     else:
         score = n_hi_score
 
-    return score
+    return ff_config.TEMPO_MODEL_WEIGHT * score
 
 
 if __name__ == '__main__':

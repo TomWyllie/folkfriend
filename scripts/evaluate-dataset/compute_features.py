@@ -12,6 +12,7 @@ from folkfriend.decoder import decoder
 from scipy.io import wavfile
 from tqdm import tqdm
 
+import cProfile
 
 def main(dataset):
     slices_path = os.path.join(dataset, 'slices.csv')
@@ -23,6 +24,7 @@ def main(dataset):
 
     # TODO multiprocessing.Pool
     for audio_slice in tqdm([s['path'] for s in slices], desc='Processing Audio to Decodable Features'):
+    # for audio_slice in [s['path'] for s in slices]:
         slice_path = os.path.join(dataset, audio_slice)
 
         # Be sure to have run the wav conversion script.
@@ -40,18 +42,31 @@ def main(dataset):
         linear_ac_spec = spectrogram.linearise_ac_spectrogram(ac_spec)
         norm_and_save_png(ac_path.replace('.png', '-a.png'), linear_ac_spec.T)
         
-        onset_spec = spectrogram.detect_onsets(linear_ac_spec)
-        norm_and_save_png(ac_path.replace('.png', '-b.png'), onset_spec.T)
+        pitch_spec = spectrogram.detect_pitches(linear_ac_spec)
+        norm_and_save_png(ac_path.replace('.png', '-b.png'), pitch_spec.T)
+
+        onset_spec = spectrogram.detect_onsets(pitch_spec)
+        norm_and_save_png(ac_path.replace('.png', '-c.png'), onset_spec.T)
 
         fixed_octaves = spectrogram.fix_octaves_alt(onset_spec)
-        norm_and_save_png(ac_path.replace('.png', '-c.png'), fixed_octaves.T)
+        norm_and_save_png(ac_path.replace('.png', '-d.png'), fixed_octaves.T)
         
         noise_cleaned = spectrogram.clean_noise(fixed_octaves)
-        norm_and_save_png(ac_path.replace('.png', '-d.png'), noise_cleaned.T)
+        norm_and_save_png(ac_path.replace('.png', '-e.png'), noise_cleaned.T)
+
+        # maxes = np.argmax(noise_cleaned, axis=1)
+        # out = np.zeros_like(noise_cleaned)
+        # out[np.arange(out.shape[0]), maxes] = 1
+        # norm_and_save_png(ac_path.replace('.png', '-e.png'), out.T)
+
 
         # Spectrogram -> sequence of notes
-        contour = decoder.decode(onset_spec)
-        norm_and_save_png(ac_path.replace('.png', '-e.png'), contour.T)
+        contour = decoder.decode(noise_cleaned)
+        # cProfile.runctx('decoder.decode(noise_cleaned)', globals(), locals())
+        
+        norm_and_save_png(ac_path.replace('.png', '-f.png'), contour.T)
+
+        # exit()
 
 
 def norm_and_save_png(path, img):

@@ -7,7 +7,10 @@ import numpy as np
 
 from folkfriend import ff_config
 from folkfriend.decoder import tempo_model
+from folkfriend.decoder import pitch_model
 import matplotlib.pyplot as plt
+
+from timeit import default_timer as dt
 
 from tqdm import tqdm
 
@@ -15,7 +18,8 @@ from tqdm import tqdm
 def decode(spec):
     """Decode spectral features to a contour of notes."""
 
-    # spec = spec[:50]
+    start = dt()
+
     num_frames, num_midis = spec.shape
     assert num_midis == ff_config.MIDI_NUM
 
@@ -32,15 +36,16 @@ def decode(spec):
     contours = []
 
     for pitch in range(num_midis):
-        contour = Contour()
-        contour.pitches = [pitch]
-        contour.lengths = [1]
-        contour.energy += spec[0, pitch]
-        contours.append(contour)
+        c_new = Contour()
+        c_new.pitches = [pitch]
+        c_new.lengths = [1]
+        c_new.energy += spec[0, pitch]
+        contours.append(c_new)
 
     Proposal = collections.namedtuple('Proposal', ['contour', 'next_pitch'])
 
-    for frame in tqdm(range(1, num_frames)):
+    # for frame in tqdm(range(1, num_frames)):
+    for frame in range(1, num_frames):
 
         # print(f'== Analysing frame {frame} of decoder, with {len(contours)} '
         #       'current contours ==')
@@ -51,19 +56,17 @@ def decode(spec):
 
         proposals = set()
 
-        # assert all((sum(c.lengths) == frame) for c in contours)
-
         # Add all non-zero-energy pitches to the proposals.
         for next_pitch in range(num_midis):
             if spec[frame, next_pitch] == 0:
                 continue
 
-            for i, contour in enumerate(contours):
+            for i, c_new in enumerate(contours):
                 proposals.add(Proposal(i, next_pitch))
 
         # Add the possibility of staying on the same pitch, for each contour
-        for i, contour in enumerate(contours):
-            proposals.add(Proposal(i, contour.pitches[-1]))
+        for i, c_new in enumerate(contours):
+            proposals.add(Proposal(i, c_new.pitches[-1]))
 
         # print(f'{len(proposals)} proposals drafted')
 
@@ -135,16 +138,25 @@ def decode(spec):
             contour_id, next_pitch = proposal
             reward = spec[frame, next_pitch]    # Energy payoff of changing
             
-            contour = copy.deepcopy(contours[contour_id])
-            contour.score_next_pitch(next_pitch, reward, update=True)
+            # This is > 2x faster the deepcopy.copy
+            c_old = contours[contour_id]
+            c_new = Contour()
+            c_new.pitches[:] = c_old.pitches[:]
+            c_new.lengths[:] = c_old.lengths[:]
+            c_new.energy = c_old.energy
+            c_new.tempo_cost = c_old.tempo_cost
+            c_new.pitch_cost = c_old.pitch_cost
+            c_new.score_next_pitch(next_pitch, reward, update=True)
             
-            new_contours.append(contour)
+            new_contours.append(c_new)
 
         contours = new_contours
 
     best_contour = max(contours, key=lambda c: c.score)
 
     # view_contour(best_contour)
+
+    print(f'Decoded in {dt() - start} secs')
 
     return expand_contour(best_contour)
 
@@ -173,9 +185,9 @@ class Contour:
         self.pitches = []
         self.lengths = []
         self.energy = 0.
-        self.inconsistency = 0.
-        self.inconsistency_weight = 0.1
-        self.frames_per_beat = 10       # ~ 100 BPM
+        self.tempo_cost = 0.
+        self.pitch_cost = 0.
+        self.frames_per_beat = 8       # ~ 100 BPM
 
     @property
     def bpm(self):
@@ -183,27 +195,32 @@ class Contour:
 
     @property
     def score(self):
-        return self.energy - self.inconsistency_weight * self.inconsistency
+        return self.energy - self.tempo_cost - self.pitch_cost
 
     def score_next_pitch(self, pitch, reward, update):
         """Compute score that would result from going to next_pitch next."""
 
         energy = self.energy
-        inconsistency = self.inconsistency
+        inconsistency = self.tempo_cost
+        pitch_cost = self.tempo_cost
 
-        is_note_change = pitch != self.pitches[-1]
+        interval = pitch - self.pitches[-1]
+        is_note_change = interval != 0
 
         # If this is a note change, we must apply tempo penalty.
         if is_note_change:
             inconsistency += tempo_model.score_note_length(
                 self.lengths[-1], self.frames_per_beat)
 
+            pitch_cost += pitch_model.score_pitch_interval(interval)
+
         # Add energy 'reward' of new pitch.
         energy += reward
 
         if update is True:
             self.energy = energy
-            self.inconsistency = inconsistency
+            self.tempo_cost = inconsistency
+            self.pitch_cost = pitch_cost
 
             if is_note_change:
                 self.pitches.append(pitch)
@@ -211,14 +228,14 @@ class Contour:
             else:
                 self.lengths[-1] += 1
 
-        score = energy - self.inconsistency_weight * inconsistency
+        score = energy - inconsistency - pitch_cost
         return score, is_note_change
 
     def __repr__(self):
         return (f'Pitches:\t{self.pitches}\n'
                 f'Lengths:\t{self.lengths}\n'
                 f'Energy:\t\t{self.energy}\n'
-                f'Inconsistency:\t{self.inconsistency}\n\n')
+                f'Inconsistency:\t{self.tempo_cost}\n\n')
 
 
 def frames_to_bpm(frames_per_beat):
