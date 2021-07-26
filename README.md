@@ -4,6 +4,14 @@ Scripts and Web Application for folk music tune transcription and recognition.
 # Dependencies
 - pyenv
 
+# Structure of Repository
+
+| Directory | Description |
+| ---       | ---         |
+| `app/`| bits and bobs relating to the javascript app |
+| `scripts/`| Python scripts for backend things
+| `utils/`  | Contains the `folkfriend` module; python implementation of all the functionality that runs client-side in the app.
+
 # Using Python
 
 To use the python scripts and the python module `folkfriend` located in the `utils` directory, please follow the steps below.
