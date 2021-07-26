@@ -2,7 +2,8 @@
 Scripts and Web Application for folk music tune transcription and recognition.
 
 # Dependencies
-- pyenv
+- `pyenv`
+- `abcmidi` (if building data indices)
 
 # Structure of Repository
 

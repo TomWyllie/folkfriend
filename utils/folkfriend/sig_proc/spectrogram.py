@@ -126,13 +126,10 @@ def detect_pitches(spectrogram):
 
 def detect_onsets(spectrogram):
 
-    # onset_filter = np.array([[-1, -1, -1, -1, 1, 1, 1]]).T
     onset_filter = np.cos([np.linspace(-np.pi, 0, num=8, endpoint=True)]).T
 
     onset = convolve2d(spectrogram, onset_filter, mode='same')
     onset[onset < 0] = 0
-
-    # return onset
 
     spectrogram = onset.reshape(
         (-1, ff_config.MIDI_NUM, ff_config.SPEC_BINS_PER_MIDI))
@@ -156,29 +153,6 @@ def clean_noise(spectrogram, cutoff=0.8):
     spectrogram[:, bins_to_zero] = 0
 
     return spectrogram
-
-
-# def notes_only_spectrogram(spectrogram):
-#     """Bin frequencies into one octave, with one bin per note."""
-
-#     # This only makes sense if there are the same number of bins per note
-#     #   i.e. if MIDI_NUM is a multiple of 12.
-#     assert ff_config.MIDI_NUM % 12 == 0
-
-#     # [frames, bins] -> [frames, bins (one octave), octaves]
-#     spectrogram = spectrogram.reshape(
-#         (-1, 12 * ff_config.SPEC_BINS_PER_MIDI, ff_config.MIDI_NUM // 12))
-
-#     # Sum bins across octaves
-#     spectrogram = np.sum(spectrogram, axis=2)
-
-#     # Now reduce to one bin per note
-#     # spectrogram = spectrogram.reshape((-1, ff_config.SPEC_BINS_PER_MIDI, 12))
-
-#     # Sum multiple bins per note into one bin per note
-#     # spectrogram = np.sum(spectrogram, axis=1)
-
-#     return spectrogram
 
 if __name__ == '__main__':
     spec = np.zeros((500, 48))

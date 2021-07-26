@@ -155,10 +155,25 @@ def decode(spec):
     best_contour = max(contours, key=lambda c: c.score)
 
     # view_contour(best_contour)
+    # print(f'Decoded in {dt() - start} secs')
+    
+    expanded_counter = expand_contour(best_contour)
+    query = contour_to_query(best_contour)
 
-    print(f'Decoded in {dt() - start} secs')
+    return query, expanded_counter
 
-    return expand_contour(best_contour)
+def contour_to_query(contour):
+    lengths = (l / contour.frames_per_beat for l in contour.lengths)
+    lengths = (round(l) for l in lengths)
+    lengths = ((l if l > 0 else 1) for l in lengths)    
+
+    query = []
+
+    for length, pitch in zip(lengths, contour.pitches):
+        correct_pitch = ff_config.MIDI_LOW - 1 + (ff_config.MIDI_NUM - pitch)
+        query.extend([correct_pitch] * length)
+
+    return query
 
 
 def expand_contour(contour):
@@ -170,6 +185,8 @@ def expand_contour(contour):
     spec = np.zeros((len(pitches), ff_config.MIDI_NUM))
     indices = np.arange(len(pitches))
     spec[indices, pitches] = 1
+
+
 
     return spec
 

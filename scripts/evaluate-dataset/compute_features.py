@@ -6,7 +6,6 @@ import pathlib
 import imageio
 import numpy as np
 from folkfriend import ff_config
-from folkfriend.data import data_ops
 from folkfriend.sig_proc import spectrogram
 from folkfriend.decoder import decoder
 from scipy.io import wavfile
@@ -59,13 +58,14 @@ def main(dataset):
         # out[np.arange(out.shape[0]), maxes] = 1
         # norm_and_save_png(ac_path.replace('.png', '-e.png'), out.T)
 
-
         # Spectrogram -> sequence of notes
-        contour = decoder.decode(noise_cleaned)
+        query, expanded_contour = decoder.decode(noise_cleaned)
         # cProfile.runctx('decoder.decode(noise_cleaned)', globals(), locals())
         
-        norm_and_save_png(ac_path.replace('.png', '-f.png'), contour.T)
-
+        norm_and_save_png(ac_path.replace('.png', '-f.png'), expanded_contour.T)
+        
+        print(slice_path)
+        print(query)
         # exit()
 
 
