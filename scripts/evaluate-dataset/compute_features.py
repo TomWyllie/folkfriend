@@ -8,7 +8,7 @@ import numpy as np
 from folkfriend import ff_config
 from folkfriend.data import data_ops
 from folkfriend.sig_proc import spectrogram
-from folkfriend import decoder
+from folkfriend.decoder import decoder
 from scipy.io import wavfile
 from tqdm import tqdm
 
@@ -31,29 +31,27 @@ def main(dataset):
         sample_rate, signal = wavfile.read(slice_path)
         assert sample_rate == ff_config.SAMPLE_RATE
 
-        ac_spec = spectrogram.compute_ac_spectrogram(signal)
-        linear_ac_spec = spectrogram.linearise_ac_spectrogram(ac_spec)
-        onset_spec = spectrogram.detect_onsets(linear_ac_spec)
-        # notes_spec = spectrogram.notes_only_spectrogram(onset_spec)
-
-        fixed_octaves = spectrogram.fix_octaves_alt(onset_spec)
-
-
-        # Spectrogram -> sequence of notes
-        contour = decoder.decode(onset_spec)
-
         slice_dir = os.path.dirname(ac_path)
         if slice_dir not in dirs:
             pathlib.Path(slice_dir).mkdir(parents=True, exist_ok=True)
             dirs.add(slice_dir)
 
+        ac_spec = spectrogram.compute_ac_spectrogram(signal)        
+        linear_ac_spec = spectrogram.linearise_ac_spectrogram(ac_spec)
         norm_and_save_png(ac_path.replace('.png', '-a.png'), linear_ac_spec.T)
+        
+        onset_spec = spectrogram.detect_onsets(linear_ac_spec)
         norm_and_save_png(ac_path.replace('.png', '-b.png'), onset_spec.T)
-        norm_and_save_png(ac_path.replace('.png', '-c.png'), fixed_octaves.T)
-        norm_and_save_png(ac_path.replace('.png', '-d.png'), contour.T)
 
-        print(slice_path)
-        exit()
+        fixed_octaves = spectrogram.fix_octaves_alt(onset_spec)
+        norm_and_save_png(ac_path.replace('.png', '-c.png'), fixed_octaves.T)
+        
+        noise_cleaned = spectrogram.clean_noise(fixed_octaves)
+        norm_and_save_png(ac_path.replace('.png', '-d.png'), noise_cleaned.T)
+
+        # Spectrogram -> sequence of notes
+        contour = decoder.decode(onset_spec)
+        norm_and_save_png(ac_path.replace('.png', '-e.png'), contour.T)
 
 
 def norm_and_save_png(path, img):

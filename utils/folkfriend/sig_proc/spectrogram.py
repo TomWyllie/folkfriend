@@ -102,11 +102,12 @@ def fix_octaves_alt(spectrogram):
 
         # Carry up applicable energy by an octave
         spectrogram[:, octave - 1, :] += (spectrogram[:, octave, :]
-                                  * mask[:, octave - 1, :])
+                                          * mask[:, octave - 1, :])
 
         # Zero spectrogram energy that has moved up an octave
-        spectrogram[:, octave, :] = spectrogram[:, octave, :] * (1 - mask[:, octave - 1, :])
-        
+        spectrogram[:, octave, :] = spectrogram[:,
+                                                octave, :] * (1 - mask[:, octave - 1, :])
+
     spectrogram = spectrogram.reshape((-1, ff_config.MIDI_NUM))
 
     # plt.imshow(spectrogram.T, cmap='gray')
@@ -114,6 +115,7 @@ def fix_octaves_alt(spectrogram):
     # exit()
 
     return spectrogram
+
 
 def detect_onsets(spectrogram):
 
@@ -132,6 +134,22 @@ def detect_onsets(spectrogram):
     spectrogram = np.sum(spectrogram, axis=2)
 
     return spectrogram
+
+
+def clean_noise(spectrogram, cutoff=0.8):
+    """Remove noise from spectrogram by retaining only high energy bins"""
+
+    energy_by_bin = np.max(spectrogram, axis=0)
+    energy_by_bin /= np.sum(energy_by_bin)
+
+    bins_by_energy = np.argsort(-energy_by_bin)
+    energy_by_bin = np.cumsum(energy_by_bin[bins_by_energy])
+
+    bins_to_zero = bins_by_energy[np.where(energy_by_bin > cutoff)]
+    spectrogram[:, bins_to_zero] = 0
+
+    return spectrogram
+
 
 # def notes_only_spectrogram(spectrogram):
 #     """Bin frequencies into one octave, with one bin per note."""
@@ -154,7 +172,6 @@ def detect_onsets(spectrogram):
 #     # spectrogram = np.sum(spectrogram, axis=1)
 
 #     return spectrogram
-
 
 if __name__ == '__main__':
     spec = np.zeros((500, 48))
