@@ -170,7 +170,7 @@ def contour_to_query(contour):
     query = []
 
     for length, pitch in zip(lengths, contour.pitches):
-        correct_pitch = ff_config.MIDI_LOW - 1 + (ff_config.MIDI_NUM - pitch)
+        correct_pitch = ff_config.MIDI_NUM - 1 - pitch
         query.extend([correct_pitch] * length)
 
     return query

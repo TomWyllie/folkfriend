@@ -72,11 +72,14 @@ def build_non_user_data(p_dir):
         desc='Converting ABC text to contour string',
         chunksize=8)
 
+    # Key on setting_id
+    contour_data = {s_id: cont for s_id, cont in contours}
+
     # Put everything together
     non_user_data = {
         'tunes': cleaned_thesession_data,
         'aliases': gathered_aliases,
-        'contours': contours,
+        'contours': contour_data,
     }
 
     print(f'Writing {non_user_data_path}')
@@ -89,8 +92,6 @@ def clean_thesession_data(tune_data):
     for i, _ in enumerate(tune_data):
         del tune_data[i]['date']
         del tune_data[i]['username']
-        tune_data[i]['tune'] = int(tune_data[i]['tune_id'])
-        tune_data[i]['setting'] = int(tune_data[i]['setting_id'])
 
     return tune_data
 
@@ -165,7 +166,7 @@ def generate_midi_contour(args):
     abc = '\n'.join(abc_header + abc_body)
 
     midi_out_path = os.path.join(midis_path,
-                                 '{}.midi'.format(setting['setting']))
+                                 f'{setting["setting_id"]}.midi')
 
     if not os.path.exists(midi_out_path):
         midi.abc_to_midi(abc, midi_out_path)
@@ -173,7 +174,7 @@ def generate_midi_contour(args):
     midi_events = midi.midi_as_csv(midi_out_path)
     note_contour = midi.CSVMidiNoteReader(midi_events).to_midi_contour()
 
-    return setting['setting'], note_contour
+    return setting['setting_id'], note_contour
 
 
 def download_thesession_aliases(aliases_path):

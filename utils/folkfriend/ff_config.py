@@ -134,15 +134,6 @@ MIDI_UNMAP_ = {c: i for (i, c)
 # Dataset parameters. End these variables with a _ to denote dev only
 THESESSION_DATA_URL_ = 'https://raw.githubusercontent.com/adactio/TheSession-data/main/json/tunes.json'
 DEFAULT_DS_DIR_ = os.path.join(str(pathlib.Path.home()), 'datasets/folkfriend')
-# CNN_DS_SS_ = 2  # Start seconds
-# CNN_DS_TO_ = CNN_DS_SS_ + AUDIO_QUERY_SECS  # 8 second samples
-# This value can be as high as liked, but over SPECTROGRAM_IMG_WIDTH
-#   and it will simply cause data to start repeating. At that value
-#   there will be a lot of data too, increasing training time for
-#   probably not much improvement in accuracy.
-# CNN_DS_SAMPLES_PER_IMAGE_ = 300
-# CNN_NOISIFY_SCALE_ = 0.10
-# RNN_INPUT_SALTING_ = 0.01  # 1%
 
 PITCH_MODEL_WEIGHT = 0.1
 TEMPO_MODEL_WEIGHT = 0.5

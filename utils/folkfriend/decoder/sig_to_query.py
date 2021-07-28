@@ -17,4 +17,7 @@ def sig_to_query(signal, sample_rate):
     noise_cleaned = spectrogram.clean_noise(fixed_octaves)
 
     # Spectrogram -> sequence of notes
-    contour = decoder.decode(noise_cleaned)
+    query, _ = decoder.decode(noise_cleaned)
+
+    return query
+    

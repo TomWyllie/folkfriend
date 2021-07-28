@@ -1,17 +1,17 @@
 import argparse
 import csv
+import json
 import os
 import pathlib
 
 import imageio
 import numpy as np
 from folkfriend import ff_config
-from folkfriend.sig_proc import spectrogram
 from folkfriend.decoder import decoder
+from folkfriend.sig_proc import spectrogram
 from scipy.io import wavfile
 from tqdm import tqdm
 
-import cProfile
 
 def main(dataset):
     slices_path = os.path.join(dataset, 'slices.csv')
@@ -53,23 +53,15 @@ def main(dataset):
         noise_cleaned = spectrogram.clean_noise(fixed_octaves)
         norm_and_save_png(ac_path.replace('.png', '-e.png'), noise_cleaned.T)
 
-        # maxes = np.argmax(noise_cleaned, axis=1)
-        # out = np.zeros_like(noise_cleaned)
-        # out[np.arange(out.shape[0]), maxes] = 1
-        # norm_and_save_png(ac_path.replace('.png', '-e.png'), out.T)
-
         # Spectrogram -> sequence of notes
         query, expanded_contour = decoder.decode(noise_cleaned)
         # cProfile.runctx('decoder.decode(noise_cleaned)', globals(), locals())
         
         norm_and_save_png(ac_path.replace('.png', '-f.png'), expanded_contour.T)
         
-        print(slice_path)
-        print(query)
-        # exit()
-
 
 def norm_and_save_png(path, img):
+    return
     img = np.asarray(img, dtype=np.float32)
     img -= np.min(img)
     img /= np.max(img)

@@ -4,7 +4,7 @@ import argparse
 
 def main(results_path):
     with open(results_path) as f:
-        reader = csv.DictReader(f, fieldnames=['path', 'rank'])
+        reader = csv.DictReader(f)
         results = list(reader)
 
     for i, r in enumerate(results):
