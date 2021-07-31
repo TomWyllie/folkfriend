@@ -1,0 +1,43 @@
+use std::collections::HashMap;
+
+use crate::folkfriend::index::structs::*;
+
+use std::time::Instant;
+
+pub fn run_query(query: &String, tune_settings: &TuneSettings) -> Vec<(u32, u32)> {
+    let query = trigrams(query);
+    let mut ranked_settings: HashMap<u32, u32> = HashMap::new();
+
+    let now = Instant::now();
+
+    for (setting_id, setting) in tune_settings {
+        for (ngram, count) in &query {
+            if setting.contour.contains(ngram) {
+                *ranked_settings.entry(*setting_id).or_insert(0) += count;
+            }
+        }
+    }
+    
+    let elapsed = now.elapsed();
+    println!("Elapsed: {:.2?}", elapsed);
+
+    let mut sorted_rankings: Vec<_> = ranked_settings.into_iter().collect();
+    sorted_rankings.sort_by(|x,y| y.1.cmp(&x.1));
+
+
+    return sorted_rankings;
+}
+
+pub fn trigrams(query: &String) -> HashMap<String, u32> {
+    let mut feats: HashMap<String, u32> = HashMap::new();
+
+    for i in 0..&query.len()-2 {
+        let ngram: String = query[i..i+3].to_string();
+        *feats.entry(ngram).or_insert(0) += 1;
+    }
+    return feats;
+}
+
+// fn main() {
+//     println!("{:#?}", trigrams("hello world, hello"));
+// }

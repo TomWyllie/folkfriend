@@ -3,7 +3,7 @@ from folkfriend.sig_proc import spectrogram
 from folkfriend.decoder import decoder
 
 
-def sig_to_query(signal, sample_rate):
+def transcribe(signal, sample_rate):
     assert sample_rate == ff_config.SAMPLE_RATE
 
     # Waveform -> frequency domain

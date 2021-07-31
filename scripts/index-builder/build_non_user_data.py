@@ -63,7 +63,7 @@ def build_non_user_data(p_dir):
     log.info('Gathering tune name aliases')
     gathered_aliases = gather_aliases(thesession_aliases)
 
-    multiprocessing_input = [(s, midis_dir) for s in thesession_data]
+    multiprocessing_input = [(setting, midis_dir) for setting in cleaned_thesession_data]
 
     # The heavy lifting is done here
     contours = process_map(
@@ -72,14 +72,25 @@ def build_non_user_data(p_dir):
         desc='Converting ABC text to contour string',
         chunksize=8)
 
-    # Key on setting_id
-    contour_data = {s_id: cont for s_id, cont in contours}
+    # Convert settings/contours into one dictionary of setting_id: setting
+    settings = {}
+
+    for setting in cleaned_thesession_data:
+        settings[setting['setting_id']] = setting
+
+        # Key doesn't need to be also stored on value
+        del settings[setting['setting_id']]['setting_id']
+
+    # It's possible that a contour doesn't exist for some setting, but
+    #   in that case we still want to keep the setting because it might
+    #   be useful to have the sheet music even if it isn't queryable.
+    for setting_id, contour in contours:
+        settings[setting_id]['contour'] = contour
 
     # Put everything together
     non_user_data = {
-        'tunes': cleaned_thesession_data,
+        'settings': settings,
         'aliases': gathered_aliases,
-        'contours': contour_data,
     }
 
     print(f'Writing {non_user_data_path}')
@@ -92,6 +103,12 @@ def clean_thesession_data(tune_data):
     for i, _ in enumerate(tune_data):
         del tune_data[i]['date']
         del tune_data[i]['username']
+        # "type" is a common programming keyword, causes issues later.
+        tune_data[i]['dance'] = tune_data[i]['type']
+        del tune_data[i]['type']
+
+        # The keys are still stored as strings because that's all JSON can do
+        tune_data[i]['tune_id'] = int(tune_data[i]['tune_id'])
 
     return tune_data
 
