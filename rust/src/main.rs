@@ -4,18 +4,21 @@ mod dataset;
 use crate::folkfriend::index::structs::*;
 use indicatif::ProgressBar;
 use std::convert::TryInto;
-use clap::{Arg, App};
+use std::time::Instant;
+use clap::{Arg, App};    
+
 
 fn main() {
+    let now = Instant::now();
 
     let args = App::new("FolkFriend")
-        .version("3.0")
-        .author("T.C. Wyllie <tom@wyllie.dev>")
-        .about("Transcription and recognition of traditional instrumental folk music")
-        .subcommand(App::new("dataset")
+    .version("3.0")
+    .author("T.C. Wyllie <tom@wyllie.dev>")
+    .about("Transcription and recognition of traditional instrumental folk music")
+    .subcommand(App::new("dataset")
             .arg(Arg::new("dataset-op")
-                .possible_values(&["transcribe", "query"])
-                .required(true)
+            .possible_values(&["transcribe", "query"])
+            .required(true)
             )
             .arg(Arg::new("dataset-path")
                 .required(true)
@@ -24,17 +27,19 @@ fn main() {
         )
         .get_matches();
         
-    if let Some(ref args) = args.subcommand_matches("dataset") {
-
-        let dataset_path = args.value_of("dataset-path").unwrap().to_string();
-        let dataset_op = args.value_of("dataset-op").unwrap();
-
-        match dataset_op {
+        if let Some(ref args) = args.subcommand_matches("dataset") {
+            
+            let dataset_path = args.value_of("dataset-path").unwrap().to_string();
+            let dataset_op = args.value_of("dataset-op").unwrap();
+            
+            match dataset_op {
             "transcribe" => { println!("transcribing") },
             "query" => { bulk_query(&dataset_path) },
             _ => {},
         }
     }
+    
+    println!("FolkFriend finished in {:.2?}", now.elapsed());
 }
 
 fn bulk_query(dataset_path: &String) {

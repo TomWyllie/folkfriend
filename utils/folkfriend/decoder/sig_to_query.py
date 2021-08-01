@@ -13,7 +13,7 @@ def transcribe(signal, sample_rate):
     linear_ac_spec = spectrogram.linearise_ac_spectrogram(ac_spec)
     pitch_spec = spectrogram.detect_pitches(linear_ac_spec)
     onset_spec = spectrogram.detect_onsets(pitch_spec)
-    fixed_octaves = spectrogram.fix_octaves_alt(onset_spec)
+    fixed_octaves = spectrogram.fix_octaves(onset_spec)
     noise_cleaned = spectrogram.clean_noise(fixed_octaves)
 
     # Spectrogram -> sequence of notes

@@ -5,6 +5,7 @@ from scipy.signal import convolve2d
 from folkfriend import ff_config
 from folkfriend.sig_proc import note
 
+
 import matplotlib.pyplot as plt
 
 # This keeps ff_config serialisable for export to JS
@@ -61,16 +62,7 @@ def linearise_ac_spectrogram(spectrogram):
     return interp.interp1d(bin_midi_values,
                            spectrogram)(NP_LINEAR_MIDI_BINS)
 
-
 def fix_octaves(spectrogram):
-    # Remove time stretched copy (a la enhanced autocorrelation)
-    out = spectrogram.copy()
-    out[:, 12:] -= out[:, :-12]
-    out[out < 0] = 0
-    return out
-
-
-def fix_octaves_alt(spectrogram):
     # Remove harmonics. For a frequency X, if X + octave has greater
     #   energy then zero out X and set X + octave equal to the sum of
     #   the two energies. Repeat twice so three harmonics can collapse to
@@ -82,20 +74,13 @@ def fix_octaves_alt(spectrogram):
 
     spectrogram = spectrogram.copy()
 
-    # spectrogram = np.zeros_like(spectrogram)
-    # spectrogram[:, 15] = 1
-    # spectrogram[:, 15 + 12] = 0.5
-
-    # plt.imshow(spectrogram.T, cmap='gray')
-    # plt.show()
-
     num_octaves = ff_config.MIDI_NUM // 12
 
     # [frames, bins] -> [frames, bins (one octave), octaves]
     spectrogram = spectrogram.reshape(
         (-1, num_octaves, 12))
 
-    mask = spectrogram[:, 1:, :] < spectrogram[:, :-1, :]
+    mask = spectrogram[:, 1:, :] < ff_config.OCTAVE_DEDUPE_THRESH * spectrogram[:, :-1, :]
 
     # Now perform the zeroing / stacking on each octave, sequentially
     for octave in range(num_octaves - 1, 0, -1):
@@ -140,7 +125,7 @@ def detect_onsets(spectrogram):
     return spectrogram
 
 
-def clean_noise(spectrogram, cutoff=0.8):
+def clean_noise(spectrogram, cutoff=ff_config.CLEAN_NOISE_CUTOFF):
     """Remove noise from spectrogram by retaining only high energy bins"""
 
     energy_by_bin = np.max(spectrogram, axis=0)

@@ -204,7 +204,7 @@ class Contour:
         self.energy = 0.
         self.tempo_cost = 0.
         self.pitch_cost = 0.
-        self.frames_per_beat = 8       # ~ 100 BPM
+        self.frames_per_beat = 10       # ~ 100 BPM
 
     @property
     def bpm(self):

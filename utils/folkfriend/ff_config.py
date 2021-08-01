@@ -135,5 +135,7 @@ MIDI_UNMAP_ = {c: i for (i, c)
 THESESSION_DATA_URL_ = 'https://raw.githubusercontent.com/adactio/TheSession-data/main/json/tunes.json'
 DEFAULT_DS_DIR_ = os.path.join(str(pathlib.Path.home()), 'datasets/folkfriend')
 
+OCTAVE_DEDUPE_THRESH = 1.0
+CLEAN_NOISE_CUTOFF = 0.8
 PITCH_MODEL_WEIGHT = 0.1
 TEMPO_MODEL_WEIGHT = 0.5
