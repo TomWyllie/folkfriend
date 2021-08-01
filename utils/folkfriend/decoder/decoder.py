@@ -14,9 +14,25 @@ from timeit import default_timer as dt
 
 from tqdm import tqdm
 
-
 def decode(spec):
     """Decode spectral features to a contour of notes."""
+
+    tempos = [7, 10, 16]
+    best_contours_by_tempo = []
+
+    for tempo in tempos:
+        best_contours_by_tempo.append(decode_with_tempo(spec,tempo))
+
+    best_contour = max(best_contours_by_tempo, key=lambda c: c.score)
+
+    expanded_counter = expand_contour(best_contour)
+    query = contour_to_query(best_contour)
+
+    return query, expanded_counter
+
+
+def decode_with_tempo(spec, tempo):
+    """For a fixed tempo, decode spectral features"""        
 
     start = dt()
 
@@ -36,7 +52,7 @@ def decode(spec):
     contours = []
 
     for pitch in range(num_midis):
-        c_new = Contour()
+        c_new = Contour(frames_per_beat=tempo)
         c_new.pitches = [pitch]
         c_new.lengths = [1]
         c_new.energy += spec[0, pitch]
@@ -140,7 +156,7 @@ def decode(spec):
             
             # This is > 2x faster the deepcopy.copy
             c_old = contours[contour_id]
-            c_new = Contour()
+            c_new = Contour(frames_per_beat=tempo)
             c_new.pitches[:] = c_old.pitches[:]
             c_new.lengths[:] = c_old.lengths[:]
             c_new.energy = c_old.energy
@@ -156,11 +172,8 @@ def decode(spec):
 
     # view_contour(best_contour)
     # print(f'Decoded in {dt() - start} secs')
-    
-    expanded_counter = expand_contour(best_contour)
-    query = contour_to_query(best_contour)
 
-    return query, expanded_counter
+    return best_contour
 
 def contour_to_query(contour):
     lengths = (l / contour.frames_per_beat for l in contour.lengths)
@@ -198,13 +211,13 @@ def view_contour(contour):
 
 
 class Contour:
-    def __init__(self) -> None:
+    def __init__(self, frames_per_beat=8) -> None:
         self.pitches = []
         self.lengths = []
         self.energy = 0.
         self.tempo_cost = 0.
         self.pitch_cost = 0.
-        self.frames_per_beat = 8       # ~ 100 BPM
+        self.frames_per_beat = frames_per_beat
 
     @property
     def bpm(self):
