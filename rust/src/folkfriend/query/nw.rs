@@ -4,7 +4,7 @@ const MATCH_SCORE: i32 = 2;
 const MISMATCH_SCORE: i32 = -2;
 const GAP_SCORE: i32 = -1;
 
-pub fn needleman_wunsch(a: Vec<i32>, b: Vec<i32>) -> f64 {
+pub fn needleman_wunsch(a: &String, b: &String) -> f64 {
 
     //  Memory-efficient version of Needleman-Wunsch written for Rust.
     //    ~ Tom Wyllie 2021
@@ -13,7 +13,7 @@ pub fn needleman_wunsch(a: Vec<i32>, b: Vec<i32>) -> f64 {
         return 0.0;
     }
 
-    // Swap a and b
+    // Swap a and b such that b always longer than a
     let (a, b) = if a.len() > b.len() { (&b, &a) } else { (&a, &b) };
 
     let mut last_row: Vec<i32> = vec![0; a.len() + 1];
@@ -39,7 +39,7 @@ pub fn needleman_wunsch(a: Vec<i32>, b: Vec<i32>) -> f64 {
             //  We store the previous row in this buffer and work along it,
             //    updating it to "this" row. This is for efficiency.
             last_row[col] = cmp::max(
-                    curr_diag + (if a[col - 1] == b[row] { MATCH_SCORE } else { MISMATCH_SCORE }),
+                    curr_diag + (if a[col-1..col] == b[row..row+1] { MATCH_SCORE } else { MISMATCH_SCORE }),
                     cmp::max(
                         last_row[col - 1] + GAP_SCORE, 
                         last_row[col] + GAP_SCORE

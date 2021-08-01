@@ -5,35 +5,35 @@ use crate::folkfriend::index::structs::*;
 
 use std::time::Instant;
 
-pub fn run_query(query: &String, tune_settings: &TuneSettings) -> Vec<(u32, usize)> {
-    let query = trigrams(query);
-    let mut ranked_settings: HashMap<u32, usize> = HashMap::new();
-    
+pub type SettingsFeats = HashMap<u32, HashSet<String>>;
+
+pub fn build_settings_feats(tune_settings: &TuneSettings) -> SettingsFeats {
     let now = Instant::now();
     
-    let mut settings_feats: HashMap<u32, HashSet<String>> = HashMap::new();
-    
+    let mut settings_feats: SettingsFeats = HashMap::new();
     for (setting_id, setting) in tune_settings {
         let feats = trigrams(&setting.contour);
         settings_feats.insert(*setting_id, feats);
     }
     
-    // let elapsed = now.elapsed();
-    // println!("Elapsed: {:.2?}", elapsed);
-    let now = Instant::now();
+    println!("Built heuristic index in {:.2?}", now.elapsed());
+    
+    return settings_feats;
+}
 
-    for (setting_id, _) in tune_settings {
-        let intersection = query.intersection(&settings_feats[setting_id]);
+
+pub fn run_query(query: &String, settings_feats: &SettingsFeats) -> Vec<(u32, usize)> {
+    let query = trigrams(query);
+    let mut ranked_settings: HashMap<u32, usize> = HashMap::new();
+    
+    for (setting_id, feats) in settings_feats {
+        let intersection = query.intersection(feats);
         let score = intersection.collect::<Vec<&String>>().len();
         ranked_settings.insert(*setting_id, score);
     }
     
-    let elapsed = now.elapsed();
-    println!("Elapsed: {:.2?}", elapsed);
-
     let mut sorted_rankings: Vec<_> = ranked_settings.into_iter().collect();
     sorted_rankings.sort_by(|x,y| y.1.cmp(&x.1));
-
 
     return sorted_rankings;
 }

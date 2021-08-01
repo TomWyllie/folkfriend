@@ -14,7 +14,7 @@ def main(results_path):
     subsets = ('fergal', 'cambridge', 'martial')
 
     for subset in subsets:
-        ss = [r for r in results if subset in r['path']]
+        ss = [r for r in results if subset in r['rel_path']]
         print(top_tiers(ss, label=subset))
 
 
