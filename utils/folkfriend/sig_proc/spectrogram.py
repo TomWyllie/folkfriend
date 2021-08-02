@@ -1,3 +1,4 @@
+import enum
 import numpy as np
 import scipy.interpolate as interp
 from scipy.signal import convolve2d
@@ -128,14 +129,20 @@ def detect_onsets(spectrogram):
 def clean_noise(spectrogram, cutoff=ff_config.CLEAN_NOISE_CUTOFF):
     """Remove noise from spectrogram by retaining only high energy bins"""
 
-    energy_by_bin = np.max(spectrogram, axis=0)
-    energy_by_bin /= np.sum(energy_by_bin)
+    # Retain only top 5 most energetic bins at each frame
 
-    bins_by_energy = np.argsort(-energy_by_bin)
-    energy_by_bin = np.cumsum(energy_by_bin[bins_by_energy])
+    for i in range(len(spectrogram)):
+        zero_inds = np.argsort(-spectrogram[i])[5:]
+        spectrogram[i, zero_inds] = 0
 
-    bins_to_zero = bins_by_energy[np.where(energy_by_bin > cutoff)]
-    spectrogram[:, bins_to_zero] = 0
+    # energy_by_bin = np.max(spectrogram, axis=0)
+    # energy_by_bin /= np.sum(energy_by_bin)
+
+    # bins_by_energy = np.argsort(-energy_by_bin)
+    # energy_by_bin = np.cumsum(energy_by_bin[bins_by_energy])
+
+    # bins_to_zero = bins_by_energy[np.where(energy_by_bin > cutoff)]
+    # spectrogram[:, bins_to_zero] = 0
 
     return spectrogram
 

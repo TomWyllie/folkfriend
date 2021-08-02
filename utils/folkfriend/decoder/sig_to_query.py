@@ -2,7 +2,6 @@ from folkfriend import ff_config
 from folkfriend.sig_proc import spectrogram
 from folkfriend.decoder import decoder
 
-
 def transcribe(signal, sample_rate):
     assert sample_rate == ff_config.SAMPLE_RATE
 
@@ -17,7 +16,9 @@ def transcribe(signal, sample_rate):
     noise_cleaned = spectrogram.clean_noise(fixed_octaves)
 
     # Spectrogram -> sequence of notes
-    query, _ = decoder.decode(noise_cleaned)
+    contour = decoder.decode(noise_cleaned)
+    midi_seq = decoder.contour_to_midi_seq(contour)
+    query = decoder.midi_seq_to_query(midi_seq)
 
     return query
     

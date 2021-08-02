@@ -1,7 +1,4 @@
 import argparse
-import csv
-import os
-import random
 
 import imageio
 import numpy as np
@@ -10,47 +7,11 @@ from folkfriend.data import abc
 from folkfriend.decoder import decoder
 from folkfriend.sig_proc import spectrogram
 from scipy.io import wavfile
-from tqdm.contrib.concurrent import process_map
-
-import csv_headers
 
 
-def main(dataset):
-
-    # spec = np.zeros((20, ff_config.MIDI_NUM))
-    # spec += np.random.normal(size=spec.shape, scale=0.1)
-    # spec[0:5, 8] = 1
-    # spec[5:10, 12] = 1
-    # spec[10:15, 10] = 1
-    # spec[15:20, 8] = 1
-    # _, contour = decoder_fast.decode_contour(spec)
-    # rendered_contour = decoder_fast.render_contour(contour)
-    # norm_and_save_png('a.png', spec.T)
-    # norm_and_save_png('b.png', rendered_contour.T)
-    # exit()
-
-
-    slices_path = os.path.join(dataset, 'labeled_slices.csv')
-
-    with open(slices_path) as f:
-        slices = list(csv.DictReader(f))
-
-        assert all(list(slice.keys()) == csv_headers.LABELED_SLICES
-                   for slice in slices)
-        multiproc_input = [(dataset, slice) for slice in slices]
-
-        # Shuffle so we can subsample output
-        random.shuffle(multiproc_input)
-
-    process_map(transcribe_file, multiproc_input,
-                desc='Transcribing Audio Files', chunksize=1)
-
-
-def transcribe_file(args):
-    dataset, slice = args
-    abs_path = os.path.join(dataset, slice['rel_path'])
-    img_path = abs_path.replace('.wav', '.png')
-    sample_rate, signal = wavfile.read(abs_path)
+def main(path):
+    img_path = path.replace('.wav', '.png')
+    sample_rate, signal = wavfile.read(path)
 
     assert sample_rate == ff_config.SAMPLE_RATE
 
@@ -76,12 +37,13 @@ def transcribe_file(args):
     rendered_contour = decoder.render_contour(contour)
     norm_and_save_png(img_path.replace('.png', '-f.png'), rendered_contour.T)
     
-    # midi_seq = decoder.contour_to_midi_seq(contour)
-    # abc_str = abc.midi_seq_to_abc(midi_seq)
-    # print(slice['rel_path'], abc_str)
+    midi_seq = decoder.contour_to_midi_seq(contour)
+    abc_str = abc.midi_seq_to_abc(midi_seq)
+    print(abc_str)
 
 
 def norm_and_save_png(path, img):
+    print(f'Writing {path}')
     img = np.asarray(img, dtype=np.float32)
     img -= np.min(img)
     img /= np.max(img)
@@ -93,6 +55,6 @@ def norm_and_save_png(path, img):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--dataset', default='/home/tom/datasets/tiny-folkfriend-evaluation-dataset')
+        'path', help='Path to .wav audio file to debug')
     args = parser.parse_args()
-    main(args.dataset)
+    main(args.path)

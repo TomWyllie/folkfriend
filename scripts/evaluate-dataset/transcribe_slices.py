@@ -1,6 +1,5 @@
 import argparse
 import csv
-import json
 import os
 import csv_headers
 
@@ -21,7 +20,7 @@ def main(dataset):
 
     transcribed_slices = process_map(transcribe_file, multiproc_input,
                                  desc='Transcribing Audio Files', chunksize=1)
-
+    
     transcriptions_path = os.path.join(dataset, 'transcriptions.csv')
 
     with open(transcriptions_path, 'w') as f:

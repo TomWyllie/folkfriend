@@ -1,6 +1,6 @@
 import math
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import numpy as np
 
 from folkfriend import ff_config
@@ -24,28 +24,28 @@ def score_note_length(length, length_scale):
     else:
         score = n_hi_score
 
-    return ff_config.TEMPO_MODEL_WEIGHT * score
+    return ff_config.TEMPO_MODEL_WEIGHT * -score
 
 
-if __name__ == '__main__':
-    scaled_lengths = np.linspace(0.1, 10, num=1000)
-    costs = []
+# if __name__ == '__main__':
+#     scaled_lengths = np.linspace(0.1, 10, num=1000)
+#     costs = []
 
-    plt.style.use('ggplot')
+#     # plt.style.use('ggplot')
 
-    # True cost is the minimum of all of these (to infinity).
-    #   Except we don't have to worry about infinites because
-    #   the optimal cost for A <= X <= B is always between
-    #   A and B. e.g. if the scaled length is 6.5 then we need
-    #   only try partitioning into 6 and 7, because the optimal
-    #   will be one of those two. As N -> inf, the shape of this
-    #   function tends to a sawtooth wave, but we don't use this
-    #   as an approximation because the log shape for <1 (left side)
-    #   is very important.
+#     # True cost is the minimum of all of these (to infinity).
+#     #   Except we don't have to worry about infinites because
+#     #   the optimal cost for A <= X <= B is always between
+#     #   A and B. e.g. if the scaled length is 6.5 then we need
+#     #   only try partitioning into 6 and 7, because the optimal
+#     #   will be one of those two. As N -> inf, the shape of this
+#     #   function tends to a sawtooth wave, but we don't use this
+#     #   as an approximation because the log shape for <1 (left side)
+#     #   is very important.
 
-    for i in range(1, 8):
-        cost = np.abs(i * np.log(scaled_lengths / i))
-        plt.plot(scaled_lengths, cost, label=str(i))
+#     for i in range(1, 8):
+#         cost = -np.abs(i * np.log(scaled_lengths / i))
+#         plt.plot(scaled_lengths, cost, label=str(i))
 
-    plt.legend()
-    plt.show()
+#     plt.legend()
+#     plt.savefig('tempo_model.png')

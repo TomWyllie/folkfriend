@@ -26,11 +26,11 @@ base_scores = {
     11: -5.149161163,
     12: -3.41406825
 }
+all_other_scores = -50
 
-weight = 0.1
+for k in base_scores:
+    base_scores[k] *= ff_config.PITCH_MODEL_WEIGHT
+all_other_scores *= ff_config.PITCH_MODEL_WEIGHT
 
 def score_pitch_interval(interval):
-    if interval == 0:
-        raise RuntimeError('Cannot score interval of zero.')
-
-    return -ff_config.PITCH_MODEL_WEIGHT * base_scores.get(interval, -20)
+    return base_scores.get(interval, all_other_scores)
