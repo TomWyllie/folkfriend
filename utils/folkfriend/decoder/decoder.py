@@ -54,8 +54,6 @@ class Decoder():
     def decode(self, spec, tempo):
         """For a fixed tempo, decode spectral features"""
 
-        # start = dt()
-
         num_frames, num_midis = spec.shape
         assert num_midis == ff_config.MIDI_NUM
 
@@ -87,23 +85,29 @@ class Decoder():
             # === Draft and score new proposals ===
             # =====================================
 
+            # start = dt()
+
             proposals.append([])
+            pitches = {p for p in np.nonzero(spec[frame])[0]}
 
             for i, prev_prop in enumerate(proposals[frame - 1]):
-                for pitch in range(num_midis):
+                tempo_score = self._get_tempo_score(prev_prop.duration)
+                for pitch in pitches | {prev_prop.pitch}:
                     # Add all non-zero-energy pitches as possible transitions,
                     #   as well as possibility of continuing on current pitch.
-                    if spec[frame, pitch] > 0 or pitch == prev_prop.pitch:
-                        proposal = self.compute_new_proposal(
-                            prev_proposal=prev_prop,
-                            prev_proposal_id=i,
-                            pitch=pitch,
-                            energy=spec[frame, pitch]
-                        )
-                        proposals[frame].append(proposal)
+                    proposal = self.compute_new_proposal(
+                        prev_proposal=prev_prop,
+                        prev_proposal_id=i,
+                        pitch=pitch,
+                        energy=spec[frame, pitch],
+                        tempo_score=tempo_score
+                    )
+                    proposals[frame].append(proposal)
 
             # print(f'{len(proposals[frame])} proposals drafted and scored')
 
+            # print('drafting + scoring', num_frames * 1000 * (dt() - start))
+            
             # ========================
             # === Dedupe proposals ===
             # ========================
@@ -146,8 +150,7 @@ class Decoder():
             best_proposals = [proposals[frame][i] for i in best_proposals]
             proposals[frame] = best_proposals
 
-            # pprint(best_proposals)
-            # exit()
+            # print('deduping', num_frames * 1000 * (dt() - start))
 
             # print(f'{len(proposals[frame])} '
             #       f'proposals computed for frame {frame}')
@@ -165,12 +168,10 @@ class Decoder():
 
         contour = [p.pitch for p in contour_proposals]
 
-        # print(f'Decoded in {dt() - start} secs')
-
         return contour, best_final_proposal.score
 
     def compute_new_proposal(self, prev_proposal: Proposal,
-                             prev_proposal_id, pitch, energy):
+                             prev_proposal_id, pitch, energy, tempo_score):
         """Compute a proposal at time t given the proposal and proposal id at time
             t-1, the pitch at time t, and the spectral energy at that pitch and 
             time."""
@@ -182,8 +183,9 @@ class Decoder():
         pitch_changed = interval != 0
 
         if pitch_changed:
-            # TODO could read this less often
-            new_score += self._get_tempo_score(prev_proposal.duration)
+            # This is the seem for each value of the inner loop that calls this
+            #   function. This is a performance optimisation.
+            new_score += tempo_score
             new_score += pitch_model.score_pitch_interval(interval)
             duration = 1
         else:

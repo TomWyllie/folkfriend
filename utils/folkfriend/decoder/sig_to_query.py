@@ -10,8 +10,8 @@ def transcribe(signal, sample_rate):
 
     # Spectrogram processing steps
     linear_ac_spec = spectrogram.linearise_ac_spectrogram(ac_spec)
-    pitch_spec = spectrogram.detect_pitches(linear_ac_spec)
-    onset_spec = spectrogram.detect_onsets(pitch_spec)
+    # pitch_spec = spectrogram.detect_pitches(linear_ac_spec)
+    onset_spec = spectrogram.sum_to_midis(linear_ac_spec)
     fixed_octaves = spectrogram.fix_octaves(onset_spec)
     noise_cleaned = spectrogram.clean_noise(fixed_octaves)
 

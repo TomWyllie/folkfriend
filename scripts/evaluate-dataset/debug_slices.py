@@ -17,19 +17,6 @@ import csv_headers
 
 def main(dataset):
 
-    # spec = np.zeros((20, ff_config.MIDI_NUM))
-    # spec += np.random.normal(size=spec.shape, scale=0.1)
-    # spec[0:5, 8] = 1
-    # spec[5:10, 12] = 1
-    # spec[10:15, 10] = 1
-    # spec[15:20, 8] = 1
-    # _, contour = decoder_fast.decode_contour(spec)
-    # rendered_contour = decoder_fast.render_contour(contour)
-    # norm_and_save_png('a.png', spec.T)
-    # norm_and_save_png('b.png', rendered_contour.T)
-    # exit()
-
-
     slices_path = os.path.join(dataset, 'labeled_slices.csv')
 
     with open(slices_path) as f:
@@ -58,10 +45,12 @@ def transcribe_file(args):
     linear_ac_spec = spectrogram.linearise_ac_spectrogram(ac_spec)
     norm_and_save_png(img_path.replace('.png', '-a.png'), linear_ac_spec.T)
 
-    pitch_spec = spectrogram.detect_pitches(linear_ac_spec)
-    norm_and_save_png(img_path.replace('.png', '-b.png'), pitch_spec.T)
+    # pitch_spec = spectrogram.detect_pitches(linear_ac_spec)
+    # norm_and_save_png(img_path.replace('.png', '-b.png'), pitch_spec.T)
 
-    onset_spec = spectrogram.detect_onsets(pitch_spec)
+    # onset_spec = spectrogram.sum_to_midis(pitch_spec)
+    # TODO directly convert from AC spectrogram to this...
+    onset_spec = spectrogram.sum_to_midis(linear_ac_spec)
     norm_and_save_png(img_path.replace('.png', '-c.png'), onset_spec.T)
 
     fixed_octaves = spectrogram.fix_octaves(onset_spec)

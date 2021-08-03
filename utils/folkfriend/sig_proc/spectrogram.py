@@ -63,6 +63,7 @@ def linearise_ac_spectrogram(spectrogram):
     return interp.interp1d(bin_midi_values,
                            spectrogram)(NP_LINEAR_MIDI_BINS)
 
+
 def fix_octaves(spectrogram):
     # Remove harmonics. For a frequency X, if X + octave has greater
     #   energy then zero out X and set X + octave equal to the sum of
@@ -81,7 +82,8 @@ def fix_octaves(spectrogram):
     spectrogram = spectrogram.reshape(
         (-1, num_octaves, 12))
 
-    mask = spectrogram[:, 1:, :] < ff_config.OCTAVE_DEDUPE_THRESH * spectrogram[:, :-1, :]
+    mask = spectrogram[:, 1:,
+                       :] < ff_config.OCTAVE_DEDUPE_THRESH * spectrogram[:, :-1, :]
 
     # Now perform the zeroing / stacking on each octave, sequentially
     for octave in range(num_octaves - 1, 0, -1):
@@ -103,21 +105,26 @@ def fix_octaves(spectrogram):
     return spectrogram
 
 
-def detect_pitches(spectrogram):
-    pitch_filter = [[-1.0, -0.3, 0.0, 0.8, 1.0, 0.8, 0.0, -0.3, -1.0]]
-    pitches = convolve2d(spectrogram, pitch_filter, mode='same')
-    pitches[pitches < 0] = 0
-    return pitches
+# def detect_pitches(spectrogram):
+#     # pitch_filter = [[-1.0, -0.3, 0.0, 0.8, 1.0, 0.8, 0.0, -0.3, -1.0]]
+#     # pitch_filter = [[-1.20, -0.68, 0.16, 1.01, 1.40, 1.01, 0.16, -0.68, -1.20]]
+#     pitch_filter = [[
+#         -1.5392, -1.2192, -0.6592, 0.1208, 0.9033, 1.5008, 1.7857,
+#         1.5008, 0.9033, 0.1208, -0.6592, -1.2192, -1.5392]
+#     ]
+#     pitches = convolve2d(spectrogram, pitch_filter, mode='same')
+#     pitches[pitches < 0] = 0
+#     return pitches
 
 
-def detect_onsets(spectrogram):
+def sum_to_midis(spectrogram):
 
-    onset_filter = np.cos([np.linspace(-np.pi, 0, num=8, endpoint=True)]).T
+    # onset_filter = np.cos([np.linspace(-np.pi, 0, num=8, endpoint=True)]).T
+    # onset = convolve2d(spectrogram, onset_filter, mode='same')
+    # onset[onset < 0] = 0
 
-    onset = convolve2d(spectrogram, onset_filter, mode='same')
-    onset[onset < 0] = 0
-
-    spectrogram = onset.reshape(
+    # spectrogram = onset.reshape(
+    spectrogram = spectrogram.reshape(
         (-1, ff_config.MIDI_NUM, ff_config.SPEC_BINS_PER_MIDI))
 
     # Sum multiple bins per note into one bin per note
@@ -126,7 +133,7 @@ def detect_onsets(spectrogram):
     return spectrogram
 
 
-def clean_noise(spectrogram, cutoff=ff_config.CLEAN_NOISE_CUTOFF):
+def clean_noise(spectrogram):
     """Remove noise from spectrogram by retaining only high energy bins"""
 
     # Retain only top 5 most energetic bins at each frame
@@ -145,6 +152,7 @@ def clean_noise(spectrogram, cutoff=ff_config.CLEAN_NOISE_CUTOFF):
     # spectrogram[:, bins_to_zero] = 0
 
     return spectrogram
+
 
 if __name__ == '__main__':
     spec = np.zeros((500, 48))

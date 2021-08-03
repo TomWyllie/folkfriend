@@ -136,8 +136,7 @@ THESESSION_DATA_URL_ = 'https://raw.githubusercontent.com/adactio/TheSession-dat
 DEFAULT_DS_DIR_ = os.path.join(str(pathlib.Path.home()), 'datasets/folkfriend')
 
 OCTAVE_DEDUPE_THRESH = 1.0
-CLEAN_NOISE_CUTOFF = 0.8
-PITCH_MODEL_WEIGHT = 0.1
-TEMPO_MODEL_WEIGHT = 0.5
+PITCH_MODEL_WEIGHT = 0.12
+TEMPO_MODEL_WEIGHT = 0.4
 TEMPO_LENGTH_SCALE = 8
-BEAM_WIDTH = 20
+BEAM_WIDTH = 40

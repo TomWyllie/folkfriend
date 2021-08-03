@@ -8,8 +8,11 @@ from folkfriend.decoder import decoder
 from folkfriend.sig_proc import spectrogram
 from scipy.io import wavfile
 
+from timeit import default_timer as dt
 
 def main(path):
+    start = dt()
+
     img_path = path.replace('.wav', '.png')
     sample_rate, signal = wavfile.read(path)
 
@@ -19,10 +22,10 @@ def main(path):
     linear_ac_spec = spectrogram.linearise_ac_spectrogram(ac_spec)
     norm_and_save_png(img_path.replace('.png', '-a.png'), linear_ac_spec.T)
 
-    pitch_spec = spectrogram.detect_pitches(linear_ac_spec)
-    norm_and_save_png(img_path.replace('.png', '-b.png'), pitch_spec.T)
+    # pitch_spec = spectrogram.detect_pitches(linear_ac_spec)
+    # norm_and_save_png(img_path.replace('.png', '-b.png'), pitch_spec.T)
 
-    onset_spec = spectrogram.detect_onsets(pitch_spec)
+    onset_spec = spectrogram.sum_to_midis(linear_ac_spec)
     norm_and_save_png(img_path.replace('.png', '-c.png'), onset_spec.T)
 
     fixed_octaves = spectrogram.fix_octaves(onset_spec)
@@ -39,7 +42,9 @@ def main(path):
     
     midi_seq = decoder.contour_to_midi_seq(contour)
     abc_str = abc.midi_seq_to_abc(midi_seq)
+    
     print(abc_str)
+    print(f'done in {1000 * (dt() - start)} ms')
 
 
 def norm_and_save_png(path, img):
