@@ -11,7 +11,7 @@ pub struct QueryEngine {
 }
 
 impl QueryEngine {
-    pub fn new<'a>(tune_settings: TuneSettings) -> QueryEngine {
+    pub fn new(tune_settings: TuneSettings) -> QueryEngine {
         QueryEngine {
             heuristic_settings_feats: heuristic::build_settings_feats(&tune_settings),
             tune_settings: tune_settings,

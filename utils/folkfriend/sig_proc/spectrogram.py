@@ -26,7 +26,7 @@ def compute_ac_spectrogram(signal, window_size=ff_config.SPEC_WINDOW_SIZE):
     signal_windowed = np.reshape(
         signal[:window_size * num_frames], (num_frames, window_size))
 
-    signal = (signal_windowed * np.hanning(window_size))
+    signal = (signal_windowed * np.blackman(window_size))
 
     # Power spectra of each window
     spectra = np.fft.fft(signal)
@@ -34,6 +34,7 @@ def compute_ac_spectrogram(signal, window_size=ff_config.SPEC_WINDOW_SIZE):
     # This next step corresponds to a "k-value" of 1/3, see
     #   https://labrosa.ee.columbia.edu/~dpwe/papers/ToloK2000-mupitch.pdf
     #   (which recommends k as 2/3)
+    # spectrogram = np.cbrt(np.abs(spectra))
     spectrogram = np.cbrt(np.abs(spectra))
 
     # Forwards FFT is equivalent to IFFT here so either can be used.
