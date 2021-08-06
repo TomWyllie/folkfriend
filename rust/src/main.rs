@@ -52,9 +52,8 @@ fn main() {
         let audio_file_path = args.value_of("wav-file").unwrap().to_string();
         let mut inp_file = File::open(Path::new(&audio_file_path)).unwrap();
         let (header, data) = wav::read(&mut inp_file).unwrap();
-        validate_sample_rate(header.sampling_rate);
 
-        let fe = folkfriend::sig_proc::spectrogram::FeatureExtractor::new();
+        let fe = folkfriend::sig_proc::spectrogram::FeatureExtractor::new(header.sampling_rate);
         let signal = data.try_into_sixteen().unwrap();
         let mut signal_f: Vec<f32> = vec![0.; signal.len()]; 
 
@@ -111,17 +110,3 @@ fn bulk_query(dataset_path: &String) {
     bar.finish();
 }
 
-fn validate_sample_rate(sample_rate: u32) {
-    if sample_rate > ff_config::SAMPLE_RATE_MAX {
-        panic!(
-            "Sample rate must be not greater than {}",
-            ff_config::SAMPLE_RATE_MAX
-        );
-    }
-    if sample_rate < ff_config::SAMPLE_RATE_MIN {
-        panic!(
-            "Sample rate must be not less than {}",
-            ff_config::SAMPLE_RATE_MIN
-        );
-    }
-}
