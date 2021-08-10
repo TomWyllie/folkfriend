@@ -3,14 +3,22 @@ use crate::folkfriend::sig_proc::window as window_function;
 use rustfft::{algorithm::Radix4, num_complex::Complex, Fft, FftDirection};
 use std::convert::TryInto;
 
-type InterpInds = Vec<(usize, usize, f32)>;
+pub type InterpInds = Vec<InterpInd>;
+pub type Frame = [f32; ff_config::MIDI_NUM as usize];
+
+#[derive(Debug)]
+pub struct InterpInd {
+    lo_weight: f32,
+    hi_weight: f32,
+    hi_index: usize,
+}
 
 pub struct FeatureExtractor {
     pub sample_rate: u32,
     pub window_function: [f32; ff_config::SPEC_WINDOW_SIZE],
     pub fft: Radix4<f32>,
     pub interp_inds: InterpInds,
-    pub features: Vec<Vec<u16>>, // TODO datatype?
+    pub features: Vec<Frame>, // TODO datatype?
 }
 
 impl FeatureExtractor {
@@ -24,14 +32,13 @@ impl FeatureExtractor {
         }
     }
 
-    pub fn set_sample_rate(&self, sample_rate: u32) {
+    pub fn set_sample_rate(&mut self, sample_rate: u32) {
         // Need to know the sample rate to undertake the linear resampling step
         validate_sample_rate(&sample_rate);
-
-        // Generate tuples of (autocorrelation_bin, feature_bin, weight)
+        self.interp_inds = compute_interp_inds(&sample_rate);
     }
 
-    pub fn feed_signal(&self, signal: Vec<f32>) {
+    pub fn feed_signal(&mut self, signal: Vec<f32>) {
         // Implicit floor division
         let num_winds = signal.len() / ff_config::SPEC_WINDOW_SIZE;
         let last_ind = num_winds * ff_config::SPEC_WINDOW_SIZE;
@@ -43,13 +50,22 @@ impl FeatureExtractor {
             );
         }
     }
-    pub fn feed_window(&self, window: [f32; ff_config::SPEC_WINDOW_SIZE]) {
+    pub fn feed_window(&mut self, window: [f32; ff_config::SPEC_WINDOW_SIZE]) {
+        // Define empty buffer for use with this frame
         let mut buffer: [Complex<f32>; ff_config::SPEC_WINDOW_SIZE] =
             [Complex { re: 0.0, im: 0.0 }; ff_config::SPEC_WINDOW_SIZE];
+        // =============================
+        // === Apply window function ===
+        // =============================
+
         for i in 0..buffer.len() {
-            // buffer[i].re = window[i] * &self.window_function[i];
-            buffer[i].re = 1.0 * &self.window_function[i];
+            buffer[i].re = window[i] * &self.window_function[i];
+            // buffer[i].re = 1.0 * &self.window_function[i];
         }
+
+        // ===============================
+        // === Compute autocorrelation ===
+        // ===============================
 
         // Fourier transform of windowed signal, X(w)
         self.fft.process(&mut buffer);
@@ -66,12 +82,17 @@ impl FeatureExtractor {
             buffer[i].re = (buffer[i].re.powf(2.) + buffer[i].im.powf(2.)).powf(1. / 6.);
             buffer[i].im = 0.;
         }
+
         // Fourier transform of magnitude-compressed power spectrum.
         //  Note! Fourier transform is basically the same as inverse
         //  fourier transform (we have real and even functions here).
         //  We can reuse the exact same FFT object.
         //  See Tom's old 3G3 jotter for some calculations on this.
         self.fft.process(&mut buffer);
+
+        // =============================================
+        // === Compute features from autocorrelation ===
+        // =============================================
 
         // Peak pruning. At this point buffer[i].im = 0 for all i.
         for i in 0..buffer.len() {
@@ -80,14 +101,23 @@ impl FeatureExtractor {
             if buffer[i].re.signum() == -1. {
                 buffer[i].re = 0.;
             }
-            println!("{:?}", buffer[i].re);
         }
 
-        // TODO now do linear resampling
+        // We have now spectral energy at the frequencies described above.
+        //  Use linear interpolation to find the energy at the frequencies of
+        //  each of the MIDI notes in the range of MIDI values that folkfriend
+        //  uses.
+        let mut features: Frame = [0.; ff_config::MIDI_NUM as usize];
+        for i in 0..features.len() {
+            // Perform linear interpolation
+            features[i] = self.interp_inds[i].hi_weight * buffer[self.interp_inds[i].hi_index].re
+                + self.interp_inds[i].lo_weight * buffer[self.interp_inds[i].hi_index - 1].re;
+        }
+
         // TODO then Octave fixing
         // TODO then noise cleaning
 
-        panic!("end");
+        self.features.push(features);
     }
 }
 
@@ -108,7 +138,6 @@ fn validate_sample_rate(sample_rate: &u32) {
 
 fn compute_interp_inds(sample_rate: &u32) -> InterpInds {
     validate_sample_rate(sample_rate);
-    let mut interp_inds: InterpInds = Vec::new();
     let half_window: usize = ff_config::SPEC_WINDOW_SIZE / 2;
 
     // We will have a buffer that contains 1 + SPEC_WINDOW_SIZE / 2 unique
@@ -123,78 +152,54 @@ fn compute_interp_inds(sample_rate: &u32) -> InterpInds {
     //  bins (1:511) inclusive = reverse(513:1023) inclusive.
     // That's 511 values, plus DC and plus bin 512 gives 513 unique values.
 
+    let mut ac_bin_midis: Vec<f32> = Vec::new();
 
-
-    // KISS!!
-
-    // Python implementation
-    // lo_indices = []
-    // lo_weights = []
-    // hi_indices = []
-    // hi_weights = []
-
-    // for i in range(lmb):
-    //     # Each linear midi bin is a linear combination of two bins from
-    //     #  the spectrogram
-    //     linear_bin_midi_value = ff_config.LINEAR_MIDI_BINS_[i]
-
-    //     if linear_bin_midi_value < non_linear_bins[len(non_linear_bins) - 2]:
-    //         raise RuntimeError("Linear bin goes too low")
-
-    //     # Note both arrays are monotonically decreasing in value
-    //     lo = 0
-    //     for j in range(len(non_linear_bins)):
-    //         if linear_bin_midi_value > non_linear_bins[j]:
-    //             lo = j
-    //             break
-
-    //     delta = non_linear_bins[lo - 1] - non_linear_bins[lo]
-    //     x1 = (non_linear_bins[lo - 1] - linear_bin_midi_value) / delta
-    //     x2 = -(non_linear_bins[lo] - linear_bin_midi_value) / delta
-
-    //     if x1 > 1 or x1 < 0 or x2 > 1 or x2 < 0:
-    //         raise RuntimeError(f'Invalid x1: {x1}, x2: {x2}')
-
-    //     # Frequencies are decreasing so lower index => higher freq
-    //     lo_indices.append(lo)
-    //     lo_weights.append(x1)
-    //     hi_indices.append(lo - 1)
-    //     hi_weights.append(x2)
-
-
-
-
-
-
-
-
-
-
-
-    let mut midi_bins: Vec<f32> = Vec::new();
-
-    for ac_bin in 1..half_window+1 {
+    for ac_bin in 1..half_window + 1 {
         let ac_freq = *sample_rate as f32 / ac_bin as f32;
         let ac_midi = hertz_to_midi(&ac_freq);
-        midi_bins.push(ac_midi);
+        ac_bin_midis.push(ac_midi);
+    }
+    // 0th bin is highest
+    if ac_bin_midis[0] < ff_config::MIDI_HIGH as f32
+        || ac_bin_midis[half_window - 1] > ff_config::MIDI_LOW as f32
+    {
+        panic!("Spectrogram range is insufficient");
     }
 
-    for i in 1..midi_bins.len() {
-        // Four cases possible
-        
-        // Case 1: This pitch, and all those above it, are too high to be of
-        //  interest. Keep iterating until we reach a relevant pitch.
-        if midi_bins[i] > ff_config::MIDI_HIGH as f32 {
-            continue;
+    // Python implementation
+    let mut interp_indices: InterpInds = Vec::new();
+
+    for feature_bin in ff_config::MIDI_LOW..=ff_config::MIDI_HIGH {
+        let feature_bin = feature_bin as f32;
+
+        // Each feature bin is a linear combination of two bins from
+        // the spectrogram.
+        // Note both arrays are monotonically decreasing in value
+        let mut hi = 1;
+        for (i, ac_bin_midi) in ac_bin_midis[1..half_window].iter().enumerate() {
+            if feature_bin > *ac_bin_midi {
+                hi = 1 + i;
+                break;
+            }
         }
+        // 'hi' => High index => Low frequency
+        let delta: f32 = ac_bin_midis[hi - 1] - ac_bin_midis[hi];
+        let w1: f32 = (ac_bin_midis[hi - 1] - feature_bin) / delta;
+        let w2: f32 = -(ac_bin_midis[hi] - feature_bin) / delta;
+        if w1 > 1. || w1 < 0. || w2 > 1. || w2 < 0. {
+            panic!("Invalid x1: {}, x2: {}", w1, w2);
+        }
+        interp_indices.push(InterpInd {
+            hi_weight: w1,
+            lo_weight: w2,
 
-        // Case 2: The frequency of a desired MIDI value lies between this bin
-        //  and the previous (higher pitched) one. Linearly interpolate.
+            // The plus one here is because we excluded the DC bin from ac_bin_midis
+            //  (as it's MIDI value is infinity)
+            hi_index: hi + 1,
+        })
     }
 
-    // Low feature index = low MIDI note (= low frequency)
-
-    return vec![(0, 0, 0f32)];
+    return interp_indices;
 }
 
 fn hertz_to_midi(hertz: &f32) -> f32 {

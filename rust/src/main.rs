@@ -1,5 +1,6 @@
 mod dataset;
 mod folkfriend;
+mod debug_features;
 
 use crate::folkfriend::index::structs::*;
 use clap::{App, Arg};
@@ -53,15 +54,17 @@ fn main() {
         let mut inp_file = File::open(Path::new(&audio_file_path)).unwrap();
         let (header, data) = wav::read(&mut inp_file).unwrap();
 
-        let fe = folkfriend::sig_proc::spectrogram::FeatureExtractor::new(header.sampling_rate);
+        let mut fe = folkfriend::sig_proc::spectrogram::FeatureExtractor::new(header.sampling_rate);
         let signal = data.try_into_sixteen().unwrap();
         let mut signal_f: Vec<f32> = vec![0.; signal.len()]; 
 
         for i in 0..signal.len() {
-            signal_f[i] = (signal[i] as f32) / 65536f32;
+            signal_f[i] = (signal[i] as f32) / 65536.;
         }
 
         fe.feed_signal(signal_f);
+
+        debug_features::save_features_as_img(&fe, &"debug.png".to_string());
     }
 
     println!("FolkFriend finished in {:.2?}", now.elapsed());
