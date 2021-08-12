@@ -118,7 +118,51 @@ impl FeatureExtractor {
             features[i / ff_config::SPEC_BINS_PER_MIDI as usize] += feature;
         }
 
-        // TODO then Octave fixing
+        // ==========================================
+        // === Postfiltering of computed features ===
+        // ==========================================
+
+        // Octave fixing
+
+        // This next little algorithm is a bit funny. It's not as complicated
+        //  as it sounds. Any note 12 MIDI notes (1 octave) higher than another
+        //  is likely to represent a timbre containing harmonics. We don't want
+        //  to individually track each harmonic, rather extract the single
+        //  fundemental frequency. In this algorithm, if a note N1 is an octave
+        //  lower than a note N2, and E1 < E2, where E is the energy of a note,
+        //  then "shift" the lower harmonic up an octave by setting 
+        //  E2 += E1, E1 = 0. If E1 > E2, do nothing.
+        //  If we have the same situation spanning two octaves, with notes N1, 
+        //  N2, N3, and E1 < E2 < E3 then shift the energy up to E3, i.e. set
+        //  E3 = E2 + E1, E1 = 0, E2 = 0. However, if E2 < E1 < E3 then shift
+        //  E2 to E3 but leave E1 unchanged. This generalises naturally to an
+        //  arbitrary number of octaves.
+
+        //  This algorithm preserves the total energy of the spectrogram, and
+        //  only ever shifts energy around by moving it by whole octaves.
+
+        // Low indices = low frequencies.
+        for musical_key in 0..12 {
+            let mut ind = musical_key;
+            let mut inds: Vec<usize> = Vec::new(); 
+            let mut should_shift: Vec<bool> = Vec::new(); 
+
+            while ind < features.len() - 12 {
+                should_shift.push(features[ind + 12] > features[ind]);
+                inds.push(ind);
+                ind += 12;
+            }
+
+            for (i, do_shift) in should_shift.iter().enumerate() {
+                // basically if true, move up an octave and set to zero
+                // if not true, continue
+                if *do_shift {
+                    features[inds[i] + 12] += features[inds[i]];
+                    features[inds[i]] = 0.;
+                }
+            }
+        }
+
         // TODO then noise cleaning
 
         self.features.push(features);
