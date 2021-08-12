@@ -10,6 +10,20 @@ pub const MIDI_HIGH: u32 = 95;                      // B6 (1975.5 Hz), just over
 pub const MIDI_LOW: u32 = 48;                       // C2 (130.81 Hz), an octave below middle C
 pub const MIDI_NUM: u32 = MIDI_HIGH - MIDI_LOW + 1; // =48
 
+// The features are formed by computing the values at SPEC_BINS_PER_MIDI
+//  different frequencies, linearly spaced from the frequency of MIDI note
+//  MIDI_LOW - edge to frequency MIDI_HIGH + edge
+pub const SPEC_BINS_PER_MIDI: u32 = 3;
+pub const SPEC_BINS_NUM: u32 = SPEC_BINS_PER_MIDI * MIDI_NUM;
+
+// Here, "edge" is given by ..., e.g.
+// SPEC_BINS_PER_MIDI   Lowest MIDI value   Edge
+//  1                   48.0                0.0
+//  2                   47.75               0.25
+//  3                   47.66               0.33
+//  4                   47.
+
+
 // Samples sizes for  short-time Fourier transform (STFT) window width. Note
 //  that 48000 / 1024 = 46.875 fps, but the framerate may vary slightly with
 //  sample rate. Folkfriend doesn't presume tempo so this isn't problematic.

@@ -14,7 +14,7 @@ pub fn save_features_as_img(fe: &spectrogram::FeatureExtractor, path: &String) {
     // Iterate over the coordinates and pixels of the image
     for (x, y, pixel) in imgbuf.enumerate_pixels_mut() {
         let grey = (255. * fe.features[x as usize][(imgy - y - 1) as usize] / max) as u8;
-        *pixel = image::Rgb([grey, grey, grey]);
+        *pixel = image::Luma([grey]);
     }
 
     // Save the image

@@ -60,7 +60,6 @@ impl FeatureExtractor {
 
         for i in 0..buffer.len() {
             buffer[i].re = window[i] * &self.window_function[i];
-            // buffer[i].re = 1.0 * &self.window_function[i];
         }
 
         // ===============================
@@ -108,10 +107,15 @@ impl FeatureExtractor {
         //  each of the MIDI notes in the range of MIDI values that folkfriend
         //  uses.
         let mut features: Frame = [0.; ff_config::MIDI_NUM as usize];
-        for i in 0..features.len() {
+        
+        for i in 0..ff_config::SPEC_BINS_NUM as usize {
             // Perform linear interpolation
-            features[i] = self.interp_inds[i].hi_weight * buffer[self.interp_inds[i].hi_index].re
-                + self.interp_inds[i].lo_weight * buffer[self.interp_inds[i].hi_index - 1].re;
+            let hi_wt = self.interp_inds[i].hi_weight;
+            let lo_wt = self.interp_inds[i].lo_weight;
+            let hi_ac = buffer[self.interp_inds[i].hi_index].re;
+            let lo_ac = buffer[self.interp_inds[i].hi_index - 1].re;
+            let feature = hi_wt * hi_ac + lo_wt * lo_ac;
+            features[i / ff_config::SPEC_BINS_PER_MIDI as usize] += feature;
         }
 
         // TODO then Octave fixing
@@ -166,29 +170,37 @@ fn compute_interp_inds(sample_rate: &u32) -> InterpInds {
         panic!("Spectrogram range is insufficient");
     }
 
-    // Python implementation
     let mut interp_indices: InterpInds = Vec::new();
 
-    for feature_bin in ff_config::MIDI_LOW..=ff_config::MIDI_HIGH {
-        let feature_bin = feature_bin as f32;
+    // Compute lowest MIDI value. 
+    //  e.g. if lowest MIDI note is 48 and SPEC_BINS_PER_MIDI is 3 then the
+    //  MIDI values we calculate are [47.666, 48.0, 48.333, ..., ].
+    //  These calculated MIDI values are then binned into one feature per note.
+    let edge = (ff_config::SPEC_BINS_PER_MIDI as f32 / 2.).floor() / ff_config::SPEC_BINS_PER_MIDI as f32;
+    let lo_midi = ff_config::MIDI_LOW as f32 - edge;
+    let spec_bin_width = 1. / ff_config::SPEC_BINS_PER_MIDI as f32;
+
+    for spec_bin in 0..ff_config::SPEC_BINS_NUM {
+        let spec_bin_midi = lo_midi + spec_bin as f32 * spec_bin_width;
 
         // Each feature bin is a linear combination of two bins from
         // the spectrogram.
         // Note both arrays are monotonically decreasing in value
         let mut hi = 1;
         for (i, ac_bin_midi) in ac_bin_midis[1..half_window].iter().enumerate() {
-            if feature_bin > *ac_bin_midi {
+            if spec_bin_midi > *ac_bin_midi {
                 hi = 1 + i;
                 break;
             }
         }
         // 'hi' => High index => Low frequency
         let delta: f32 = ac_bin_midis[hi - 1] - ac_bin_midis[hi];
-        let w1: f32 = (ac_bin_midis[hi - 1] - feature_bin) / delta;
-        let w2: f32 = -(ac_bin_midis[hi] - feature_bin) / delta;
+        let w1: f32 = (ac_bin_midis[hi - 1] - spec_bin_midi) / delta;
+        let w2: f32 = -(ac_bin_midis[hi] - spec_bin_midi) / delta;
         if w1 > 1. || w1 < 0. || w2 > 1. || w2 < 0. {
             panic!("Invalid x1: {}, x2: {}", w1, w2);
         }
+
         interp_indices.push(InterpInd {
             hi_weight: w1,
             lo_weight: w2,
