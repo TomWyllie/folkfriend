@@ -46,3 +46,6 @@ pub const SAMPLE_RATE_MIN: u32 = 3952;
 //  lowest frequency is sample_rate / 512. To capture C2, 130.81 Hz the sample
 //  rate can be no higher than 66,974 Hz.
 pub const SAMPLE_RATE_MAX: u32 = 66_974;
+
+// Retain only this many features
+pub const RETAINED_FEATURES_PER_FRAME: u32 = 5;

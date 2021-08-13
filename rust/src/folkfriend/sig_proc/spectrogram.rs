@@ -163,7 +163,29 @@ impl FeatureExtractor {
             }
         }
 
-        // TODO then noise cleaning
+        // Noise filtering
+
+        // Simple algorithm here - retain only the 5 most energetic features
+        //  each frame. This significantly speeds up the later decoder step.
+
+        // Tom is not very good at Rust. There's probably some things to be
+        //  improved here.
+        
+        let mut enum_features: Vec<_> = features
+            .iter()
+            .enumerate()
+            .collect::<Vec<_>>();
+        enum_features
+            .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+        let feature_indices: Vec<usize> = enum_features
+            .iter()    
+            .map(|a| a.0)
+            .collect();
+                
+        for i in &feature_indices[0..(ff_config::MIDI_NUM as usize - ff_config::RETAINED_FEATURES_PER_FRAME as usize)] {
+            features[*i] = 0.;
+        }
 
         self.features.push(features);
     }
