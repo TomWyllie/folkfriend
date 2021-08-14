@@ -1,3 +1,4 @@
+pub mod decoder;
 pub mod ff_config;
 pub mod index;
 pub mod query;

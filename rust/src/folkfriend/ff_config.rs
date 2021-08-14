@@ -49,3 +49,5 @@ pub const SAMPLE_RATE_MAX: u32 = 66_974;
 
 // Retain only this many features
 pub const RETAINED_FEATURES_PER_FRAME: u32 = 5;
+
+pub const PITCH_MODEL_WEIGHT: f32 = 0.12;

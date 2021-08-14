@@ -50,6 +50,7 @@ impl FeatureExtractor {
             );
         }
     }
+    
     pub fn feed_window(&mut self, window: [f32; ff_config::SPEC_WINDOW_SIZE]) {
         // Define empty buffer for use with this frame
         let mut buffer: [Complex<f32>; ff_config::SPEC_WINDOW_SIZE] =
