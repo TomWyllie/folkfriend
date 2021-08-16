@@ -48,7 +48,7 @@ impl PitchModel {
         return pm;
     }
 
-    fn score_pitch_interval(&self, interval: &i32) -> f32 {
+    pub fn score_pitch_interval(&self, interval: &i32) -> f32 {
         return self.scores.get(interval).cloned().unwrap_or(all_other_scores);
     }
 }

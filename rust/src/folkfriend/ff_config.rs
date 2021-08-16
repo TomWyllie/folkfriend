@@ -51,3 +51,6 @@ pub const SAMPLE_RATE_MAX: u32 = 66_974;
 pub const RETAINED_FEATURES_PER_FRAME: u32 = 5;
 
 pub const PITCH_MODEL_WEIGHT: f32 = 0.12;
+pub const TEMPO_MODEL_WEIGHT: f32 = 0.40;
+
+pub const BEAM_WIDTH: usize = 10;

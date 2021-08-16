@@ -53,7 +53,7 @@ fn main() {
         let mut inp_file = File::open(Path::new(&audio_file_path)).unwrap();
         let (header, data) = wav::read(&mut inp_file).unwrap();
 
-        let mut fe = folkfriend::sig_proc::spectrogram::FeatureExtractor::new(header.sampling_rate);
+        let mut fe = folkfriend::sig_proc::feature_extractor::FeatureExtractor::new(header.sampling_rate);
         let signal = data.try_into_sixteen().unwrap();
         let mut signal_f: Vec<f32> = vec![0.; signal.len()];
 
@@ -65,7 +65,7 @@ fn main() {
 
         debug_features::save_features_as_img(&fe, &"debug.png".to_string());
 
-        let decoder = folkfriend::decoder::Decoder::new();
+        let decoder = folkfriend::decoder::Decoder::new(8.0);
     }
 
     println!("FolkFriend finished in {:.2?}", now.elapsed());

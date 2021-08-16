@@ -1,9 +1,9 @@
 use crate::folkfriend::ff_config;
-use crate::folkfriend::sig_proc::spectrogram;
+use crate::folkfriend::sig_proc::feature_extractor;
 
 use image;
 
-pub fn save_features_as_img(fe: &spectrogram::FeatureExtractor, path: &String) {
+pub fn save_features_as_img(fe: &feature_extractor::FeatureExtractor, path: &String) {
     let imgx = fe.features.len() as u32;
     let imgy = ff_config::MIDI_NUM;
     let mut imgbuf = image::ImageBuffer::new(imgx, imgy);
