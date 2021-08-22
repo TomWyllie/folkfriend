@@ -3,7 +3,6 @@ mod debug_features;
 mod folkfriend;
 
 use crate::folkfriend::index::structs::*;
-use crate::folkfriend::sig_proc::spectrogram::*;
 use clap::{App, Arg};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
@@ -12,7 +11,6 @@ use std::fs::File;
 use std::path::Path;
 use std::time::Instant;
 use wav;
-use crate::folkfriend::ff_config;
 
 fn main() {
     let now = Instant::now();

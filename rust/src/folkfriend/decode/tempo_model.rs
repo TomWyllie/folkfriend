@@ -1,17 +1,17 @@
 use crate::folkfriend::ff_config;
-use std::collections::HashMap;
-use crate::folkfriend::decode::types::{Duration};
+// use std::collections::HashMap;
+use crate::folkfriend::decode::types::Duration;
 
 pub struct TempoModel {
     time_const: f32,
-    duration_to_score: HashMap<usize, f32>
+    // duration_to_score: HashMap<usize, f32>
 }
 
 impl TempoModel {
     pub fn new(length_scale: f32) -> TempoModel {
         TempoModel {
             time_const: length_scale,
-            duration_to_score: HashMap::new()
+            // duration_to_score: HashMap::new()
         }
     }
 
@@ -27,7 +27,7 @@ impl TempoModel {
         let length: f32 = *duration as f32 / self.time_const;
 
         // The optimal score partitions into N notes, where N is one of these two
-        //   bounds. 
+        //   bounds.
         let n_lo = length.floor();
         let n_hi = n_lo + 1.0;
 
