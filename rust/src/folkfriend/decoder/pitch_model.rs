@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use crate::folkfriend::ff_config;
 
-const all_other_scores: f32 = -50. * ff_config::PITCH_MODEL_WEIGHT;
-const base_scores: [(i32, f32); 24] = [
+const ALL_OTHER_SCORES: f32 = -50. * ff_config::PITCH_MODEL_WEIGHT;
+const BASE_SCORES: [(i32, f32); 24] = [
     (-12, -2.639916731),
     (-11, -4.394149488),
     (-10, -2.972304221),
@@ -39,16 +39,14 @@ impl PitchModel {
             scores: HashMap::new()
         };
 
-        for (interval, base_score) in base_scores {
+        for (interval, base_score) in BASE_SCORES {
             pm.scores.insert(interval, base_score * ff_config::PITCH_MODEL_WEIGHT);
         }
-
-        println!("{:?}", pm.scores);
 
         return pm;
     }
 
     pub fn score_pitch_interval(&self, interval: &i32) -> f32 {
-        return self.scores.get(interval).cloned().unwrap_or(all_other_scores);
+        return self.scores.get(interval).cloned().unwrap_or(ALL_OTHER_SCORES);
     }
 }

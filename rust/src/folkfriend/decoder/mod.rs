@@ -11,6 +11,7 @@ pub struct Decoder {
     note_length_scale: f32,
 }
 
+#[derive(Copy, Clone, Debug)]
 struct Proposal {
     prev_proposal_id: usize,
     pitch: usize,
@@ -27,7 +28,7 @@ impl Decoder {
         }
     }
 
-    fn decode(&self, mut features: spectrogram::Features) -> (Vec<u32>, f32) {
+    pub fn decode(&self, mut features: spectrogram::Features) -> (Vec<u32>, f32) {
         // For a fixed tempo, decode spectral features
 
         let num_frames = features.len();
@@ -57,18 +58,10 @@ impl Decoder {
         }
 
         for frame in 1..num_frames {
-            // for frame in tqdm(range(1, num_frames)){
-
-            // print(
-            //     f'== Analysing frame {frame} of decoder, '
-            //     f'with {len(proposals[frame - 1])} '
-            //     'current proposals ==')
 
             // =====================================
             // === Draft and score new proposals ===
             // =====================================
-
-            // start = dt()
 
             let mut pitches: HashSet<usize> = HashSet::new();
             for (pitch, energy) in features[frame].iter().enumerate() {
@@ -98,9 +91,8 @@ impl Decoder {
             }
             proposals.push(drafted_proposals);
 
-            // print(f'{len(proposals[frame])} proposals drafted and scored')
+            // println!("{} proposals drafted and scored", proposals[frame].len());
 
-            // print('drafting + scoring', num_frames * 1000 * (dt() - start))
             // ========================
             // === Dedupe proposals ===
             // ========================
@@ -116,7 +108,7 @@ impl Decoder {
             let mut best_transitions: HashMap<usize, (f32, usize)> = HashMap::new();
 
             for (i, proposal) in proposals[frame].iter().enumerate() {
-                // Carry over contours that didn't change pitch (can't be ruled out)
+                // Carry over contours that didn't change pitch ("can't be ruled out")
                 if !proposal.pitch_changed {
                     proposal_ids_to_keep.push(i)
                 } else {
@@ -136,41 +128,30 @@ impl Decoder {
             let best_transition_ids = best_transitions.values().map(|a| a.1);
             proposal_ids_to_keep.extend(best_transition_ids);
 
-            // print(f'{len(proposal_ids_to_keep)} '
-            //       'proposals remain after deduping')
+            // println!("{} proposals remain after deduping", proposal_ids_to_keep.len());
 
+            // Find the IDs of the top ff_config::BEAM_WIDTH proposals
             proposal_ids_to_keep.sort_by(|i, j| {
-                proposals[frame][*i]
+                proposals[frame][*j]
                     .score
-                    .partial_cmp(&proposals[frame][*j].score)
+                    .partial_cmp(&proposals[frame][*i].score)
                     .unwrap()
             });
 
-            proposal_ids_to_keep = proposal_ids_to_keep[0..ff_config::BEAM_WIDTH].to_vec();
-            let mut proposal_ids_to_keep_hash: HashSet<usize> = HashSet::new();
-            for pid in proposal_ids_to_keep {
-                proposal_ids_to_keep_hash.insert(pid);
+            // This will almost always be true, except for at the start.
+            if proposal_ids_to_keep.len() > ff_config::BEAM_WIDTH {
+                proposal_ids_to_keep = proposal_ids_to_keep[0..ff_config::BEAM_WIDTH].to_vec();
             }
 
-            let kept_proposals: Vec<Proposal> = proposals[frame]
-                .into_iter()
-                .enumerate()
-                .filter(|(i, p)| proposal_ids_to_keep.contains(i))
-                .map(|(i, p)| p)
-                .collect();
-            proposals[frame] = kept_proposals;
+            // Retain only the top ff_config::BEAM_WIDTH proposals
+            let mut keep_mask: Vec<bool> = vec![false; proposals[frame].len()];
+            for i_to_keep in proposal_ids_to_keep {
+                keep_mask[i_to_keep] = true;
+            }
+            let mut keep_mask = keep_mask.iter();
+            proposals[frame].retain(|_| *keep_mask.next().unwrap());
 
-            // best_proposals = [proposals[frame][i] for i in best_proposals]
-            let best_proposals: Vec<Proposal> = proposal_ids_to_keep
-                .iter()
-                .map(|i| proposals[frame][*i])
-                .collect();
-            proposals[frame] = best_proposals
-
-            // print('deduping', num_frames * 1000 * (dt() - start))
-
-            // print(f'{len(proposals[frame])} '
-            //       f'proposals computed for frame {frame}')
+            // println!("{} proposals computed for frame {}", proposals[frame].len(), frame);
         }
 
         // ===============================
@@ -181,7 +162,7 @@ impl Decoder {
             .iter()
             .max_by(|p1, p2| p1.score.partial_cmp(&p2.score).unwrap())
             .unwrap();
-        let contour_proposals: Vec<Proposal> = vec![best_final_proposal];
+        let mut contour_proposals: Vec<Proposal> = vec![best_final_proposal];
 
         let mut frame: usize = num_frames - 2;
         while frame > 0 {
@@ -190,7 +171,11 @@ impl Decoder {
             frame -= 1;
         }
 
-        let contour: Vec<u32> = contour_proposals.iter().map(|p| p.pitch as u32).collect();
+        let contour: Vec<u32> = contour_proposals
+            .iter()
+            .map(|p| p.pitch as u32) // Extract proposed pitch
+            .map(|pitch| pitch + ff_config::MIDI_LOW) // Index -> MIDI pitch
+            .collect();
 
         return (contour, best_final_proposal.score);
     }
@@ -215,7 +200,7 @@ impl Decoder {
         let duration: usize;
 
         if pitch_changed {
-            // This is the seem for each value of the inner loop that calls this
+            // This is the same for each value of the inner loop that calls this
             //   function. This is a performance optimisation.
             new_score += tempo_score;
             new_score += self.pitch_model.score_pitch_interval(&interval);

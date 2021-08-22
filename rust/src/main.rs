@@ -3,6 +3,7 @@ mod debug_features;
 mod folkfriend;
 
 use crate::folkfriend::index::structs::*;
+use crate::folkfriend::sig_proc::spectrogram::*;
 use clap::{App, Arg};
 use indicatif::ProgressBar;
 use rayon::prelude::*;
@@ -11,6 +12,7 @@ use std::fs::File;
 use std::path::Path;
 use std::time::Instant;
 use wav;
+use crate::folkfriend::ff_config;
 
 fn main() {
     let now = Instant::now();
@@ -53,7 +55,8 @@ fn main() {
         let mut inp_file = File::open(Path::new(&audio_file_path)).unwrap();
         let (header, data) = wav::read(&mut inp_file).unwrap();
 
-        let mut fe = folkfriend::sig_proc::feature_extractor::FeatureExtractor::new(header.sampling_rate);
+        let mut fe =
+            folkfriend::sig_proc::feature_extractor::FeatureExtractor::new(header.sampling_rate);
         let signal = data.try_into_sixteen().unwrap();
         let mut signal_f: Vec<f32> = vec![0.; signal.len()];
 
@@ -63,9 +66,16 @@ fn main() {
 
         fe.feed_signal(signal_f);
 
-        debug_features::save_features_as_img(&fe, &"debug.png".to_string());
+        debug_features::save_features_as_img(&fe.features, &"debug-a.png".to_string());
 
         let decoder = folkfriend::decoder::Decoder::new(8.0);
+        
+        let now2 = Instant::now();
+        let (contour, _) = decoder.decode(fe.features);
+        println!("(decoder finished in {:.2?})", now2.elapsed());
+        
+        debug_features::save_contour_as_img(&contour, &"debug-b.png".to_string());
+        println!("{:?}", contour);
     }
 
     println!("FolkFriend finished in {:.2?}", now.elapsed());
