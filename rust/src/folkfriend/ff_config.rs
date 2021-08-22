@@ -48,9 +48,12 @@ pub const SAMPLE_RATE_MIN: u32 = 3952;
 pub const SAMPLE_RATE_MAX: u32 = 66_974;
 
 // Retain only this many features
-pub const RETAINED_FEATURES_PER_FRAME: u32 = 10;
+pub const RETAINED_FEATURES_PER_FRAME: u32 = 5;
 
 pub const PITCH_MODEL_WEIGHT: f32 = 0.12;
 pub const TEMPO_MODEL_WEIGHT: f32 = 0.40;
 
-pub const BEAM_WIDTH: usize = 50;
+pub const BEAM_WIDTH: usize = 20;
+
+// TODO experiment with varying this tempo parameter.
+pub const TEMP_TEMPO_PARAM: f32 = 8.0;

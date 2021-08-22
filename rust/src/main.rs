@@ -68,10 +68,10 @@ fn main() {
 
         debug_features::save_features_as_img(&fe.features, &"debug-a.png".to_string());
 
-        let decoder = folkfriend::decoder::Decoder::new(8.0);
+        let decoder = folkfriend::decode::FeatureDecoder::new();
         
         let now2 = Instant::now();
-        let (contour, _) = decoder.decode(fe.features);
+        let contour = decoder.decode(fe.features);
         println!("(decoder finished in {:.2?})", now2.elapsed());
         
         debug_features::save_contour_as_img(&contour, &"debug-b.png".to_string());
