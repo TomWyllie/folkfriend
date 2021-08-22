@@ -1,11 +1,13 @@
 mod beam_search;
+mod contour;
 mod pitch_model;
 mod proposal;
 mod tempo_model;
 mod types;
 
-use crate::folkfriend::ff_config;
 use crate::folkfriend::feature::types::Features;
+use crate::folkfriend::decode::contour::contour_from_lattice_path;
+use crate::folkfriend::ff_config;
 use types::Contour;
 
 pub struct FeatureDecoder {
@@ -22,7 +24,7 @@ impl FeatureDecoder {
     }
 
     pub fn decode(&self, features: Features) -> Contour {
-        let (contour, _) = beam_search::decode(features, &self.pitch_model, &self.tempo_model);
-        return contour;
+        let (lattice_path, _) = beam_search::decode(features, &self.pitch_model, &self.tempo_model);
+        return contour_from_lattice_path(&lattice_path);
     }
 }

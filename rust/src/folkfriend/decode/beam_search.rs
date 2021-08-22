@@ -1,7 +1,7 @@
 use crate::folkfriend::decode::pitch_model::PitchModel;
 use crate::folkfriend::decode::proposal::Proposal;
 use crate::folkfriend::decode::tempo_model::TempoModel;
-use crate::folkfriend::decode::types::{Contour, Pitch};
+use crate::folkfriend::decode::types::{LatticePath, Pitch};
 use crate::folkfriend::ff_config;
 use crate::folkfriend::feature::types::Features;
 use crate::folkfriend::feature::normalise::Normalisable;
@@ -12,17 +12,24 @@ pub fn decode(
     mut features: Features,
     pitch_model: &PitchModel,
     tempo_model: &TempoModel,
-) -> (Contour, f32) {
-    // For a fixed tempo, decode spectral features
+) -> (LatticePath, f32) {
+    // For a fixed tempo, decode spectral features.
+    //  The features are a rectangular matrix of energy spectra over time.
+    //  That is, at each time point there is an energy value for each MIDI
+    //  note specified in the config file. To translate this matrix into
+    //  a sequence of notes, the best path through the lattice (matrix) is
+    //  found using dynamic programming, governed by a few rules in how likely
+    //  relative lengths of notes / relative jumps in pitch, are.
 
     // Normalise energy to average 1.0 AU per frame
     features.normalise_energy();
 
-    // Start one contour off on each possible pitch.
-    //   At each step of the algorithm, propose all possible next states, for
-    //   each of the N current contours.
-    //   Score each proposal, and determine the top N proposals.
-    //   Apply the proposals to update N current contours to N next contours
+    // How does this dynamic programming work?
+    //   1. Start one lattice path off on each possible pitch.
+    //   2. Propose all possible next states, for each of the current lattice paths.
+    //   3. Score each proposal
+    //   4. Retain only the top N proposals
+    //   5. Go to step 2, ending when all frames have been processed.
 
     // Array of frames; each frame is a list of proposals at that frame
     let mut proposals: Vec<Vec<Proposal>> = Vec::new();
@@ -86,7 +93,7 @@ pub fn decode(
         let mut best_transitions: HashMap<Pitch, (f32, usize)> = HashMap::new();
 
         for (i, proposal) in proposals[frame].iter().enumerate() {
-            // Carry over contours that didn't change pitch ("can't be ruled out")
+            // Carry over paths that didn't change pitch ("can't be ruled out")
             if !proposal.pitch_changed {
                 proposal_ids_to_keep.push(i)
             } else {
@@ -94,14 +101,14 @@ pub fn decode(
                     .get(&proposal.pitch)
                     .unwrap_or(&(-f32::INFINITY, 0));
 
-                // Retain only the best of contours that just changed
+                // Retain only the best of lattice paths that just changed
                 if proposal.score > *existing_score {
                     best_transitions.insert(proposal.pitch, (proposal.score, i));
                 }
             }
         }
 
-        // Carry over the best of the contours that just changed pitch
+        // Carry over the best of the lattice paths that just changed pitch
         // best_transition_ids = [p[1] for p in best_transitions.values()]
         let best_transition_ids = best_transitions.values().map(|a| a.1);
         proposal_ids_to_keep.extend(best_transition_ids);
@@ -140,20 +147,20 @@ pub fn decode(
         .iter()
         .max_by(|p1, p2| p1.score.partial_cmp(&p2.score).unwrap())
         .unwrap();
-    let mut contour_proposals: Vec<Proposal> = vec![best_final_proposal];
+    let mut lattice_path_proposals: Vec<Proposal> = vec![best_final_proposal];
 
     let mut frame: usize = features.len() - 2;
     while frame > 0 {
-        let prev_prop = proposals[frame][contour_proposals[0].prev_proposal_id];
-        contour_proposals.insert(0, prev_prop);
+        let prev_prop = proposals[frame][lattice_path_proposals[0].prev_proposal_id];
+        lattice_path_proposals.insert(0, prev_prop);
         frame -= 1;
     }
 
-    let contour: Vec<u32> = contour_proposals
+    let lattice_path: Vec<u32> = lattice_path_proposals
         .iter()
         .map(|p| p.pitch as u32) // Extract proposed pitch
         .map(|pitch| pitch + ff_config::MIDI_LOW) // Index -> MIDI pitch
         .collect();
 
-    return (contour, best_final_proposal.score);
+    return (lattice_path, best_final_proposal.score);
 }

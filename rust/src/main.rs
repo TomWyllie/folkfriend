@@ -56,23 +56,16 @@ fn main() {
         let mut fe =
             folkfriend::feature::feature_extractor::FeatureExtractor::new(header.sampling_rate);
         let signal = data.try_into_sixteen().unwrap();
-        let mut signal_f: Vec<f32> = vec![0.; signal.len()];
 
-        for i in 0..signal.len() {
-            signal_f[i] = (signal[i] as f32) / 65536.;
-        }
-
-        fe.feed_signal(signal_f);
+        fe.feed_wav(signal);
 
         debug_features::save_features_as_img(&fe.features, &"debug-a.png".to_string());
 
         let decoder = folkfriend::decode::FeatureDecoder::new();
-        
-        let now2 = Instant::now();
         let contour = decoder.decode(fe.features);
-        println!("(decoder finished in {:.2?})", now2.elapsed());
-        
+
         debug_features::save_contour_as_img(&contour, &"debug-b.png".to_string());
+
         println!("{:?}", contour);
     }
 

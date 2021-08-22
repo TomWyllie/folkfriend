@@ -33,10 +33,20 @@ impl FeatureExtractor {
         self.interp_inds = compute_interp_inds(&sample_rate);
     }
 
+    pub fn feed_wav(&mut self, signal: Vec<i16>) {
+        let mut signal_f: Vec<f32> = vec![0.; signal.len()];
+
+        for i in 0..signal.len() {
+            signal_f[i] = (signal[i] as f32) / 32768.;
+        }
+
+        self.feed_signal(signal_f);
+    }
+
     pub fn feed_signal(&mut self, signal: Vec<f32>) {
         // Implicit floor division
-        let num_winds = signal.len() / ff_config::SPEC_WINDOW_SIZE;
-        let last_ind = num_winds * ff_config::SPEC_WINDOW_SIZE;
+        let num_windows = signal.len() / ff_config::SPEC_WINDOW_SIZE;
+        let last_ind = num_windows * ff_config::SPEC_WINDOW_SIZE;
         for i in (0..last_ind).step_by(ff_config::SPEC_WINDOW_SIZE) {
             self.feed_window(
                 signal[i..i + ff_config::SPEC_WINDOW_SIZE]
