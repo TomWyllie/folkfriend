@@ -54,7 +54,7 @@ fn main() {
         let (header, data) = wav::read(&mut inp_file).unwrap();
 
         let mut fe =
-            folkfriend::sig_proc::feature_extractor::FeatureExtractor::new(header.sampling_rate);
+            folkfriend::feature::feature_extractor::FeatureExtractor::new(header.sampling_rate);
         let signal = data.try_into_sixteen().unwrap();
         let mut signal_f: Vec<f32> = vec![0.; signal.len()];
 

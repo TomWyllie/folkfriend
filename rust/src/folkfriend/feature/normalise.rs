@@ -1,14 +1,13 @@
 use crate::folkfriend::ff_config;
 
-pub type Frame = [f32; ff_config::MIDI_NUM as usize];
-pub type Features = Vec<Frame>;
+use crate::folkfriend::feature::types::Features;
 
-pub trait Spectrogram {
+pub trait Normalisable {
     fn total_energy(&self) -> f32;
     fn normalise_energy(&mut self);
 }
 
-impl Spectrogram for Features {
+impl Normalisable for Features {
     fn total_energy(&self) -> f32 {
         let mut cum_tot: f32 = 0.;
         for i in 0..self.len() {

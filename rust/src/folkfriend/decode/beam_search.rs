@@ -3,7 +3,8 @@ use crate::folkfriend::decode::proposal::Proposal;
 use crate::folkfriend::decode::tempo_model::TempoModel;
 use crate::folkfriend::decode::types::{Contour, Pitch};
 use crate::folkfriend::ff_config;
-use crate::folkfriend::sig_proc::spectrogram::{Features, Spectrogram};
+use crate::folkfriend::feature::types::Features;
+use crate::folkfriend::feature::normalise::Normalisable;
 
 use std::collections::{HashMap, HashSet};
 

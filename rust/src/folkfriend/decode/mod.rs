@@ -5,7 +5,7 @@ mod tempo_model;
 mod types;
 
 use crate::folkfriend::ff_config;
-use crate::folkfriend::sig_proc::spectrogram::Features;
+use crate::folkfriend::feature::types::Features;
 use types::Contour;
 
 pub struct FeatureDecoder {
