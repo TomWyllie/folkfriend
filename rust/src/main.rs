@@ -32,15 +32,21 @@ fn main() {
         .get_matches();
 
     let command = matches.value_of("command").unwrap();
-    let input = matches.value_of("input").unwrap();
+    let input = matches.value_of("input").unwrap().to_string();
 
     let mut ff = FolkFriend::new();
     let tune_index_json = get_tune_index_json();
     ff = ff.load_index_from_json_string(tune_index_json);
 
     if command == "name" {
-        name_query(ff, input.to_string());
+        name_query(ff, input);
+    } else if command == "transcribe" {
+        process_audio_files(ff, input, false);
+    } else if command == "query" {
+        process_audio_files(ff, input, true);
     }
+
+    eprintln!("FolkFriend finished in {:.2?}", now.elapsed());
 
     // for wav_path in 
 
@@ -63,31 +69,10 @@ fn main() {
     //     }
     // }
 
-    // if let Some(ref args) = args.subcommand_matches("transcribe") {
-    //     let audio_file_path = args.value_of("wav-file").unwrap().to_string();
-    //     let mut inp_file = File::open(Path::new(&audio_file_path)).unwrap();
-    //     let (header, data) = wav::read(&mut inp_file).unwrap();
 
-    //     let mut fe =
-    //         folkfriend::feature::feature_extractor::FeatureExtractor::new(header.sampling_rate);
-    //     let signal = data.try_into_sixteen().unwrap();
-
-    //     fe.feed_wav(signal);
-
-    //     debug_features::save_features_as_img(&fe.features, &"debug-a.png".to_string());
-
-    //     let decoder = folkfriend::decode::FeatureDecoder::new();
-    //     let contour = decoder.decode(fe.features);
-
-    //     debug_features::save_contour_as_img(&contour, &"debug-b.png".to_string());
-
-    //     println!("{:?}", contour);
-    // }
-
-    // println!("FolkFriend finished in {:.2?}", now.elapsed());
 }
 
-fn process_audio_files(input: String, with_transcription_query: bool) {
+fn process_audio_files(mut ff: FolkFriend, input: String, with_transcription_query: bool) {
 
     // Load file paths from arguments / input CSV file
     let input_is_csv = input.ends_with(".csv");
@@ -105,15 +90,54 @@ fn process_audio_files(input: String, with_transcription_query: bool) {
         )
     }
 
-    // Process 
     for audio_file_path in audio_file_paths {
         if !audio_file_path.ends_with(".wav") {
             eprintln!("Skipping non .wav file `{}`", audio_file_path);
-            continue;
+            return;
         }
+    
+        // println!("{}", audio_file_path);
+
+        let (signal, sample_rate) = pcm_signal_from_wav(&audio_file_path);
+
+        ff.set_sample_rate(sample_rate);
+        ff.feed_entire_pcm_signal(signal);
+        
+        // TODO this is awful, fix
+        let transcribed = ff.transcribe_pcm_buffer();
+        ff = transcribed.0;
+        let contour = transcribed.1;
+
+        let results = ff.run_transcription_query(&contour).expect("something failed");
+        println!("{:#?}", results);
     }
 
+            
+
+    // let decoder = folkfriend::decode::FeatureDecoder::new();
+    
+    // debug_features::save_features_as_img(&fe.features, &"debug-a.png".to_string());
+    // debug_features::save_contour_as_img(&contour, &"debug-b.png".to_string());
+
+
 }
+
+fn pcm_signal_from_wav(wav_file_path: &String) -> (Vec<f32>, u32) {
+    let mut inp_file = File::open(Path::new(&wav_file_path)).unwrap();
+    let (header, data) = wav::read(&mut inp_file).unwrap();
+
+    // let mut fe =
+    //     folkfriend::feature::feature_extractor::FeatureExtractor::new(header.sampling_rate);
+    let signal: Vec<i16> = data.try_into_sixteen().unwrap();
+
+    let mut signal_f: Vec<f32> = vec![0.; signal.len()];
+    for i in 0..signal.len() {
+        signal_f[i] = (signal[i] as f32) / 32768.;
+    }
+
+    return (signal_f, header.sampling_rate);
+}
+    
 
 fn get_audio_file_paths_from_csv(csv_path: &String) -> Vec<String> {
     let mut audio_file_paths = Vec::new();
@@ -134,7 +158,6 @@ fn name_query(ff: FolkFriend, name: String) {
         println!("{:?}", record.display_name);
     }
 }
-
 
 pub fn get_tune_index_json() -> String {
     // TODO auto pull from Github if local copy not found

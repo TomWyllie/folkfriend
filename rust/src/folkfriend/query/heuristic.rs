@@ -21,7 +21,7 @@ pub fn build_settings_feats(tune_settings: &TuneSettings) -> SettingsFeats {
         settings_feats.insert(*setting_id, feats);
     }
     
-    println!("Built heuristic setting index in {:.2?}", now.elapsed());
+    eprintln!("Built heuristic setting index in {:.2?}", now.elapsed());
     
     return settings_feats;
 }
@@ -42,7 +42,7 @@ pub fn build_aliases_feats(tune_aliases: &TuneAliases) -> AliasFeats {
         aliases_feats.insert(*tune_id, feats_by_name);
     }
     
-    println!("Built heuristic aliases index in {:.2?}", now.elapsed());
+    eprintln!("Built heuristic aliases index in {:.2?}", now.elapsed());
     
     return aliases_feats;
 }

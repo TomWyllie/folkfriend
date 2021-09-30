@@ -47,6 +47,9 @@ pub const SAMPLE_RATE_MIN: u32 = 3952;
 //  rate can be no higher than 66,974 Hz.
 pub const SAMPLE_RATE_MAX: u32 = 66_974;
 
+// Initialise feature extraction with this. It's usually this.
+pub const SAMPLE_RATE_DEFAULT: u32 = 48_000;
+
 // Retain only this many features
 pub const RETAINED_FEATURES_PER_FRAME: u32 = 5;
 
@@ -57,3 +60,16 @@ pub const BEAM_WIDTH: usize = 20;
 
 // TODO experiment with varying this tempo parameter.
 pub const TEMP_TEMPO_PARAM: f32 = 8.0;
+
+pub const CONTOUR_TO_QUERY_CHAR: [char; MIDI_NUM as usize] = [
+    'a', 'b', 'c', 'd', 'e', 
+    'f', 'g', 'h', 'i', 'j', 
+    'k', 'l', 'm', 'n', 'o',
+    'p', 'q', 'r', 's', 't', 
+    'u', 'v', 'w', 'x', 'y', 
+    'z', 'A', 'B', 'C', 'D',
+    'E', 'F', 'G', 'H', 'I',
+    'J', 'K', 'L', 'M', 'N',
+    'O', 'P', 'Q', 'R', 'S',
+    'T', 'U', 'V'
+];

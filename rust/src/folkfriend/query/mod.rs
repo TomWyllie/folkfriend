@@ -1,8 +1,11 @@
-mod nw;
 mod heuristic;
+mod nw;
 
+use crate::folkfriend::decode;
+use crate::folkfriend::ff_config;
 use crate::folkfriend::index::schema::*;
 use crate::folkfriend::index::TuneIndex;
+
 use std::collections::HashMap;
 use std::fmt;
 
@@ -29,7 +32,6 @@ pub struct NameQueryRecord<'a> {
 pub type TranscriptionQueryResults<'a> = Vec<TranscriptionQueryRecord<'a>>;
 pub type NameQueryResults<'a> = Vec<NameQueryRecord<'a>>;
 
-
 impl QueryEngine {
     pub fn new() -> QueryEngine {
         QueryEngine {
@@ -37,45 +39,47 @@ impl QueryEngine {
             heuristic_aliases_feats: HashMap::new(),
             heuristic_settings_feats: HashMap::new(),
             num_repass: 1000,
-            num_output: 100
+            num_output: 100,
         }
-    } 
+    }
 
     pub fn use_tune_index(mut self: Self, tune_index: TuneIndex) -> QueryEngine {
         self.heuristic_aliases_feats = heuristic::build_aliases_feats(&tune_index.aliases);
         self.heuristic_settings_feats = heuristic::build_settings_feats(&tune_index.settings);
         self.tune_index = Some(tune_index);
-        self    // Return ownership. (I think this is how it works in rust, and sensible???)
+        self // Return ownership. (I think this is how it works in rust, and sensible???)
     }
 
-    pub fn run_transcription_query(self: &Self, query: &String) -> Result<TranscriptionQueryResults, QueryError> {
+    pub fn run_contour_query(
+        self: &Self,
+        contour: &decode::types::Contour,
+    ) -> Result<TranscriptionQueryResults, QueryError> {
         match &self.tune_index {
             None => Err(QueryError),
             Some(tune_index) => {
-                
+                // Convert 'contour' to a string to use as a query.
+                let query = query_string_from_contour(contour);
+
                 // First pass: fast, but inaccurate. Good for eliminating many poor candidates.
-                let first_search = heuristic::run_transcription_query(&query, &self.heuristic_settings_feats);
-                
+                let first_search =
+                    heuristic::run_transcription_query(&query, &self.heuristic_settings_feats);
                 // Second pass: slow, but accurate. Good for refining a shortlist of candidates.
                 let mut second_search: Vec<(u32, f32)> = Vec::new();
                 for (setting_id, _) in &first_search[0..self.num_repass] {
-                    let score = nw::needleman_wunsch(&query, &tune_index.settings[setting_id].contour);
+                    let score =
+                        nw::needleman_wunsch(&query, &tune_index.settings[setting_id].contour);
                     second_search.push((*setting_id, score));
                 }
-        
                 let mut sorted_rankings: Vec<_> = second_search.into_iter().collect();
-                sorted_rankings.sort_by(|x,y| y.1.partial_cmp(&x.1).unwrap());    
-        
+                sorted_rankings.sort_by(|x, y| y.1.partial_cmp(&x.1).unwrap());
                 let mut results: TranscriptionQueryResults = Vec::new();
-        
                 for (setting_id, score) in sorted_rankings[0..self.num_output].iter() {
                     let setting = &tune_index.settings[setting_id];
                     results.push(TranscriptionQueryRecord {
                         setting: setting,
-                        score: *score
+                        score: *score,
                     });
                 }
-        
                 Ok(results)
             }
         }
@@ -84,11 +88,20 @@ impl QueryEngine {
     pub fn run_name_query(self: &Self, query: &String) -> Result<NameQueryResults, QueryError> {
         match &self.tune_index {
             None => Err(QueryError),
-            Some(tune_index) => {
-                Ok(heuristic::run_name_query(query, tune_index, &self.heuristic_aliases_feats))
-            }
+            Some(tune_index) => Ok(heuristic::run_name_query(
+                query,
+                tune_index,
+                &self.heuristic_aliases_feats,
+            )),
         }
     }
+}
+
+pub fn query_string_from_contour(contour: &decode::types::Contour) -> String {
+    contour
+        .iter()
+        .map(|midi| ff_config::CONTOUR_TO_QUERY_CHAR[(midi - ff_config::MIDI_LOW) as usize])
+        .collect()
 }
 
 pub struct QueryError;
