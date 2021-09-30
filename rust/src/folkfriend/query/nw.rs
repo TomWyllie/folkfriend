@@ -4,7 +4,7 @@ const MATCH_SCORE: i32 = 2;
 const MISMATCH_SCORE: i32 = -2;
 const GAP_SCORE: i32 = -1;
 
-pub fn needleman_wunsch(a: &String, b: &String) -> f64 {
+pub fn needleman_wunsch(a: &String, b: &String) -> f32 {
 
     //  Memory-efficient version of Needleman-Wunsch written for Rust.
     //    ~ Tom Wyllie 2021
@@ -50,7 +50,7 @@ pub fn needleman_wunsch(a: &String, b: &String) -> f64 {
     }
 
     //  Normalised [0, 1].
-    let highscore: f64 = *last_row.iter().max().unwrap_or(&0) as f64;
-    let norm_const: f64 = a.len() as f64;
+    let highscore: f32 = *last_row.iter().max().unwrap_or(&0) as f32;
+    let norm_const: f32 = a.len() as f32;
     return 0.5 * highscore / norm_const;
 }

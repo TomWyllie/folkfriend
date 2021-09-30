@@ -120,7 +120,7 @@ def gather_aliases(alias_records):
     for alias_record in sorted(alias_records, key=lambda r: int(r['tune_id'])):
         tid = alias_record['tune_id']
         alias = alias_record['alias']
-        aliases[tid].append(alias)
+        aliases[tid].append(alias.lower())
 
     for tid in aliases:
         aliases[tid] = deduplicate_aliases(aliases[tid])

@@ -1,46 +1,100 @@
 mod nw;
 mod heuristic;
 
-use crate::folkfriend::index::structs::*;
+use crate::folkfriend::index::schema::*;
+use crate::folkfriend::index::TuneIndex;
+use std::collections::HashMap;
+use std::fmt;
 
 pub struct QueryEngine {
-    tune_settings: TuneSettings,
+    pub tune_index: Option<TuneIndex>,
+    heuristic_aliases_feats: heuristic::AliasFeats,
     heuristic_settings_feats: heuristic::SettingsFeats,
     num_repass: usize,
     num_output: usize,
 }
 
+#[derive(Debug)]
+pub struct TranscriptionQueryRecord<'a> {
+    pub setting: &'a Setting,
+    pub score: f32,
+}
+
+#[derive(Debug)]
+pub struct NameQueryRecord<'a> {
+    pub setting: &'a Setting,
+    pub display_name: &'a String,
+}
+
+pub type TranscriptionQueryResults<'a> = Vec<TranscriptionQueryRecord<'a>>;
+pub type NameQueryResults<'a> = Vec<NameQueryRecord<'a>>;
+
+
 impl QueryEngine {
-    pub fn new(tune_settings: TuneSettings) -> QueryEngine {
+    pub fn new() -> QueryEngine {
         QueryEngine {
-            heuristic_settings_feats: heuristic::build_settings_feats(&tune_settings),
-            tune_settings: tune_settings,
+            tune_index: None,
+            heuristic_aliases_feats: HashMap::new(),
+            heuristic_settings_feats: HashMap::new(),
             num_repass: 1000,
             num_output: 100
         }
     } 
 
-    pub fn run_query(self: &Self, query: &String) -> Vec<(u32, u32, f64)> {
-        // First pass: fast, but inaccurate. Good for eliminating many poor candidates.
-        let first_search = heuristic::run_query(&query, &self.heuristic_settings_feats);
+    pub fn use_tune_index(mut self: Self, tune_index: TuneIndex) -> QueryEngine {
+        self.heuristic_aliases_feats = heuristic::build_aliases_feats(&tune_index.aliases);
+        self.heuristic_settings_feats = heuristic::build_settings_feats(&tune_index.settings);
+        self.tune_index = Some(tune_index);
+        self    // Return ownership. (I think this is how it works in rust, and sensible???)
+    }
+
+    pub fn run_transcription_query(self: &Self, query: &String) -> Result<TranscriptionQueryResults, QueryError> {
+        match &self.tune_index {
+            None => Err(QueryError),
+            Some(tune_index) => {
+                
+                // First pass: fast, but inaccurate. Good for eliminating many poor candidates.
+                let first_search = heuristic::run_transcription_query(&query, &self.heuristic_settings_feats);
+                
+                // Second pass: slow, but accurate. Good for refining a shortlist of candidates.
+                let mut second_search: Vec<(u32, f32)> = Vec::new();
+                for (setting_id, _) in &first_search[0..self.num_repass] {
+                    let score = nw::needleman_wunsch(&query, &tune_index.settings[setting_id].contour);
+                    second_search.push((*setting_id, score));
+                }
         
-        // Second pass: slow, but accurate. Good for refining a shortlist of candidates.
-        let mut second_search: Vec<(u32, f64)> = Vec::new();
-        for (setting_id, _) in &first_search[0..self.num_repass] {
-            let score = nw::needleman_wunsch(&query, &self.tune_settings[setting_id].contour);
-            second_search.push((*setting_id, score));
+                let mut sorted_rankings: Vec<_> = second_search.into_iter().collect();
+                sorted_rankings.sort_by(|x,y| y.1.partial_cmp(&x.1).unwrap());    
+        
+                let mut results: TranscriptionQueryResults = Vec::new();
+        
+                for (setting_id, score) in sorted_rankings[0..self.num_output].iter() {
+                    let setting = &tune_index.settings[setting_id];
+                    results.push(TranscriptionQueryRecord {
+                        setting: setting,
+                        score: *score
+                    });
+                }
+        
+                Ok(results)
+            }
         }
+    }
 
-        let mut sorted_rankings: Vec<_> = second_search.into_iter().collect();
-        sorted_rankings.sort_by(|x,y| y.1.partial_cmp(&x.1).unwrap());    
-
-        let mut results: Vec<(u32, u32, f64)> = Vec::new();
-
-        for (setting_id, score) in sorted_rankings[0..self.num_output].iter() {
-            let tune_id = self.tune_settings[setting_id].tune_id;
-            results.push((tune_id, *setting_id, *score));
+    pub fn run_name_query(self: &Self, query: &String) -> Result<NameQueryResults, QueryError> {
+        match &self.tune_index {
+            None => Err(QueryError),
+            Some(tune_index) => {
+                Ok(heuristic::run_name_query(query, tune_index, &self.heuristic_aliases_feats))
+            }
         }
+    }
+}
 
-        return results;
+pub struct QueryError;
+
+impl fmt::Debug for QueryError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "query engine has not loaded index")
     }
 }

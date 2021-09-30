@@ -55,6 +55,7 @@ impl FeatureExtractor {
             );
         }
     }
+    
     pub fn feed_window(&mut self, window: [f32; ff_config::SPEC_WINDOW_SIZE]) {
         let frame: Frame = autocorrelate::modified_autocorrelation(
             window,
