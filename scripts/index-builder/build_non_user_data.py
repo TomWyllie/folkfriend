@@ -53,15 +53,20 @@ def build_non_user_data(p_dir):
     # But - we would still like the original ABC string as it is used to
     #   render the sheet music (and going back from our queryable
     #   representation into ABC is even harder than the reverse as that's
-    #   a non-unique mapping. However there's some other information in the
+    #   a non-unique mapping). However there's some other information in the
     #   JSON file from thesession.org's GitHub that isn't useful for us,
     #   which we now get rid of.
 
-    log.info('Creating cleaned version of input data file')
-    cleaned_thesession_data = clean_thesession_data(thesession_data)
+    # One field we get rid of *for each setting* is the name, because it's
+    #   identical for all settings of the same tune, so only needs stored
+    #   once. We store this with the aliases, because that's where the names
+    #   of tunes are kept.
 
     log.info('Gathering tune name aliases')
-    gathered_aliases = gather_aliases(thesession_aliases)
+    gathered_aliases = gather_aliases(thesession_aliases, thesession_data)
+
+    log.info('Creating cleaned version of input data file')
+    cleaned_thesession_data = clean_thesession_data(thesession_data)
 
     multiprocessing_input = [(setting, midis_dir) for setting in cleaned_thesession_data]
 
@@ -103,6 +108,7 @@ def clean_thesession_data(tune_data):
     for i, _ in enumerate(tune_data):
         del tune_data[i]['date']
         del tune_data[i]['username']
+        del tune_data[i]['name']
         # "type" is a common programming keyword, causes issues later.
         tune_data[i]['dance'] = tune_data[i]['type']
         del tune_data[i]['type']
@@ -113,10 +119,24 @@ def clean_thesession_data(tune_data):
     return tune_data
 
 
-def gather_aliases(alias_records):
+def gather_aliases(alias_records, tune_data):
     # The aliases.json file is inefficiently structured for network
-    #   distribution and we can condense it somewhat
+    #   distribution and we can condense it somewhat. We also merge
+    #   the "name" field of each tune into aliases, so that all the
+    #   names are stored in one place, and each name/alias is stored
+    #   exactly once.
+
     aliases = collections.defaultdict(list)
+
+    # Add 'name' fields so that the first alias is always the 'name'
+    #   on the session. This is usually the most common name for the
+    #   tune.
+    for i, _ in enumerate(tune_data):
+        tid = tune_data[i]['tune_id']
+        alias = tune_data[i]['name']
+        aliases[tid].append(alias.lower())
+
+    # Add aliases from alias data proper
     for alias_record in sorted(alias_records, key=lambda r: int(r['tune_id'])):
         tid = alias_record['tune_id']
         alias = alias_record['alias']
