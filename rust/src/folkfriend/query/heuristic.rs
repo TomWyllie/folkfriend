@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
+use fnv::FnvHashSet as HashSet;
 
 use crate::folkfriend::index::schema::*;
 use crate::folkfriend::index::TuneIndex;
@@ -120,7 +120,8 @@ pub fn run_name_query<'a>(query: &String, tune_index: &'a TuneIndex, alias_feats
 
 
 pub fn trigrams(query: &String) -> HeuristicFeatures {
-    let mut feats: HeuristicFeatures = HashSet::new();
+    let mut feats: HeuristicFeatures = HashSet::default();
+    
     let chars: Vec<char> = query.chars().collect();
 
     if chars.len() <= 2 {

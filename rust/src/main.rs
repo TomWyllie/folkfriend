@@ -6,9 +6,9 @@ use folkfriend::FolkFriend;
 
 // use crate::folkfriend::index::schema::*;
 use clap::{App, Arg};
-use indicatif::ProgressBar;
-use rayon::prelude::*;
-use std::convert::TryInto;
+// use indicatif::ProgressBar;
+// use rayon::prelude::*;
+// use std::convert::TryInto;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -17,7 +17,6 @@ use wav;
 use std::fs;
 
 fn main() {
-    let now = Instant::now();
 
     let matches = App::new("FolkFriend")
         .version("3.0")
@@ -38,6 +37,8 @@ fn main() {
     let tune_index_json = get_tune_index_json();
     ff = ff.load_index_from_json_string(tune_index_json);
 
+    let now = Instant::now();
+
     if command == "name" {
         name_query(ff, input);
     } else if command == "transcribe" {
@@ -46,7 +47,7 @@ fn main() {
         process_audio_files(ff, input, true);
     }
 
-    eprintln!("FolkFriend finished in {:.2?}", now.elapsed());
+    eprintln!("FolkFriend command finished in {:.2?}", now.elapsed());
 
     // for wav_path in 
 

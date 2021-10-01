@@ -9,6 +9,8 @@ use crate::folkfriend::index::TuneIndex;
 use std::collections::HashMap;
 use std::fmt;
 
+use std::time::Instant;
+
 pub struct QueryEngine {
     pub tune_index: Option<TuneIndex>,
     heuristic_aliases_feats: heuristic::AliasFeats,
@@ -38,7 +40,7 @@ impl QueryEngine {
             tune_index: None,
             heuristic_aliases_feats: HashMap::new(),
             heuristic_settings_feats: HashMap::new(),
-            num_repass: 1000,
+            num_repass: 2000,
             num_output: 100,
         }
     }
@@ -57,17 +59,27 @@ impl QueryEngine {
         match &self.tune_index {
             None => Err(QueryError),
             Some(tune_index) => {
+
+                // === Heuristic search ===
+                let nowh = Instant::now();
+                
                 // Convert 'contour' to a string to use as a query.
                 let query = query_string_from_contour(contour);
-
+                
                 // First pass: fast, but inaccurate. Good for eliminating many poor candidates.
                 let first_search =
-                    heuristic::run_transcription_query(&query, &self.heuristic_settings_feats);
+                heuristic::run_transcription_query(&query, &self.heuristic_settings_feats);
+                
+                eprintln!("Heuristic search took {:.2?}", nowh.elapsed());
+                
+                // === Full search ===
+                let nowf = Instant::now();
+                
                 // Second pass: slow, but accurate. Good for refining a shortlist of candidates.
                 let mut second_search: Vec<(u32, f32)> = Vec::new();
                 for (setting_id, _) in &first_search[0..self.num_repass] {
                     let score =
-                        nw::needleman_wunsch(&query, &tune_index.settings[setting_id].contour);
+                    nw::needleman_wunsch(&query, &tune_index.settings[setting_id].contour);
                     second_search.push((*setting_id, score));
                 }
                 let mut sorted_rankings: Vec<_> = second_search.into_iter().collect();
@@ -80,6 +92,9 @@ impl QueryEngine {
                         score: *score,
                     });
                 }
+                
+                eprintln!("Full search took {:.2?}", nowf.elapsed());
+                
                 Ok(results)
             }
         }
