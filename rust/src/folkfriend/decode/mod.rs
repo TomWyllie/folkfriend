@@ -22,7 +22,7 @@ impl FeatureDecoder {
         }
     }
 
-    pub fn decode(&self, features: Features) -> Contour {
+    pub fn decode(&self, features: &mut Features) -> Contour {
         let (lattice_path, _) = beam_search::decode(features, &self.pitch_model, &self.tempo_model);
         return contour::contour_from_lattice_path(&lattice_path);
     }

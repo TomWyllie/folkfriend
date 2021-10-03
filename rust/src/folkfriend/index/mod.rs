@@ -1,5 +1,4 @@
 use serde_json;
-use std::fs;
 pub mod schema;
 
 use serde::{Deserialize, Serialize};

@@ -21,10 +21,9 @@ impl FolkFriend {
         }
     }
 
-    pub fn load_index_from_json_string(mut self, json_string: String) -> FolkFriend {
+    pub fn load_index_from_json_string(&mut self, json_string: String) {
         let tune_index = index::tune_index_from_string(&json_string);
-        self.query_engine = self.query_engine.use_tune_index(tune_index);
-        return self;
+        self.query_engine.use_tune_index(tune_index);
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: u32) {
@@ -45,10 +44,10 @@ impl FolkFriend {
         self.feature_extractor.flush();
     }
 
-    pub fn transcribe_pcm_buffer(mut self) -> (FolkFriend, decode::types::Contour) {
-        let contour: decode::types::Contour = self.feature_decoder.decode(self.feature_extractor.features);
-        self.feature_extractor = feature::feature_extractor::FeatureExtractor::new(ff_config::SAMPLE_RATE_DEFAULT);
-        return (self, contour);
+    pub fn transcribe_pcm_buffer(&mut self) -> decode::types::Contour {
+        let contour = self.feature_decoder.decode(&mut self.feature_extractor.features);
+        self.feature_extractor.flush();
+        return contour;
     }
 
     pub fn run_transcription_query(

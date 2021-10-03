@@ -9,7 +9,7 @@ use crate::folkfriend::feature::normalise::Normalisable;
 use std::collections::{HashMap, HashSet};
 
 pub fn decode(
-    mut features: Features,
+    features: &mut Features,
     pitch_model: &PitchModel,
     tempo_model: &TempoModel,
 ) -> (LatticePath, f32) {

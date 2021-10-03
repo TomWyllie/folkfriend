@@ -35,7 +35,7 @@ fn main() {
 
     let mut ff = FolkFriend::new();
     let tune_index_json = get_tune_index_json();
-    ff = ff.load_index_from_json_string(tune_index_json);
+    ff.load_index_from_json_string(tune_index_json);
 
     let now = Instant::now();
 
@@ -48,28 +48,6 @@ fn main() {
     }
 
     eprintln!("FolkFriend command finished in {:.2?}", now.elapsed());
-
-    // for wav_path in 
-
-    // if wav, push to list
-
-    // if CSV, open all lines and push to list
-
-    // now iterate through list and do the thing for each one
-
-    // if let Some(ref args) = args.subcommand_matches("dataset") {
-    //     let dataset_path = args.value_of("dataset-path").unwrap().to_string();
-    //     let dataset_op = args.value_of("dataset-op").unwrap();
-
-    //     match dataset_op {
-    //         "transcribe" => {
-    //             println!("transcribing")
-    //         }
-    //         "query" => bulk_query(&dataset_path),
-    //         _ => {}
-    //     }
-    // }
-
 
 }
 
@@ -97,23 +75,19 @@ fn process_audio_files(mut ff: FolkFriend, input: String, with_transcription_que
             return;
         }
     
-        // println!("{}", audio_file_path);
-
         let (signal, sample_rate) = pcm_signal_from_wav(&audio_file_path);
 
         ff.set_sample_rate(sample_rate);
         ff.feed_entire_pcm_signal(signal);
         
-        // TODO this is awful, fix
-        let transcribed = ff.transcribe_pcm_buffer();
-        ff = transcribed.0;
-        let contour = transcribed.1;
+        let contour = ff.transcribe_pcm_buffer();
+
+        // TODO make query only happen if actually requested etc
 
         let results = ff.run_transcription_query(&contour).expect("something failed");
         println!("{:#?}", results);
     }
-
-            
+       
 
     // let decoder = folkfriend::decode::FeatureDecoder::new();
     
@@ -156,7 +130,7 @@ fn name_query(ff: FolkFriend, name: String) {
     let result = ff.run_name_query(&name).expect("Name query failed");
 
     for record in result {
-        println!("{:?}", record.display_name);
+        println!("{:?}\t\t{:?}", record.display_name, record.setting.tune_id);
     }
 }
 
@@ -167,46 +141,3 @@ pub fn get_tune_index_json() -> String {
     let data = fs::read_to_string(path).expect("Couldn't read index");
     return data;
 }
-
-// fn bulk_query(dataset_path: &String) {
-//     let transcriptions = dataset::load_transcriptions(&dataset_path).unwrap();
-//     let tune_index = folkfriend::index::load::load_from_path();
-//     let tune_settings: TuneSettings = tune_index.settings;
-//     let query_engine = folkfriend::query::QueryEngine::new(tune_settings);
-//     let bar = ProgressBar::new(transcriptions.len().try_into().unwrap());
-
-//     let ranks: Vec<usize> = transcriptions
-//         .par_iter()
-//         .map(|transcription| {
-//             let query = &transcription.transcription;
-//             let ranked_settings = query_engine.run_transcription_query(query);
-//             let mut rank: usize = ranked_settings.len();
-
-//             for (i, (tune_id, _, _)) in ranked_settings.iter().enumerate() {
-//                 if *tune_id == transcription.tune_id {
-//                     rank = i;
-//                     break;
-//                 }
-//             }
-
-//             bar.inc(1);
-
-//             rank
-//         })
-//         .collect();
-//     let mut bulk_output: Vec<dataset::TranscriptionRecordRanked> = Vec::new();
-//     for (rank, transcription) in ranks.iter().zip(transcriptions) {
-//         let ranked = dataset::TranscriptionRecordRanked {
-//             rank: *rank,
-//             rel_path: transcription.rel_path,
-//             tune_id: transcription.tune_id,
-//             name: transcription.name,
-//             transcription: transcription.transcription,
-//         };
-//         bulk_output.push(ranked);
-//     }
-
-//     dataset::write_transcriptions_ranked(dataset_path, bulk_output).unwrap();
-
-//     bar.finish();
-// }
