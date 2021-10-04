@@ -24,6 +24,7 @@ pub struct QueryEngine {
 #[derive(Debug)]
 pub struct TranscriptionQueryRecord<'a> {
     pub setting: &'a Setting,
+    pub display_name: &'a String,
     pub score: f32,
 }
 
@@ -44,7 +45,7 @@ impl QueryEngine {
             heuristic_aliases_feats: HashMap::new(),
             heuristic_settings_feats: HashMap::new(),
             num_repass: 2000,
-            num_output: 40,
+            num_output: 20,
         }
     }
 
@@ -110,6 +111,7 @@ impl QueryEngine {
                     results.push(TranscriptionQueryRecord {
                         setting: setting,
                         score: *score,
+                        display_name: &tune_index.aliases.get(&setting.tune_id).unwrap()[0]
                     });
 
                     if results.len() >= self.num_output {

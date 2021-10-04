@@ -9,15 +9,14 @@ use clap::{App, Arg};
 // use indicatif::ProgressBar;
 // use rayon::prelude::*;
 // use std::convert::TryInto;
+use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::time::Instant;
 use wav;
-use std::fs;
 
 fn main() {
-
     let matches = App::new("FolkFriend")
         .version("3.0")
         .author("T.C. Wyllie <tom@wyllie.dev>")
@@ -48,14 +47,12 @@ fn main() {
     }
 
     eprintln!("FolkFriend command finished in {:.2?}", now.elapsed());
-
 }
 
 fn process_audio_files(mut ff: FolkFriend, input: String, with_transcription_query: bool) {
-
     // Load file paths from arguments / input CSV file
     let input_is_csv = input.ends_with(".csv");
-    let mut audio_file_paths: Vec<String> = Vec::new();
+    let audio_file_paths;
 
     if input.ends_with(".wav") {
         audio_file_paths = vec![input];
@@ -69,32 +66,45 @@ fn process_audio_files(mut ff: FolkFriend, input: String, with_transcription_que
         )
     }
 
+    let verbose: bool = { audio_file_paths.len() == 1 };
+
     for audio_file_path in audio_file_paths {
         if !audio_file_path.ends_with(".wav") {
             eprintln!("Skipping non .wav file `{}`", audio_file_path);
             return;
         }
-    
         let (signal, sample_rate) = pcm_signal_from_wav(&audio_file_path);
 
         ff.set_sample_rate(sample_rate);
         ff.feed_entire_pcm_signal(signal);
-        
         let contour = ff.transcribe_pcm_buffer();
 
-        // TODO make query only happen if actually requested etc
+        if !with_transcription_query {
+            if verbose {
+                println!("=== Transcription for file {:?} ===", audio_file_path);
+                println!("Midi sequence: {:?}", contour);
+                println!("ABC: {:?}", ff.contour_to_abc(&contour));
+            }
+            continue;
+        }
 
-        let results = ff.run_transcription_query(&contour).expect("something failed");
-        println!("{:#?}", results);
+        let results = ff
+            .run_transcription_query(&contour)
+            .expect("something failed");
+        println!("=== Query for file {:?} ===", audio_file_path);
+        if verbose {
+            for result in results {
+                println!("{:?}\t{:?}\t{:?}", 
+                result.setting.tune_id,
+                result.display_name, 
+                result.score);
+            }
+        }
     }
-       
 
     // let decoder = folkfriend::decode::FeatureDecoder::new();
-    
     // debug_features::save_features_as_img(&fe.features, &"debug-a.png".to_string());
     // debug_features::save_contour_as_img(&contour, &"debug-b.png".to_string());
-
-
 }
 
 fn pcm_signal_from_wav(wav_file_path: &String) -> (Vec<f32>, u32) {
@@ -112,7 +122,6 @@ fn pcm_signal_from_wav(wav_file_path: &String) -> (Vec<f32>, u32) {
 
     return (signal_f, header.sampling_rate);
 }
-    
 
 fn get_audio_file_paths_from_csv(csv_path: &String) -> Vec<String> {
     let mut audio_file_paths = Vec::new();

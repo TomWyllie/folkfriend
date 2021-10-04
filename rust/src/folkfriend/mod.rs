@@ -1,3 +1,4 @@
+pub mod abc;
 pub mod decode;
 pub mod feature;
 pub mod ff_config;
@@ -7,7 +8,8 @@ pub mod query;
 pub struct FolkFriend {
     pub query_engine: query::QueryEngine,
     pub feature_extractor: feature::feature_extractor::FeatureExtractor,
-    pub feature_decoder: decode::FeatureDecoder
+    pub feature_decoder: decode::FeatureDecoder,
+    pub abc_processor: abc::AbcProcessor,
 }
 
 impl FolkFriend {
@@ -17,7 +19,8 @@ impl FolkFriend {
             feature_extractor: feature::feature_extractor::FeatureExtractor::new(
                 ff_config::SAMPLE_RATE_DEFAULT,
             ),
-            feature_decoder: decode::FeatureDecoder::new()
+            feature_decoder: decode::FeatureDecoder::new(),
+            abc_processor: abc::AbcProcessor::new(),
         }
     }
 
@@ -45,7 +48,9 @@ impl FolkFriend {
     }
 
     pub fn transcribe_pcm_buffer(&mut self) -> decode::types::Contour {
-        let contour = self.feature_decoder.decode(&mut self.feature_extractor.features);
+        let contour = self
+            .feature_decoder
+            .decode(&mut self.feature_extractor.features);
         self.feature_extractor.flush();
         return contour;
     }
@@ -63,6 +68,10 @@ impl FolkFriend {
     ) -> Result<query::NameQueryResults, query::QueryError> {
         self.query_engine.run_name_query(query)
     }
+
+    pub fn contour_to_abc(&self, contour: &decode::types::Contour) -> String {
+        self.abc_processor.contour_to_abc(contour)
+    }
 }
 
 // TODO single exposed interface
@@ -77,3 +86,4 @@ impl FolkFriend {
 //  x transcribe_pcm_buffer() -> Transcription
 //  x query_by_transcription(Transcription) -> QueryResults
 //  x query_by_name(String) -> QueryResults
+//  x contour_to_abc(Contour) -> String
