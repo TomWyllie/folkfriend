@@ -12,7 +12,7 @@ use clap::{App, Arg};
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 use wav;
 
@@ -55,7 +55,7 @@ fn process_audio_files(mut ff: FolkFriend, input: String, with_transcription_que
     let audio_file_paths;
 
     if input.ends_with(".wav") {
-        audio_file_paths = vec![input];
+        audio_file_paths = vec![input.clone()];
     } else if input_is_csv {
         audio_file_paths = get_audio_file_paths_from_csv(&input)
     } else {
@@ -68,37 +68,59 @@ fn process_audio_files(mut ff: FolkFriend, input: String, with_transcription_que
 
     let verbose: bool = { audio_file_paths.len() == 1 };
 
+    // TODO set up parallelisation (single threaded at the moment)
+
     for audio_file_path in audio_file_paths {
         if !audio_file_path.ends_with(".wav") {
             eprintln!("Skipping non .wav file `{}`", audio_file_path);
-            return;
+            continue;
         }
-        let (signal, sample_rate) = pcm_signal_from_wav(&audio_file_path);
+
+        let wav_path;
+        if input_is_csv {
+            let csv_dir = Path::new(&input).parent().unwrap();
+            wav_path = csv_dir.join(Path::new(&audio_file_path));
+        } else {
+            wav_path = Path::new(&audio_file_path).to_path_buf();
+        }
+
+        let (signal, sample_rate) = pcm_signal_from_wav(&wav_path);
 
         ff.set_sample_rate(sample_rate);
         ff.feed_entire_pcm_signal(signal);
         let contour = ff.transcribe_pcm_buffer();
 
         if !with_transcription_query {
-            if verbose {
-                println!("=== Transcription for file {:?} ===", audio_file_path);
-                println!("Midi sequence: {:?}", contour);
-                println!("ABC: {:?}", ff.contour_to_abc(&contour));
-            }
+            println!("=== Transcription for file {:?} ===", audio_file_path);
+            println!("Midi sequence: {:?}", contour);
+            println!("ABC: {:?}", ff.contour_to_abc(&contour));
             continue;
         }
 
         let results = ff
             .run_transcription_query(&contour)
             .expect("something failed");
-        println!("=== Query for file {:?} ===", audio_file_path);
         if verbose {
-            for result in results {
-                println!("{:?}\t{:?}\t{:?}", 
-                result.setting.tune_id,
-                result.display_name, 
-                result.score);
+            println!("=== Query for file {:?} ===", audio_file_path);
+            for result in results.iter().take(10) {
+                println!(
+                    "{:?}\t{:?}\t{:?}",
+                    result.setting.tune_id, result.display_name, result.score
+                );
             }
+        } else {
+            // This terse output is only designed to be used for analysing
+            //  the folkfriend evaluation dataset and is not designed to be
+            //  human-friendly. It's a CSV output of the tune IDs predicted
+            //  by folkfriend, in order of most to least likely (and only
+            //  the first 100 tunes thereof).
+            let mut line_out = format!("{}", audio_file_path);
+
+            for result in results {
+                line_out.push_str(&format!(",{}", result.setting.tune_id));
+            }
+
+            println!("{}", line_out);
         }
     }
 
@@ -107,7 +129,7 @@ fn process_audio_files(mut ff: FolkFriend, input: String, with_transcription_que
     // debug_features::save_contour_as_img(&contour, &"debug-b.png".to_string());
 }
 
-fn pcm_signal_from_wav(wav_file_path: &String) -> (Vec<f32>, u32) {
+fn pcm_signal_from_wav(wav_file_path: &PathBuf) -> (Vec<f32>, u32) {
     let mut inp_file = File::open(Path::new(&wav_file_path)).unwrap();
     let (header, data) = wav::read(&mut inp_file).unwrap();
 

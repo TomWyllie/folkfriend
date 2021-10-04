@@ -45,7 +45,7 @@ impl QueryEngine {
             heuristic_aliases_feats: HashMap::new(),
             heuristic_settings_feats: HashMap::new(),
             num_repass: 2000,
-            num_output: 20,
+            num_output: 100,
         }
     }
 
