@@ -118,7 +118,7 @@ class CSVMidiNoteReader(csv.DictReader):
         n.set_tempo(tempo)
         quaver_duration = n.duration
 
-        for i, note in enumerate(self._notes):
+        for _, note in enumerate(self._notes):
             note.set_tempo(tempo)
 
             # Note occurs outwith range specified
@@ -150,7 +150,8 @@ class CSVMidiNoteReader(csv.DictReader):
                 output_time += rounded_int * quaver_duration
                 midi_contour.extend([note.rel_pitch()] * rounded_int)
 
-        return midi_contour
+        return ''.join(ff_config.MIDI_MAP_[n] for n in midi_contour)
+
 
 
 class Note:

@@ -37,12 +37,12 @@ def midi_to_abc(midi):
     return base + ',' * commas + "'" * apos
 
 
-def decoded_to_abc(decoded):
+def midi_seq_to_abc(midi_seq):
     hold = 0
     last_n = None
     out = []
 
-    for n in decoded:
+    for n in midi_seq:
         if n == last_n:
             hold += 1
             continue
@@ -50,7 +50,7 @@ def decoded_to_abc(decoded):
             out.append(str(hold + 1))
             hold = 0
 
-        out.append(f' {midi_to_abc(ff_config.MIDI_LOW + n)}')
+        out.append(f' {midi_to_abc(n)}')
         last_n = n
 
     return ''.join(out)
