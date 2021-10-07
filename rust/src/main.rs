@@ -4,14 +4,14 @@ mod folkfriend;
 
 use folkfriend::FolkFriend;
 
-// use crate::folkfriend::index::schema::*;
 use clap::{App, Arg};
 // use indicatif::ProgressBar;
 // use rayon::prelude::*;
-// use std::convert::TryInto;
+use dirs;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use reqwest;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use wav;
@@ -166,9 +166,20 @@ fn name_query(ff: FolkFriend, name: String) {
 }
 
 pub fn get_tune_index_json() -> String {
-    // TODO auto pull from Github if local copy not found
-    let path =
-        "/home/tom/repos/folkfriend/scripts/index-builder/index-data/folkfriend-non-user-data.json";
-    let data = fs::read_to_string(path).expect("Couldn't read index");
+    
+    let mut folkfriend_index: PathBuf = dirs::home_dir().unwrap();
+    folkfriend_index.push(".folkfriend");
+    std::fs::create_dir_all(&folkfriend_index).unwrap();
+
+    folkfriend_index.push("folkfriend-non-user-data.json");
+    let index_url = "https://raw.githubusercontent.com/TomWyllie/folkfriend-app-data/master/folkfriend-non-user-data.json";
+
+    if !folkfriend_index.exists() {
+
+        let resp = reqwest::blocking::get(index_url).unwrap().text().unwrap();
+        fs::write(&folkfriend_index, resp).expect("Couldn't write data to index file");      
+    }
+
+    let data = fs::read_to_string(folkfriend_index).expect("Couldn't read index");
     return data;
 }

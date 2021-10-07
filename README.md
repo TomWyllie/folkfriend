@@ -13,6 +13,12 @@ Scripts and Web Application for folk music tune transcription and recognition.
 | `scripts/`| Python scripts for backend things
 | `utils/`  | Contains the `folkfriend` module; python implementation of all the functionality that runs client-side in the app.
 
+# Using Rust
+
+1. Install Rust
+2. From the `rust/` directory of this repository, run `cargo build --release` to compile the `folkfriend` executable on your machine.
+3. Add the `folkfriend` executable to your system path, for example using `sudo cp folkfriend /usr/local/bin/`.
+
 # Using Python
 
 To use the python scripts and the python module `folkfriend` located in the `utils` directory, please follow the steps below.
