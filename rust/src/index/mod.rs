@@ -4,7 +4,8 @@ pub mod schema;
 use serde::{Deserialize, Serialize};
 use schema::{TuneAliases, TuneSettings};
 
-#[derive(Serialize, Deserialize)]
+
+#[derive(Serialize, Deserialize)] 
 pub struct TuneIndex {
     pub settings: TuneSettings,
     pub aliases: TuneAliases,

@@ -1,4 +1,4 @@
-use crate::folkfriend::ff_config;
+use crate::ff_config;
 use std::f32::consts::PI;
 
 // Code based on https://docs.rs/dsp/0.8.1/src/dsp/window.rs.html#217-231

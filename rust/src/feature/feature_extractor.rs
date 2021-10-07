@@ -1,12 +1,12 @@
-use crate::folkfriend::feature::autocorrelate;
-use crate::folkfriend::feature::signal::validate_sample_rate;
-use crate::folkfriend::feature::types::{Features, Frame, InterpInds, Window};
-use crate::folkfriend::feature::window::gen_blackman_window;
-use crate::folkfriend::ff_config;
+use crate::feature::autocorrelate;
+use crate::feature::signal::validate_sample_rate;
+use crate::feature::types::{Features, Frame, InterpInds, Window};
+use crate::feature::window::gen_blackman_window;
+use crate::ff_config;
 use rustfft::{algorithm::Radix4, FftDirection};
 use std::convert::TryInto;
 
-use crate::folkfriend::feature::interpolate::compute_interp_inds;
+use crate::feature::interpolate::compute_interp_inds;
 
 pub struct FeatureExtractor {
     pub sample_rate: u32,

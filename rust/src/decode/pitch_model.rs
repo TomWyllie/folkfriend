@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use crate::folkfriend::ff_config;
-use crate::folkfriend::decode::types::{PitchInterval};
+use crate::ff_config;
+use crate::decode::types::{PitchInterval};
 
 const ALL_OTHER_SCORES: f32 = -50. * ff_config::PITCH_MODEL_WEIGHT;
 const BASE_SCORES: [(PitchInterval, f32); 24] = [

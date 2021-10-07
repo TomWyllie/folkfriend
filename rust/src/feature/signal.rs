@@ -1,4 +1,4 @@
-use crate::folkfriend::ff_config;
+use crate::ff_config;
 
 pub fn validate_sample_rate(sample_rate: &u32) {
     if *sample_rate > ff_config::SAMPLE_RATE_MAX {

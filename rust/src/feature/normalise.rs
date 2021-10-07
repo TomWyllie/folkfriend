@@ -1,6 +1,6 @@
-use crate::folkfriend::ff_config;
+use crate::ff_config;
 
-use crate::folkfriend::feature::types::Features;
+use crate::feature::types::Features;
 
 pub trait Normalisable {
     fn total_energy(&self) -> f32;

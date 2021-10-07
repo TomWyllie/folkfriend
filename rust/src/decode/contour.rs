@@ -1,5 +1,5 @@
-use crate::folkfriend::decode::types::{Contour, Duration, LatticePath, Pitch};
-use crate::folkfriend::ff_config;
+use crate::decode::types::{Contour, Duration, LatticePath, Pitch};
+use crate::ff_config;
 
 pub fn contour_from_lattice_path(lattice_path: &LatticePath) -> Contour {
     if lattice_path.len() == 0 {

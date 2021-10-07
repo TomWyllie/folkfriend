@@ -1,9 +1,7 @@
 use fnv::FnvHashSet as HashSet;
 use std::collections::HashMap;
 
-use crate::folkfriend::index::schema::*;
-use crate::folkfriend::index::TuneIndex;
-use crate::folkfriend::query;
+use crate::index::schema::*;
 
 use std::convert::TryInto;
 
@@ -59,10 +57,7 @@ pub fn run_transcription_query(
     return sorted_rankings;
 }
 
-pub fn run_name_query<'a>(
-    query: &String,
-    alias_feats: &AliasFeats,
-) -> Vec<ScoredName> {
+pub fn run_name_query<'a>(query: &String, alias_feats: &AliasFeats) -> Vec<ScoredName> {
     let query = query.to_lowercase();
     let query = trigrams(&query);
 

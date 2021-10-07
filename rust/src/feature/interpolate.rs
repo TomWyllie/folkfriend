@@ -1,6 +1,6 @@
-use crate::folkfriend::feature::signal::{validate_sample_rate, hertz_to_midi};
-use crate::folkfriend::feature::types::InterpInds;
-use crate::folkfriend::ff_config;
+use crate::feature::signal::{validate_sample_rate, hertz_to_midi};
+use crate::feature::types::InterpInds;
+use crate::ff_config;
 
 
 

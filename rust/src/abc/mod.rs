@@ -1,4 +1,4 @@
-use crate::folkfriend::decode::types::{Contour, Pitch};
+use crate::decode::types::{Contour, Pitch};
 use std::collections::HashMap;
 
 pub struct AbcProcessor {

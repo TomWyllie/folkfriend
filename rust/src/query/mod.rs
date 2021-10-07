@@ -1,10 +1,10 @@
 mod heuristic;
 mod nw;
 
-use crate::folkfriend::decode;
-use crate::folkfriend::ff_config;
-use crate::folkfriend::index::schema::*;
-use crate::folkfriend::index::TuneIndex;
+use crate::decode;
+use crate::ff_config;
+use crate::index::schema::*;
+use crate::index::TuneIndex;
 
 use fnv::FnvHashSet as HashSet;
 use std::collections::HashMap;
@@ -111,7 +111,7 @@ impl QueryEngine {
                     results.push(TranscriptionQueryRecord {
                         setting: setting,
                         score: *score,
-                        display_name: &tune_index.aliases.get(&setting.tune_id).unwrap()[0]
+                        display_name: &tune_index.aliases.get(&setting.tune_id).unwrap()[0],
                     });
 
                     if results.len() >= self.num_output {

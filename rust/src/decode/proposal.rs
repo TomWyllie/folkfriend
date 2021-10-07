@@ -1,6 +1,6 @@
-use crate::folkfriend::decode::pitch_model::PitchModel;
-use crate::folkfriend::decode::tempo_model::TempoModel;
-use crate::folkfriend::decode::types::{Duration, Pitch, PitchInterval};
+use crate::decode::pitch_model::PitchModel;
+use crate::decode::tempo_model::TempoModel;
+use crate::decode::types::{Duration, Pitch, PitchInterval};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Proposal {

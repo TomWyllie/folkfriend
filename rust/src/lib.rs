@@ -1,3 +1,4 @@
+
 pub mod abc;
 pub mod decode;
 pub mod feature;
@@ -56,14 +57,14 @@ impl FolkFriend {
     }
 
     pub fn run_transcription_query(
-        self: &Self,
+        &self,
         contour: &decode::types::Contour,
     ) -> Result<query::TranscriptionQueryResults, query::QueryError> {
         self.query_engine.run_contour_query(contour)
     }
 
     pub fn run_name_query(
-        self: &Self,
+        &self,
         query: &String,
     ) -> Result<query::NameQueryResults, query::QueryError> {
         self.query_engine.run_name_query(query)

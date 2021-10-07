@@ -1,6 +1,6 @@
-use crate::folkfriend::ff_config;
+use crate::ff_config;
 // use std::collections::HashMap;
-use crate::folkfriend::decode::types::Duration;
+use crate::decode::types::Duration;
 
 pub struct TempoModel {
     time_const: f32,

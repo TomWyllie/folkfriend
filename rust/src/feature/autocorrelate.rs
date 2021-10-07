@@ -1,5 +1,5 @@
-use crate::folkfriend::feature::types::{Frame, InterpInds, Window};
-use crate::folkfriend::ff_config;
+use crate::feature::types::{Frame, InterpInds, Window};
+use crate::ff_config;
 use rustfft::{Fft, algorithm::Radix4, num_complex::Complex};
 
 pub fn modified_autocorrelation(

@@ -1,10 +1,10 @@
-use crate::folkfriend::decode::pitch_model::PitchModel;
-use crate::folkfriend::decode::proposal::Proposal;
-use crate::folkfriend::decode::tempo_model::TempoModel;
-use crate::folkfriend::decode::types::{LatticePath, Pitch};
-use crate::folkfriend::ff_config;
-use crate::folkfriend::feature::types::Features;
-use crate::folkfriend::feature::normalise::Normalisable;
+use crate::decode::pitch_model::PitchModel;
+use crate::decode::proposal::Proposal;
+use crate::decode::tempo_model::TempoModel;
+use crate::decode::types::{LatticePath, Pitch};
+use crate::ff_config;
+use crate::feature::types::Features;
+use crate::feature::normalise::Normalisable;
 
 use std::collections::{HashMap, HashSet};
 

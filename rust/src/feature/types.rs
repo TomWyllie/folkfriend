@@ -1,5 +1,5 @@
-use crate::folkfriend::ff_config;
-use crate::folkfriend::feature::interpolate::InterpInd;
+use crate::ff_config;
+use crate::feature::interpolate::InterpInd;
 
 pub type Frame = [f32; ff_config::MIDI_NUM as usize];
 pub type Features = Vec<Frame>;
