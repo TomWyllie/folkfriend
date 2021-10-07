@@ -1,18 +1,33 @@
 [package]
 name = "folkfriend"
 version = "3.0.0"
+authors = ["Tom Wyllie <tom@wyllie.dev>"]
 edition = "2018"
+description = "Transcription and recognition of traditional instrumental folk music"
+documentation = "https://github.com/TomWyllie/folkfriend/blob/master/README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "folkfriend"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "folkfriend"
+path = "src/bin.rs"
 
 [dependencies]
 clap = "3.0.0-beta.4"
 csv = "1.1"
+dirs = "4.0.0"
 fnv = "1.0.7"
 image = "0.23.14"
 indicatif = "0.16.2"
 rayon = "1.5"
+reqwest = { version = "0.11.4", features = ["blocking"] }
 rustfft = "6.0.1"
 serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0"
+wasm-bindgen = "0.2"
 wav = "1.0.0"
