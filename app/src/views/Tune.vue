@@ -1,14 +1,12 @@
 <template>
-    <v-container class="tune mx-auto"
-                 v-if="!empty">
+    <v-container class="tune mx-auto" v-if="!empty">
         <h1
             class="my-2"
             :style="`color:${this.$vuetify.theme.currentTheme.secondary};`"
-        >{{ this.name }}</h1>
-        <v-container
-            class="my-1"
-            v-show="!noAliases"
         >
+            {{ this.name }}
+        </h1>
+        <v-container class="my-1" v-show="!noAliases">
             <span class="font-italic text--secondary">Alternative names: </span>
             <!-- <v-chip
                 v-for="alias in this.aliases"
@@ -24,7 +22,8 @@
                 v-show="settings"
                 v-for="settingData in this.settings"
                 :key="settingData.setting"
-                :setting="settingData">
+                :setting="settingData"
+            >
                 <v-expansion-panel-header>
                     <!-- <h3 class="descriptor font-weight-medium">
                         {{ `${settingData.type} in ${settingData.mode.slice(0, 4)}` }}
@@ -42,8 +41,7 @@
         </v-expansion-panels>
     </v-container>
     <!-- This actually shouldn't ever happen unless the user manually navigates to /tunes -->
-    <v-container
-        v-else>
+    <v-container v-else>
         <p>No tune loaded. Please search for a tune.</p>
     </v-container>
 </template>
@@ -52,7 +50,6 @@
 // import ds from "@/services/database.worker";
 // import utils from "@/folkfriend/ff-utils";
 // import AbcDisplay from "@/components/AbcDisplay";
-
 
 // export default {
 //     name: "Tune",

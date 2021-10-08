@@ -69,7 +69,9 @@
 
         <v-app-bar app color="white" elevate-on-scroll>
             <!-- <v-icon color="primary" @click.stop="drawer = !drawer">menu</v-icon> -->
-            <v-icon color="primary" @click.stop="drawer = !drawer">{{ svgPath }}</v-icon>
+            <v-icon color="primary" @click.stop="drawer = !drawer">{{
+                svgPath
+            }}</v-icon>
             <v-img
                 src="@/assets/logo.svg"
                 max-height="90%"

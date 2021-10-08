@@ -1,11 +1,14 @@
 <template>
-    <router-link tag="div"
-                 :to="{ name: 'tune',
-                        params: {
-                            settingID: this.result.setting,
-                            tuneID: this.result.tune
-                        }
-                 }">
+    <router-link
+        tag="div"
+        :to="{
+            name: 'tune',
+            params: {
+                settingID: this.result.setting,
+                tuneID: this.result.tune,
+            },
+        }"
+    >
         <v-container v-ripple>
             <v-row>
                 <v-col class="py-0">
@@ -19,7 +22,8 @@
                 <v-col
                     v-show="this.result.score"
                     class="py-0 text-right score"
-                    :style="`color: ${this.scoreColour};`">
+                    :style="`color: ${this.scoreColour};`"
+                >
                     {{ this.score }}
                 </v-col>
             </v-row>

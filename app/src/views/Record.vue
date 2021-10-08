@@ -100,21 +100,21 @@ export default {
             snackbarText: null,
 
             transcriptionMode: null,
-            textQuery: '',
+            textQuery: "",
 
             offlineButton: true,
             progressBar: null,
             progressSearching: null,
             audioProgress: null,
             featureProgress: null,
-            maxFramesProgress: null
+            maxFramesProgress: null,
         };
     },
     methods: {
         placeholderMethod() {
-            console.debug('placeholder action');
-        }
-    }
+            console.debug("placeholder action");
+        },
+    },
 };
 
 // import audioService from "@/folkfriend/ff-audio";

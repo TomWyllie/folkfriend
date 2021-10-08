@@ -1,17 +1,15 @@
-<template>
-</template>
+<template></template>
 
 <script>
 import AbcDisplay from "@/components/AbcDisplay";
 
 export default {
-    name: 'Transcriptions',
+    name: "Transcriptions",
     components: {
         AbcDisplay,
     },
     data: function () {
-        return {
-        };
+        return {};
     },
 };
 </script>
@@ -23,6 +21,6 @@ export default {
 }
 
 .resultsTable div:nth-child(odd) {
-    background: #EFEFEF;
+    background: #efefef;
 }
 </style>

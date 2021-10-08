@@ -33,6 +33,6 @@
 }
 
 .resultsTable div:nth-child(odd) {
-    background: #EFEFEF;
+    background: #efefef;
 }
 </style>

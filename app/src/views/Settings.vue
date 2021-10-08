@@ -8,10 +8,9 @@
 
 <script>
 export default {
-    name: "Settings"
+    name: "Settings",
 };
 </script>
 
 <style scoped>
-
 </style>
