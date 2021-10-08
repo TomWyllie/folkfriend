@@ -16,7 +16,7 @@
                     </v-list-item>
                 </router-link>
 
-                <router-link tag="div" to="/transcriptions">
+                <router-link tag="div" to="/score">
                     <v-list-item @click="0">
                         <v-list-item-action>
                             <v-icon>{{ icons.musicNote }}</v-icon>
