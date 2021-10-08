@@ -6,14 +6,19 @@ pub mod ff_config;
 pub mod index;
 pub mod query;
 
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
 pub struct FolkFriend {
-    pub query_engine: query::QueryEngine,
-    pub feature_extractor: feature::feature_extractor::FeatureExtractor,
-    pub feature_decoder: decode::FeatureDecoder,
-    pub abc_processor: abc::AbcProcessor,
+    query_engine: query::QueryEngine,
+    feature_extractor: feature::feature_extractor::FeatureExtractor,
+    feature_decoder: decode::FeatureDecoder,
+    abc_processor: abc::AbcProcessor,
 }
 
+// #[wasm_bindgen]
 impl FolkFriend {
+    // #[wasm_bindgen(constructor)]
     pub fn new() -> FolkFriend {
         FolkFriend {
             query_engine: query::QueryEngine::new(),

@@ -22,20 +22,20 @@ pub struct QueryEngine {
 }
 
 #[derive(Debug)]
-pub struct TranscriptionQueryRecord<'a> {
-    pub setting: &'a Setting,
-    pub display_name: &'a String,
+pub struct TranscriptionQueryRecord {
+    pub setting: Setting,
+    pub display_name: String,
     pub score: f32,
 }
 
 #[derive(Debug)]
-pub struct NameQueryRecord<'a> {
-    pub setting: &'a Setting,
-    pub display_name: &'a String,
+pub struct NameQueryRecord {
+    pub setting: Setting,
+    pub display_name: String,
 }
 
-pub type TranscriptionQueryResults<'a> = Vec<TranscriptionQueryRecord<'a>>;
-pub type NameQueryResults<'a> = Vec<NameQueryRecord<'a>>;
+pub type TranscriptionQueryResults = Vec<TranscriptionQueryRecord>;
+pub type NameQueryResults = Vec<NameQueryRecord>;
 
 impl QueryEngine {
     pub fn new() -> QueryEngine {
@@ -109,9 +109,9 @@ impl QueryEngine {
 
                     tune_ids_in_results.insert(setting.tune_id);
                     results.push(TranscriptionQueryRecord {
-                        setting: setting,
+                        setting: setting.clone(),
                         score: *score,
-                        display_name: &tune_index.aliases.get(&setting.tune_id).unwrap()[0],
+                        display_name: tune_index.aliases.get(&setting.tune_id).unwrap()[0].clone(),
                     });
 
                     if results.len() >= self.num_output {
@@ -153,12 +153,13 @@ impl QueryEngine {
                         NameQueryRecord {
                             // TODO safer checks in index builder that there can
                             //  never be an alias without a corresponding setting
-                            setting: &tune_index
+                            setting: tune_index
                                 .settings
                                 .get(&self.setting_ids_from_tune_id(t.tune_id).unwrap()[0])
-                                .unwrap(),
-                            display_name: &tune_index.aliases.get(&t.tune_id).unwrap()
-                                [t.alias_index],
+                                .unwrap()
+                                .clone(),
+                            display_name: tune_index.aliases.get(&t.tune_id).unwrap()
+                                [t.alias_index].clone(),
                         }
                     })
                     .collect();
