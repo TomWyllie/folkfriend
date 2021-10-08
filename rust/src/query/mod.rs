@@ -4,6 +4,7 @@ mod nw;
 use crate::decode;
 use crate::index::schema::*;
 use crate::index::TuneIndex;
+use serde::Serialize;
 
 use fnv::FnvHashSet as HashSet;
 use std::collections::HashMap;
@@ -20,14 +21,14 @@ pub struct QueryEngine {
     num_output: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct TranscriptionQueryRecord {
     pub setting: Setting,
     pub display_name: String,
     pub score: f32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct NameQueryRecord {
     pub setting: Setting,
     pub display_name: String,

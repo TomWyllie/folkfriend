@@ -8,7 +8,7 @@ pub mod query;
 use std::slice;
 use std::convert::TryInto;
 use wasm_bindgen::prelude::*;
-
+use serde_json::json;
 
 pub struct FolkFriend {
     query_engine: query::QueryEngine,
@@ -144,13 +144,29 @@ impl FolkFriendWASM {
     }
 
     pub fn run_transcription_query(&self, contour: &str) -> String {
-        self.ff.run_transcription_query(&contour.to_string());
-        return "placeholder transcription results".to_string();
+        // TODO proper error propagation in JSON back to javascript
+        let result = self.ff.run_transcription_query(&contour.to_string());
+        
+        if let Ok(query_result) = result {
+            return json!(query_result).to_string();
+        } else {
+            return "{
+                \"error\": \"transcription query error\"
+            }".to_string();
+        }
     }
     
     pub fn run_name_query(&self, query: &str) -> String {
+        // TODO proper error propagation in JSON back to javascriptx
         let result = self.ff.run_name_query(&query.to_string());
-        return "placeholder query results".to_string();
+        
+        if let Ok(query_result) = result {
+            return json!(query_result).to_string();
+        } else {
+            return "{
+                \"error\": \"name query error\"
+            }".to_string();
+        }
     }
     
     pub fn contour_to_abc(&self, contour: &str) -> String {
