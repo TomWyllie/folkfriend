@@ -2,7 +2,6 @@ mod heuristic;
 mod nw;
 
 use crate::decode;
-use crate::ff_config;
 use crate::index::schema::*;
 use crate::index::TuneIndex;
 
@@ -73,18 +72,17 @@ impl QueryEngine {
 
     pub fn run_contour_query(
         self: &Self,
-        contour: &decode::types::Contour,
+        contour: &decode::types::ContourString,
     ) -> Result<TranscriptionQueryResults, QueryError> {
         match &self.tune_index {
             None => Err(QueryError),
             Some(tune_index) => {
                 // === Heuristic search ===
                 let nowh = Instant::now();
-                // Convert 'contour' to a string to use as a query.
-                let query = query_string_from_contour(contour);
+                
                 // First pass: fast, but inaccurate. Good for eliminating many poor candidates.
                 let first_search =
-                    heuristic::run_transcription_query(&query, &self.heuristic_settings_feats);
+                    heuristic::run_transcription_query(&contour, &self.heuristic_settings_feats);
                 eprintln!("Heuristic search took {:.2?}", nowh.elapsed());
                 // === Full search ===
                 let nowf = Instant::now();
@@ -92,7 +90,7 @@ impl QueryEngine {
                 let mut second_search: Vec<(u32, f32)> = Vec::new();
                 for (setting_id, _) in &first_search[0..self.num_repass] {
                     let score =
-                        nw::needleman_wunsch(&query, &tune_index.settings[setting_id].contour);
+                        nw::needleman_wunsch(&contour, &tune_index.settings[setting_id].contour);
                     second_search.push((*setting_id, score));
                 }
                 let mut sorted_rankings: Vec<_> = second_search.into_iter().collect();
@@ -172,13 +170,6 @@ impl QueryEngine {
     pub fn setting_ids_from_tune_id(&self, tune_id: u32) -> Option<&Vec<u32>> {
         self.setting_ids_by_tune_id.get(&tune_id)
     }
-}
-
-pub fn query_string_from_contour(contour: &decode::types::Contour) -> String {
-    contour
-        .iter()
-        .map(|midi| ff_config::CONTOUR_TO_QUERY_CHAR[(midi - ff_config::MIDI_LOW) as usize])
-        .collect()
 }
 
 pub struct QueryError;
