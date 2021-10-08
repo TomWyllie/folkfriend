@@ -41,7 +41,9 @@
                         @keypress.enter="placeholderMethod"
                     >
                         <template v-slot:append>
-                            <v-icon @click="placeholderMethod">search</v-icon>
+                            <v-icon @click="placeholderMethod">{{
+                                mdiMagnify
+                            }}</v-icon>
                         </template>
                     </v-text-field>
                 </v-col>
@@ -50,16 +52,16 @@
 
         <v-container class="transcriptionSwitch py-0">
             <v-row wrap justify="center">
-                <!--            <v-tooltip bottom>-->
-                <!--                <template v-slot:activator="{ on, attrs }">-->
-                <!--                    <v-icon-->
-                <!--                        v-bind="attrs"-->
-                <!--                        v-on="on"-->
-                <!--                    >help-->
-                <!--                    </v-icon>-->
-                <!--                </template>-->
-                <!--                <span >Removes recording limit, doesn't search database</span>-->
-                <!--            </v-tooltip>-->
+                <!-- <v-tooltip bottom>
+                    <template v-slot:activator="{ on, attrs }">
+                        <v-icon v-bind="attrs" v-on="on">{{ mdiHelp }}</v-icon>
+                    </template>
+                    <span
+                        >Removes recording timer; generates sheet music from
+                        recording rather than searching against known
+                        tunes.</span
+                    >
+                </v-tooltip> -->
                 <v-switch
                     v-model="transcriptionMode"
                     inset
@@ -86,6 +88,7 @@
 
 <script>
 import RecorderButton from "@/components/RecorderButton";
+import { mdiHelp, mdiMagnify } from "@mdi/js";
 
 export default {
     name: "Search",
@@ -108,6 +111,9 @@ export default {
             audioProgress: null,
             featureProgress: null,
             maxFramesProgress: null,
+
+            mdiHelp: mdiHelp,
+            mdiMagnify: mdiMagnify,
         };
     },
     methods: {

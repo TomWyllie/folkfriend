@@ -8,8 +8,7 @@
                 <router-link tag="div" to="/">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <!-- <v-icon>mic</v-icon> -->
-                            <v-icon>{{ svgPath }}</v-icon>
+                            <v-icon>{{ icons.microphone }}</v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
                             <v-list-item-title>Search</v-list-item-title>
@@ -20,23 +19,21 @@
                 <router-link tag="div" to="/transcriptions">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <!-- <v-icon>music_note</v-icon> -->
-                            <v-icon>{{ svgPath }}</v-icon>
+                            <v-icon>{{ icons.musicNote }}</v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title>Output</v-list-item-title>
+                            <v-list-item-title>Score</v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
 
-                <router-link tag="div" to="/searches">
+                <router-link tag="div" to="/results">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <!-- <v-icon>format_list_bulleted</v-icon> -->
-                            <v-icon>{{ svgPath }}</v-icon>
+                            <v-icon>{{ icons.formatListBulleted }}</v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title>Searches</v-list-item-title>
+                            <v-list-item-title>Results</v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
@@ -44,8 +41,7 @@
                 <router-link tag="div" to="/history">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <!-- <v-icon>history</v-icon> -->
-                            <v-icon>{{ svgPath }}</v-icon>
+                            <v-icon>{{ icons.history }}</v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
                             <v-list-item-title>History</v-list-item-title>
@@ -56,8 +52,7 @@
                 <router-link tag="div" to="/settings">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <!-- <v-icon>settings</v-icon> -->
-                            <v-icon>{{ svgPath }}</v-icon>
+                            <v-icon>{{ icons.cog }}</v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
                             <v-list-item-title>Settings</v-list-item-title>
@@ -68,9 +63,8 @@
         </v-navigation-drawer>
 
         <v-app-bar app color="white" elevate-on-scroll>
-            <!-- <v-icon color="primary" @click.stop="drawer = !drawer">menu</v-icon> -->
             <v-icon color="primary" @click.stop="drawer = !drawer">{{
-                svgPath
+                icons.menu
             }}</v-icon>
             <v-img
                 src="@/assets/logo.svg"
@@ -82,8 +76,7 @@
                 contain
             ></v-img>
             <v-btn icon color="primary">
-                <v-icon>{{ svgPath }}</v-icon>
-                <!-- <v-icon>more_vert</v-icon> -->
+                <v-icon>{{ icons.dotsVertical }}</v-icon>
             </v-btn>
         </v-app-bar>
 
@@ -95,14 +88,31 @@
 
 
 <script>
-import { mdiAccount } from "@mdi/js";
+import {
+    mdiCog,
+    mdiDotsVertical,
+    mdiFormatListBulleted,
+    mdiHistory,
+    mdiMenu,
+    mdiMicrophone,
+    mdiMusicNote,
+} from "@mdi/js";
 
 export default {
     name: "App",
     data: () => ({
         drawer: null,
         menu: null,
-        svgPath: mdiAccount,
+
+        icons: {
+            cog: mdiCog,
+            dotsVertical: mdiDotsVertical,
+            formatListBulleted: mdiFormatListBulleted,
+            history: mdiHistory,
+            menu: mdiMenu,
+            microphone: mdiMicrophone,
+            musicNote: mdiMusicNote,
+        },
     }),
     mounted: function () {
         // readyServices().then();
