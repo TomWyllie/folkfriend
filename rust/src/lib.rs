@@ -29,6 +29,10 @@ impl FolkFriend {
         }
     }
 
+    pub fn version(&self) -> String {
+        ff_config::VERSION.to_string()
+    }
+
     pub fn load_index_from_json_string(&mut self, json_string: String) {
         let tune_index = index::tune_index_from_string(&json_string);
         self.query_engine.use_tune_index(tune_index);
@@ -99,6 +103,10 @@ impl FolkFriendWASM {
         FolkFriendWASM {
             ff: FolkFriend::new()
         }
+    }
+
+    pub fn version(&self) -> String {
+        self.ff.version()
     }
 
     pub fn load_index_from_json_string(&mut self, json_string: &str) {

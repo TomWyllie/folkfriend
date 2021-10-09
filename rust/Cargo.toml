@@ -1,10 +1,12 @@
 [package]
 name = "folkfriend"
-version = "3.0.0"
+version = "3.0.1"
 authors = ["Tom Wyllie <tom@wyllie.dev>"]
 edition = "2018"
 description = "Transcription and recognition of traditional instrumental folk music"
 documentation = "https://github.com/TomWyllie/folkfriend/blob/master/README.md"
+repository = "https://github.com/TomWyllie/folkfriend"
+license = "GPL-3.0-only"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

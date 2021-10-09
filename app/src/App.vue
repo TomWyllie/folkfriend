@@ -88,6 +88,7 @@
 
 
 <script>
+import ffBackend from "./services/backend.js";
 import {
     mdiCog,
     mdiDotsVertical,
@@ -115,7 +116,27 @@ export default {
         },
     }),
     mounted: function () {
-        // readyServices().then();
+        logVersion().then();
+        loadIndex().then();
     },
 };
+
+async function logVersion() {
+    let version = await ffBackend.version();
+    console.info("Loaded folkfriend backend version", version);
+}
+
+async function loadIndex() {
+    await ffBackend.version();
+    console.debug("Fetching index JSON");
+    fetch("/res/folkfriend-non-user-data.json")
+        .then((response) => response.text())
+        .then((response) => {
+            console.debug("Downloaded tune index");
+            ffBackend.loadIndexFromJSONString(response).then(() => {
+                console.debug("Loaded tune index into backend");
+            });
+        })
+        .catch((err) => console.log(err));
+}
 </script>

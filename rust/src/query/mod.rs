@@ -10,7 +10,7 @@ use fnv::FnvHashSet as HashSet;
 use std::collections::HashMap;
 use std::fmt;
 
-use std::time::Instant;
+// use std::time::Instant;
 
 pub struct QueryEngine {
     pub tune_index: Option<TuneIndex>,
@@ -50,7 +50,7 @@ impl QueryEngine {
     }
 
     pub fn use_tune_index(&mut self, tune_index: TuneIndex) {
-        let now = Instant::now();
+        // let now = Instant::now();
         self.heuristic_aliases_feats = heuristic::build_aliases_feats(&tune_index.aliases);
         self.heuristic_settings_feats = heuristic::build_settings_feats(&tune_index.settings);
         // Build tune-IDs to setting-IDs map
@@ -68,7 +68,7 @@ impl QueryEngine {
 
         self.setting_ids_by_tune_id = setting_ids_by_tune_id;
         self.tune_index = Some(tune_index);
-        eprintln!("Loaded tune index in {:.2?}", now.elapsed());
+        // eprintln!("Loaded tune index in {:.2?}", now.elapsed());
     }
 
     pub fn run_contour_query(
@@ -79,14 +79,14 @@ impl QueryEngine {
             None => Err(QueryError),
             Some(tune_index) => {
                 // === Heuristic search ===
-                let nowh = Instant::now();
+                // let nowh = Instant::now();
                 
                 // First pass: fast, but inaccurate. Good for eliminating many poor candidates.
                 let first_search =
                     heuristic::run_transcription_query(&contour, &self.heuristic_settings_feats);
-                eprintln!("Heuristic search took {:.2?}", nowh.elapsed());
+                // eprintln!("Heuristic search took {:.2?}", nowh.elapsed());
                 // === Full search ===
-                let nowf = Instant::now();
+                // let nowf = Instant::now();
                 // Second pass: slow, but accurate. Good for refining a shortlist of candidates.
                 let mut second_search: Vec<(u32, f32)> = Vec::new();
                 for (setting_id, _) in &first_search[0..self.num_repass] {
@@ -117,7 +117,7 @@ impl QueryEngine {
                         break;
                     }
                 }
-                eprintln!("Full search took {:.2?}", nowf.elapsed());
+                // eprintln!("Full search took {:.2?}", nowf.elapsed());
                 Ok(results)
             }
         }

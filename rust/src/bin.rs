@@ -18,7 +18,7 @@ use wav;
 
 fn main() {
     let matches = App::new("FolkFriend")
-        .version("3.0")
+        .version(folkfriend::ff_config::VERSION)
         .author("T.C. Wyllie <tom@wyllie.dev>")
         .about("Transcription and recognition of traditional instrumental folk music")
         .arg(

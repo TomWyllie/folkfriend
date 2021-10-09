@@ -1,4 +1,5 @@
 // Stores important global parameters that are re-used across FolkFriend.
+pub const VERSION: &str = "3.0.1";
 
 // ====================================
 // === Signal Processing Paramaters ===
