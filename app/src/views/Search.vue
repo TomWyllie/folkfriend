@@ -1,25 +1,9 @@
 <template>
     <div class="search">
-        <!-- TODO These sorts of ref / v-on interactions should be
-                replaced with Vuex at some point.-->
-        <RecorderButton class="mx-auto my-xl-5" ref="recorderButton" />
+        <RecorderButton class="mx-auto my-xl-5 pt-5" ref="recorderButton" />
 
         <v-container>
             <v-row wrap justify="center" class="mx-auto">
-                <v-btn
-                    v-on:click="placeholderMethod"
-                    :disabled="!offlineButton"
-                    class="mx-3"
-                >
-                    Run Demo
-                </v-btn>
-                <v-btn
-                    v-on:click="$refs.fileUpload.click()"
-                    :disabled="!offlineButton"
-                    class="mx-3"
-                >
-                    Upload Audio File
-                </v-btn>
                 <input
                     ref="fileUpload"
                     type="file"
@@ -42,7 +26,7 @@
                     >
                         <template v-slot:append>
                             <v-icon @click="placeholderMethod">{{
-                                mdiMagnify
+                                icons.magnify
                             }}</v-icon>
                         </template>
                     </v-text-field>
@@ -50,24 +34,28 @@
             </v-row>
         </v-container>
 
-        <v-container class="transcriptionSwitch py-0">
-            <v-row wrap justify="center">
-                <!-- <v-tooltip bottom>
-                    <template v-slot:activator="{ on, attrs }">
-                        <v-icon v-bind="attrs" v-on="on">{{ mdiHelp }}</v-icon>
-                    </template>
-                    <span
-                        >Removes recording timer; generates sheet music from
-                        recording rather than searching against known
-                        tunes.</span
+        <v-container class="py-0 mx-auto">
+            <v-row wrap align="center" justify="center" class="mx-0">
+                <v-col align="center" class="noFlexGrow px-5">
+                    <v-switch v-model="timerActive" inset>
+                        <template v-slot:label>
+                            <v-icon v-if="timerActive">{{
+                                icons.timerOutline
+                            }}</v-icon>
+                            <v-icon v-if="!timerActive">{{
+                                icons.timerOffOutline
+                            }}</v-icon>
+                        </template>
+                    </v-switch>
+                </v-col>
+                <v-col align="center" class="noFlexGrow px-5">
+                    <v-btn
+                        v-on:click="$refs.fileUpload.click()"
+                        :disabled="!offlineButton"
                     >
-                </v-tooltip> -->
-                <v-switch
-                    v-model="transcriptionMode"
-                    inset
-                    class="mx-auto"
-                    :label="`Transcription Mode`"
-                ></v-switch>
+                        Upload
+                    </v-btn>
+                </v-col>
             </v-row>
         </v-container>
 
@@ -88,7 +76,12 @@
 
 <script>
 import RecorderButton from "@/components/RecorderButton";
-import { mdiHelp, mdiMagnify } from "@mdi/js";
+import {
+    mdiHelp,
+    mdiMagnify,
+    mdiTimerOutline,
+    mdiTimerOffOutline,
+} from "@mdi/js";
 
 export default {
     name: "Search",
@@ -102,7 +95,6 @@ export default {
             snackbar: null,
             snackbarText: null,
 
-            transcriptionMode: null,
             textQuery: "",
 
             offlineButton: true,
@@ -112,8 +104,14 @@ export default {
             featureProgress: null,
             maxFramesProgress: null,
 
-            mdiHelp: mdiHelp,
-            mdiMagnify: mdiMagnify,
+            timerActive: true,
+
+            icons: {
+                help: mdiHelp,
+                magnify: mdiMagnify,
+                timerOutline: mdiTimerOutline,
+                timerOffOutline: mdiTimerOffOutline,
+            },
         };
     },
     methods: {
@@ -347,7 +345,7 @@ export default {
     max-width: 60%;
 }
 
-.transcriptionSwitch {
-    max-width: 70%;
+.noFlexGrow {
+    flex-grow: 0;
 }
 </style>

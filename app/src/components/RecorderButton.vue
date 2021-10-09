@@ -183,7 +183,7 @@ export default {
         updateRecorderCircleScale: function () {
             // [0.8, 1.0]
             this.recorderCircleScale =
-                0.8 + Math.min(0.2, Math.max(0, 0.05 * this.lastAudioVolume));
+                0.7 + Math.min(0.3, Math.max(0, 0.2 * this.lastAudioVolume));
         },
     },
 };
@@ -216,7 +216,7 @@ export default {
 .RecorderButton,
 .WorkingGears {
     display: block;
-    max-width: min(35vh, 35vw);
+    max-width: min(35vh, 45vw);
     user-select: none;
 }
 
