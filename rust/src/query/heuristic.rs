@@ -6,12 +6,12 @@ use crate::index::schema::*;
 use std::convert::TryInto;
 
 pub type HeuristicFeatures = HashSet<[char; 3]>;
-pub type SettingsFeats = HashMap<u32, HeuristicFeatures>;
-pub type AliasFeats = HashMap<u32, Vec<HeuristicFeatures>>;
+pub type SettingsFeats = HashMap<SettingID, HeuristicFeatures>;
+pub type AliasFeats = HashMap<TuneID, Vec<HeuristicFeatures>>;
 
 #[derive(Debug)]
 pub struct ScoredName {
-    pub tune_id: u32,
+    pub tune_id: TuneID,
     pub alias_index: usize,
     pub ngram_score: usize,
 }
@@ -20,7 +20,7 @@ pub fn build_settings_feats(tune_settings: &TuneSettings) -> SettingsFeats {
     let mut settings_feats: SettingsFeats = HashMap::new();
     for (setting_id, setting) in tune_settings {
         let feats = trigrams(&setting.contour);
-        settings_feats.insert(*setting_id, feats);
+        settings_feats.insert(setting_id.clone(), feats);
     }
     return settings_feats;
 }
@@ -35,7 +35,7 @@ pub fn build_aliases_feats(tune_aliases: &TuneAliases) -> AliasFeats {
             feats_by_name.push(trigrams(&tune_name));
         }
 
-        aliases_feats.insert(*tune_id, feats_by_name);
+        aliases_feats.insert(tune_id.clone(), feats_by_name);
     }
     return aliases_feats;
 }
@@ -43,13 +43,13 @@ pub fn build_aliases_feats(tune_aliases: &TuneAliases) -> AliasFeats {
 pub fn run_transcription_query(
     query: &String,
     settings_feats: &SettingsFeats,
-) -> Vec<(u32, usize)> {
+) -> Vec<(SettingID, usize)> {
     let query = trigrams(query);
-    let mut ranked_settings: HashMap<u32, usize> = HashMap::new();
+    let mut ranked_settings: HashMap<SettingID, usize> = HashMap::new();
     for (setting_id, feats) in settings_feats {
         let intersection = query.intersection(feats);
         let score = intersection.collect::<Vec<&[char; 3]>>().len();
-        ranked_settings.insert(*setting_id, score);
+        ranked_settings.insert(setting_id.clone(), score);
     }
     let mut sorted_rankings: Vec<_> = ranked_settings.into_iter().collect();
     sorted_rankings.sort_by(|x, y| y.1.cmp(&x.1));
@@ -67,7 +67,7 @@ pub fn run_name_query<'a>(query: &String, alias_feats: &AliasFeats) -> Vec<Score
             let intersection = query.intersection(feat);
             let score = intersection.collect::<Vec<&[char; 3]>>().len();
             scored_names.push(ScoredName {
-                tune_id: *tune_id,
+                tune_id: tune_id.clone(),
                 alias_index: i,
                 ngram_score: score,
             });

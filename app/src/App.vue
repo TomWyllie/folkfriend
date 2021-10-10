@@ -127,14 +127,32 @@ async function logVersion() {
 }
 
 async function loadIndex() {
+    
+    // Profiling
+
+    //           PC         S9          iPhone SE
+    // 'native'  1785ms     26137ms
+    
+    
     await ffBackend.version();
     console.debug("Fetching index JSON");
     fetch("/res/folkfriend-non-user-data.json")
-        .then((response) => response.text())
+        .then((response) => response.json())
         .then((response) => {
             console.debug("Downloaded tune index");
-            ffBackend.loadIndexFromJSONString(response).then(() => {
+
+            console.debug(response);
+
+            // Memory loading test...
+            //  Cutting out this results in a ~20% speedup
+            for(let settingID in response.settings) {
+                response.settings[settingID].abc = "";
+            }
+
+            console.time("index-parse");
+            ffBackend.loadIndexFromJSONObj(response).then(() => {
                 console.debug("Loaded tune index into backend");
+                console.timeEnd("index-parse");
             });
         })
         .catch((err) => console.log(err));

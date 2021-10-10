@@ -5,10 +5,18 @@ pub mod ff_config;
 pub mod index;
 pub mod query;
 
-use std::slice;
-use std::convert::TryInto;
-use wasm_bindgen::prelude::*;
 use serde_json::json;
+use std::convert::TryInto;
+use std::slice;
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
 
 pub struct FolkFriend {
     query_engine: query::QueryEngine,
@@ -84,7 +92,6 @@ impl FolkFriend {
     }
 }
 
-
 // Define a WASM-safe version of this FolkFriend class. The key point is that
 //  all function signatures will have simple types that can pass between WASM
 //  and JS. e.g. search results are encoded as a JSON String rather than a
@@ -93,7 +100,7 @@ impl FolkFriend {
 
 #[wasm_bindgen]
 pub struct FolkFriendWASM {
-    ff: FolkFriend
+    ff: FolkFriend,
 }
 
 #[wasm_bindgen]
@@ -101,7 +108,7 @@ impl FolkFriendWASM {
     #[wasm_bindgen(constructor)]
     pub fn new() -> FolkFriendWASM {
         FolkFriendWASM {
-            ff: FolkFriend::new()
+            ff: FolkFriend::new(),
         }
     }
 
@@ -109,8 +116,17 @@ impl FolkFriendWASM {
         self.ff.version()
     }
 
-    pub fn load_index_from_json_string(&mut self, json_string: &str) {
-        self.ff.load_index_from_json_string(json_string.to_string());
+    pub fn load_index_from_json_obj(&mut self, js_value: JsValue) {
+        // This function doesn't call the underlying self.ff.load_index_from_string.
+        //  JSON parsing is very slow when done like this (2-3 minutes on
+        //  modern phone in WASM).
+        // "native"
+        // let tune_index: index::TuneIndex = js_value.into_serde().unwrap();
+        // "direct"
+        let tune_index: index::TuneIndex = serde_wasm_bindgen::from_value(js_value).unwrap();
+        
+        // TODO this NEEDS to be made quicker.
+        self.ff.query_engine.use_tune_index(tune_index);
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: u32) {
@@ -126,11 +142,10 @@ impl FolkFriendWASM {
         //  This is required for passing Float32Arrays (audio data) from
         //   javascript into rust.
         let mut buf: [f32; ff_config::SPEC_WINDOW_SIZE] = [0.; ff_config::SPEC_WINDOW_SIZE];
-        
-        // This pointer will be given to JavaScript so that it can write 
+
+        // This pointer will be given to JavaScript so that it can write
         //  directly into WebAssembly's memory
         let ptr = buf.as_mut_ptr();
-        
         // Take ownership of this memory block to prevent destruction
         // See https://radu-matei.com/blog/practical-guide-to-wasm-memory/
         std::mem::forget(buf);
@@ -140,7 +155,8 @@ impl FolkFriendWASM {
 
     pub fn feed_single_pcm_window(&mut self, ptr: *mut f32) {
         let pcm_window = unsafe { slice::from_raw_parts(ptr, ff_config::SPEC_WINDOW_SIZE) };
-        self.ff.feed_single_pcm_window(pcm_window.try_into().unwrap());
+        self.ff
+            .feed_single_pcm_window(pcm_window.try_into().unwrap());
     }
 
     pub fn flush_pcm_buffer(&mut self) {
@@ -154,29 +170,27 @@ impl FolkFriendWASM {
     pub fn run_transcription_query(&self, contour: &str) -> String {
         // TODO proper error propagation in JSON back to javascript
         let result = self.ff.run_transcription_query(&contour.to_string());
-        
         if let Ok(query_result) = result {
             return json!(query_result).to_string();
         } else {
             return "{
                 \"error\": \"transcription query error\"
-            }".to_string();
+            }"
+            .to_string();
         }
     }
-    
     pub fn run_name_query(&self, query: &str) -> String {
         // TODO proper error propagation in JSON back to javascriptx
         let result = self.ff.run_name_query(&query.to_string());
-        
         if let Ok(query_result) = result {
             return json!(query_result).to_string();
         } else {
             return "{
                 \"error\": \"name query error\"
-            }".to_string();
+            }"
+            .to_string();
         }
     }
-    
     pub fn contour_to_abc(&self, contour: &str) -> String {
         self.ff.contour_to_abc(&contour.to_string())
     }

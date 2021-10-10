@@ -20,9 +20,9 @@ class FolkFriendWASMWrapper {
         cb(this.folkfriendWASM.version());
     }
 
-    async loadIndexFromJSONString(JSONString) {
+    async loadIndexFromJSONObj(obj) {
         await this.loadedWASM;
-        this.folkfriendWASM.load_index_from_json_string(JSONString);
+        this.folkfriendWASM.load_index_from_json_obj(obj);
     }
 }
 

@@ -12,9 +12,20 @@ use std::fmt;
 
 // use std::time::Instant;
 
+use wasm_bindgen::prelude::*;
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn time(s: &str);
+    #[wasm_bindgen(js_namespace = console)]
+    fn timeEnd(s: &str);
+}
+
 pub struct QueryEngine {
     pub tune_index: Option<TuneIndex>,
-    setting_ids_by_tune_id: HashMap<u32, Vec<u32>>,
+    setting_ids_by_tune_id: HashMap<TuneID, Vec<SettingID>>,
     heuristic_aliases_feats: heuristic::AliasFeats,
     heuristic_settings_feats: heuristic::SettingsFeats,
     num_repass: usize,
@@ -53,13 +64,14 @@ impl QueryEngine {
         // let now = Instant::now();
         self.heuristic_aliases_feats = heuristic::build_aliases_feats(&tune_index.aliases);
         self.heuristic_settings_feats = heuristic::build_settings_feats(&tune_index.settings);
+        
         // Build tune-IDs to setting-IDs map
-        let mut setting_ids_by_tune_id: HashMap<u32, Vec<u32>> = HashMap::new();
+        let mut setting_ids_by_tune_id: HashMap<TuneID, Vec<SettingID>> = HashMap::new();
         for (setting_id, setting) in &tune_index.settings {
             setting_ids_by_tune_id
-                .entry(setting.tune_id)
+                .entry(setting.tune_id.clone())
                 .or_insert(Vec::new())
-                .push(*setting_id);
+                .push(setting_id.clone());
         }
 
         for (_, setting_ids) in setting_ids_by_tune_id.iter_mut() {
@@ -68,6 +80,7 @@ impl QueryEngine {
 
         self.setting_ids_by_tune_id = setting_ids_by_tune_id;
         self.tune_index = Some(tune_index);
+
         // eprintln!("Loaded tune index in {:.2?}", now.elapsed());
     }
 
@@ -88,17 +101,17 @@ impl QueryEngine {
                 // === Full search ===
                 // let nowf = Instant::now();
                 // Second pass: slow, but accurate. Good for refining a shortlist of candidates.
-                let mut second_search: Vec<(u32, f32)> = Vec::new();
+                let mut second_search: Vec<(SettingID, f32)> = Vec::new();
                 for (setting_id, _) in &first_search[0..self.num_repass] {
                     let score =
                         nw::needleman_wunsch(&contour, &tune_index.settings[setting_id].contour);
-                    second_search.push((*setting_id, score));
+                    second_search.push((setting_id.clone(), score));
                 }
                 let mut sorted_rankings: Vec<_> = second_search.into_iter().collect();
                 sorted_rankings.sort_by(|x, y| y.1.partial_cmp(&x.1).unwrap());
                 let mut results: TranscriptionQueryResults = Vec::new();
 
-                let mut tune_ids_in_results: HashSet<u32> = HashSet::default();
+                let mut tune_ids_in_results: HashSet<TuneID> = HashSet::default();
 
                 for (setting_id, score) in sorted_rankings.iter() {
                     let setting = &tune_index.settings[setting_id];
@@ -106,7 +119,7 @@ impl QueryEngine {
                         continue;
                     }
 
-                    tune_ids_in_results.insert(setting.tune_id);
+                    tune_ids_in_results.insert(setting.tune_id.clone());
                     results.push(TranscriptionQueryRecord {
                         setting: setting.clone(),
                         score: *score,
@@ -142,11 +155,11 @@ impl QueryEngine {
                     }
                 });
 
-                let mut tune_ids_in_results: HashSet<u32> = HashSet::default();
+                let mut tune_ids_in_results: HashSet<TuneID> = HashSet::default();
 
                 let top_scores: NameQueryResults = scored_names
                     .iter()
-                    .filter(|t| tune_ids_in_results.insert(t.tune_id))
+                    .filter(|t| tune_ids_in_results.insert(t.tune_id.clone()))
                     .take(20)
                     .map(|t| {
                         NameQueryRecord {
@@ -154,7 +167,7 @@ impl QueryEngine {
                             //  never be an alias without a corresponding setting
                             setting: tune_index
                                 .settings
-                                .get(&self.setting_ids_from_tune_id(t.tune_id).unwrap()[0])
+                                .get(&self.setting_ids_from_tune_id(t.tune_id.clone()).unwrap()[0])
                                 .unwrap()
                                 .clone(),
                             display_name: tune_index.aliases.get(&t.tune_id).unwrap()
@@ -168,7 +181,7 @@ impl QueryEngine {
         }
     }
 
-    pub fn setting_ids_from_tune_id(&self, tune_id: u32) -> Option<&Vec<u32>> {
+    pub fn setting_ids_from_tune_id(&self, tune_id: TuneID) -> Option<&Vec<SettingID>> {
         self.setting_ids_by_tune_id.get(&tune_id)
     }
 }
