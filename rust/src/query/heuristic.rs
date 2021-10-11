@@ -9,6 +9,8 @@ pub type HeuristicFeatures = HashSet<[char; 3]>;
 pub type SettingsFeats = HashMap<SettingID, HeuristicFeatures>;
 pub type AliasFeats = HashMap<TuneID, Vec<HeuristicFeatures>>;
 
+// use std::time::Instant;
+
 #[derive(Debug)]
 pub struct ScoredName {
     pub tune_id: TuneID,
@@ -46,6 +48,8 @@ pub fn run_transcription_query(
 ) -> Vec<(SettingID, usize)> {
     let query = trigrams(query);
     let mut ranked_settings: HashMap<SettingID, usize> = HashMap::new();
+    // let now = Instant::now();
+
     for (setting_id, feats) in settings_feats {
         let intersection = query.intersection(feats);
         let score = intersection.collect::<Vec<&[char; 3]>>().len();
@@ -53,6 +57,8 @@ pub fn run_transcription_query(
     }
     let mut sorted_rankings: Vec<_> = ranked_settings.into_iter().collect();
     sorted_rankings.sort_by(|x, y| y.1.cmp(&x.1));
+
+    // eprintln!("Heuristic transcription query in {:.2?}", now.elapsed());
 
     return sorted_rankings;
 }
@@ -80,7 +86,6 @@ pub fn run_name_query<'a>(query: &String, alias_feats: &AliasFeats) -> Vec<Score
 pub fn trigrams(query: &String) -> HeuristicFeatures {
     let mut feats: HeuristicFeatures = HashSet::default();
     let chars: Vec<char> = query.chars().collect();
-
     if chars.len() <= 2 {
         return feats;
     }
@@ -89,6 +94,5 @@ pub fn trigrams(query: &String) -> HeuristicFeatures {
         let ngram: [char; 3] = chars[i..i + 3].try_into().unwrap();
         feats.insert(ngram);
     }
-
     return feats;
 }

@@ -64,6 +64,7 @@ impl QueryEngine {
         // let now = Instant::now();
         self.heuristic_aliases_feats = heuristic::build_aliases_feats(&tune_index.aliases);
         self.heuristic_settings_feats = heuristic::build_settings_feats(&tune_index.settings);
+        // eprintln!("Heuristic indices built in {:.2?}", now.elapsed());
         
         // Build tune-IDs to setting-IDs map
         let mut setting_ids_by_tune_id: HashMap<TuneID, Vec<SettingID>> = HashMap::new();
@@ -81,7 +82,6 @@ impl QueryEngine {
         self.setting_ids_by_tune_id = setting_ids_by_tune_id;
         self.tune_index = Some(tune_index);
 
-        // eprintln!("Loaded tune index in {:.2?}", now.elapsed());
     }
 
     pub fn run_contour_query(

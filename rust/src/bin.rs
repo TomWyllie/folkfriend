@@ -1,18 +1,16 @@
-// mod dataset;
-// mod debug_features;
-
 extern crate folkfriend;
-use folkfriend::FolkFriend;
 
 use clap::{App, Arg};
-// use indicatif::ProgressBar;
-// use rayon::prelude::*;
 use dirs;
+use folkfriend::FolkFriend;
+use indicatif::{ProgressBar, ProgressStyle};
+use rayon::prelude::*;
+use reqwest;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use reqwest;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use wav;
 
@@ -49,7 +47,7 @@ fn main() {
     eprintln!("FolkFriend command finished in {:.2?}", now.elapsed());
 }
 
-fn process_audio_files(mut ff: FolkFriend, input: String, with_transcription_query: bool) {
+fn process_audio_files(ff: FolkFriend, input: String, with_transcription_query: bool) {
     // Load file paths from arguments / input CSV file
     let input_is_csv = input.ends_with(".csv");
     let audio_file_paths;
@@ -68,14 +66,30 @@ fn process_audio_files(mut ff: FolkFriend, input: String, with_transcription_que
 
     let verbose: bool = { audio_file_paths.len() == 1 };
 
-    // TODO set up parallelisation (single threaded at the moment)
+    // The FolkFriend struct is not set up for happy concurrency.
+    //  To avoid the unecessary complication of mutex etc, we just
+    //  bypass the higher level wrapper.
+    let feature_decoder = folkfriend::decode::FeatureDecoder::new();
 
-    for audio_file_path in audio_file_paths {
+    let bar = ProgressBar::new(audio_file_paths.len() as u64);
+    bar.set_message("Processing audio files");
+    bar.set_style(
+        ProgressStyle::default_bar()
+            .template("[{msg} {elapsed_precise}]  {wide_bar}  {pos}/{len}  [{per_sec}, ETA {eta_precise}]"),
+    );
+
+    let skipped_files: Vec<String> = Vec::new();
+    let skipped_files = Arc::new(Mutex::new(skipped_files));
+
+    audio_file_paths.par_iter().for_each(|audio_file_path| {
+        bar.inc(1);
         if !audio_file_path.ends_with(".wav") {
-            eprintln!("Skipping non .wav file `{}`", audio_file_path);
-            continue;
+            skipped_files
+                .lock()
+                .unwrap()
+                .push(format!("Skipped non .wav file `{}`", audio_file_path));
+            return;
         }
-
         let wav_path;
         if input_is_csv {
             let csv_dir = Path::new(&input).parent().unwrap();
@@ -85,19 +99,21 @@ fn process_audio_files(mut ff: FolkFriend, input: String, with_transcription_que
         }
 
         let (signal, sample_rate) = pcm_signal_from_wav(&wav_path);
-
-        ff.set_sample_rate(sample_rate);
-        ff.feed_entire_pcm_signal(signal);
-        let contour = ff.transcribe_pcm_buffer();
+        // The FolkFriend struct is not set up for happy concurrency.
+        //  To avoid the unecessary complication of mutex etc, we just
+        //  bypass the higher level wrapper.
+        let mut fe = folkfriend::feature::feature_extractor::FeatureExtractor::new(sample_rate);
+        fe.feed_signal(signal);
+        let contour = feature_decoder.decode(&mut fe.features);
 
         if !with_transcription_query {
             println!("=== Transcription for file {:?} ===", audio_file_path);
             println!("Midi sequence: {:?}", contour);
-            println!("ABC: {:?}", ff.contour_to_abc(&contour));
-            continue;
+            println!("ABC: {:?}", &ff.contour_to_abc(&contour));
+            return;
         }
 
-        let results = ff
+        let results = &ff
             .run_transcription_query(&contour)
             .expect("something failed");
         if verbose {
@@ -122,6 +138,12 @@ fn process_audio_files(mut ff: FolkFriend, input: String, with_transcription_que
 
             println!("{}", line_out);
         }
+    });
+
+    bar.finish();
+
+    for skipped_file in skipped_files.lock().unwrap().iter() {
+        eprintln!("{}", skipped_file);
     }
 
     // let decoder = folkfriend::decode::FeatureDecoder::new();
@@ -133,8 +155,6 @@ fn pcm_signal_from_wav(wav_file_path: &PathBuf) -> (Vec<f32>, u32) {
     let mut inp_file = File::open(Path::new(&wav_file_path)).unwrap();
     let (header, data) = wav::read(&mut inp_file).unwrap();
 
-    // let mut fe =
-    //     folkfriend::feature::feature_extractor::FeatureExtractor::new(header.sampling_rate);
     let signal: Vec<i16> = data.try_into_sixteen().unwrap();
 
     let mut signal_f: Vec<f32> = vec![0.; signal.len()];
@@ -166,7 +186,6 @@ fn name_query(ff: FolkFriend, name: String) {
 }
 
 pub fn get_tune_index_json() -> String {
-    
     let mut folkfriend_index: PathBuf = dirs::home_dir().unwrap();
     folkfriend_index.push(".folkfriend");
     std::fs::create_dir_all(&folkfriend_index).unwrap();
@@ -175,16 +194,13 @@ pub fn get_tune_index_json() -> String {
     let index_url = "https://raw.githubusercontent.com/TomWyllie/folkfriend-app-data/master/folkfriend-non-user-data.json";
 
     if !folkfriend_index.exists() {
-
         let resp = reqwest::blocking::get(index_url).unwrap().text().unwrap();
-        fs::write(&folkfriend_index, resp).expect("Couldn't write data to index file");      
+        fs::write(&folkfriend_index, resp).expect("Couldn't write data to index file");
     }
 
     let data = fs::read_to_string(folkfriend_index).expect("Couldn't read index");
     return data;
 }
-
-
 
 // use crate::folkfriend::feature::types::Features;
 // use crate::folkfriend::ff_config;
