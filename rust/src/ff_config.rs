@@ -74,3 +74,5 @@ pub const CONTOUR_TO_QUERY_CHAR: [char; MIDI_NUM as usize] = [
     'O', 'P', 'Q', 'R', 'S',
     'T', 'U', 'V'
 ];
+
+pub const QUERY_REPASS_SIZE: usize = 1000;

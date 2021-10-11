@@ -4,11 +4,11 @@ mod nw;
 use crate::decode;
 use crate::index::schema::*;
 use crate::index::TuneIndex;
-use serde::Serialize;
-
 use fnv::FnvHashSet as HashSet;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
+use crate::ff_config;
 
 // use std::time::Instant;
 
@@ -55,7 +55,7 @@ impl QueryEngine {
             setting_ids_by_tune_id: HashMap::new(),
             heuristic_aliases_feats: HashMap::new(),
             heuristic_settings_feats: HashMap::new(),
-            num_repass: 2000,
+            num_repass: ff_config::QUERY_REPASS_SIZE,
             num_output: 100,
         }
     }
@@ -65,7 +65,6 @@ impl QueryEngine {
         self.heuristic_aliases_feats = heuristic::build_aliases_feats(&tune_index.aliases);
         self.heuristic_settings_feats = heuristic::build_settings_feats(&tune_index.settings);
         // eprintln!("Heuristic indices built in {:.2?}", now.elapsed());
-        
         // Build tune-IDs to setting-IDs map
         let mut setting_ids_by_tune_id: HashMap<TuneID, Vec<SettingID>> = HashMap::new();
         for (setting_id, setting) in &tune_index.settings {
@@ -81,7 +80,6 @@ impl QueryEngine {
 
         self.setting_ids_by_tune_id = setting_ids_by_tune_id;
         self.tune_index = Some(tune_index);
-
     }
 
     pub fn run_contour_query(
@@ -93,7 +91,6 @@ impl QueryEngine {
             Some(tune_index) => {
                 // === Heuristic search ===
                 // let nowh = Instant::now();
-                
                 // First pass: fast, but inaccurate. Good for eliminating many poor candidates.
                 let first_search =
                     heuristic::run_transcription_query(&contour, &self.heuristic_settings_feats);
@@ -171,7 +168,8 @@ impl QueryEngine {
                                 .unwrap()
                                 .clone(),
                             display_name: tune_index.aliases.get(&t.tune_id).unwrap()
-                                [t.alias_index].clone(),
+                                [t.alias_index]
+                                .clone(),
                         }
                     })
                     .collect();
