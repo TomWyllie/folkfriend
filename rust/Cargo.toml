@@ -20,6 +20,7 @@ name = "folkfriend"
 path = "src/bin.rs"
 
 [dependencies]
+aho-corasick = "0.7.18"
 clap = "3.0.0-beta.4"
 csv = "1.1"
 dirs = "4.0.0"

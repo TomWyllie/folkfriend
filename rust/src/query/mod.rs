@@ -2,32 +2,17 @@ mod heuristic;
 mod nw;
 
 use crate::decode;
+use crate::ff_config;
 use crate::index::schema::*;
 use crate::index::TuneIndex;
 use fnv::FnvHashSet as HashSet;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
-use crate::ff_config;
-
-// use std::time::Instant;
-
-use wasm_bindgen::prelude::*;
-#[wasm_bindgen]
-extern "C" {
-    // Use `js_namespace` here to bind `console.log(..)` instead of just
-    // `log(..)`
-    #[wasm_bindgen(js_namespace = console)]
-    fn time(s: &str);
-    #[wasm_bindgen(js_namespace = console)]
-    fn timeEnd(s: &str);
-}
 
 pub struct QueryEngine {
     pub tune_index: Option<TuneIndex>,
     setting_ids_by_tune_id: HashMap<TuneID, Vec<SettingID>>,
-    heuristic_aliases_feats: heuristic::AliasFeats,
-    heuristic_settings_feats: heuristic::SettingsFeats,
     num_repass: usize,
     num_output: usize,
 }
@@ -53,18 +38,12 @@ impl QueryEngine {
         QueryEngine {
             tune_index: None,
             setting_ids_by_tune_id: HashMap::new(),
-            heuristic_aliases_feats: HashMap::new(),
-            heuristic_settings_feats: HashMap::new(),
             num_repass: ff_config::QUERY_REPASS_SIZE,
             num_output: 100,
         }
     }
 
     pub fn use_tune_index(&mut self, tune_index: TuneIndex) {
-        // let now = Instant::now();
-        self.heuristic_aliases_feats = heuristic::build_aliases_feats(&tune_index.aliases);
-        self.heuristic_settings_feats = heuristic::build_settings_feats(&tune_index.settings);
-        // eprintln!("Heuristic indices built in {:.2?}", now.elapsed());
         // Build tune-IDs to setting-IDs map
         let mut setting_ids_by_tune_id: HashMap<TuneID, Vec<SettingID>> = HashMap::new();
         for (setting_id, setting) in &tune_index.settings {
@@ -89,15 +68,18 @@ impl QueryEngine {
         match &self.tune_index {
             None => Err(QueryError),
             Some(tune_index) => {
+                //
                 // === Heuristic search ===
-                // let nowh = Instant::now();
                 // First pass: fast, but inaccurate. Good for eliminating many poor candidates.
-                let first_search =
-                    heuristic::run_transcription_query(&contour, &self.heuristic_settings_feats);
+                //
+                // let nowh = Instant::now();
+                let first_search = heuristic::run_transcription_query(&contour, &tune_index);
                 // eprintln!("Heuristic search took {:.2?}", nowh.elapsed());
+                //
                 // === Full search ===
-                // let nowf = Instant::now();
                 // Second pass: slow, but accurate. Good for refining a shortlist of candidates.
+                //
+                // let nowf = Instant::now();
                 let mut second_search: Vec<(SettingID, f32)> = Vec::new();
                 for (setting_id, _) in &first_search[0..self.num_repass] {
                     let score =
@@ -138,7 +120,7 @@ impl QueryEngine {
             None => Err(QueryError),
             Some(tune_index) => {
                 let mut scored_names: Vec<heuristic::ScoredName> =
-                    heuristic::run_name_query(query, &self.heuristic_aliases_feats);
+                    heuristic::run_name_query(query, &tune_index);
 
                 scored_names.sort_unstable_by(|a, b| match b.ngram_score.cmp(&a.ngram_score) {
                     std::cmp::Ordering::Less => std::cmp::Ordering::Less,

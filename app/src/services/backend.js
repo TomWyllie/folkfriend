@@ -26,6 +26,32 @@ class FFBackend {
     async loadIndexFromJSONObj(obj) {
         await this.folkfriendWASMWrapper.loadIndexFromJSONObj(obj);
     }
+
+    /* Functions with args and return values */
+    async runTranscriptionQuery(query) {
+        return new Promise(resolve => {
+            this.folkfriendWASMWrapper.runTranscriptionQuery(query, Comlink.proxy(response => {
+                resolve(response);
+            }));
+        })
+    }
+
+    async runNameQuery(query) {
+        return new Promise(resolve => {
+            this.folkfriendWASMWrapper.runNameQuery(query, Comlink.proxy(response => {
+                resolve(response);
+            }));
+        })
+    }
+
+    async contourToAbc(contour) {
+        return new Promise(resolve => {
+            this.folkfriendWASMWrapper.contourToAbc(contour, Comlink.proxy(abc => {
+                resolve(abc);
+            }));
+        })
+    }
+
 }
 
 const ffBackend = new FFBackend();

@@ -75,4 +75,8 @@ pub const CONTOUR_TO_QUERY_CHAR: [char; MIDI_NUM as usize] = [
     'T', 'U', 'V'
 ];
 
-pub const QUERY_REPASS_SIZE: usize = 1000;
+// Just found in testing that with musical notes 4 is better
+//  and with searching strings for names 3 seems to be better :)
+pub const QUERY_NGRAM_SIZE_CONTOUR: usize = 4;  // "quadgram"
+pub const QUERY_NGRAM_SIZE_NAME: usize = 3;     // "trigram"
+pub const QUERY_REPASS_SIZE: usize = 800;

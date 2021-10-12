@@ -98,6 +98,7 @@ import {
     mdiMicrophone,
     mdiMusicNote,
 } from "@mdi/js";
+import store from "./services/store.js";
 
 export default {
     name: "App",
@@ -116,10 +117,15 @@ export default {
         },
     }),
     mounted: function () {
-        logVersion().then();
-        loadIndex().then();
+        initSetup().then();
     },
 };
+
+async function initSetup() {
+    await logVersion();
+    await loadIndex();
+    await runQueryDemo();
+}
 
 async function logVersion() {
     let version = await ffBackend.version();
@@ -127,34 +133,27 @@ async function logVersion() {
 }
 
 async function loadIndex() {
-    
-    // Profiling
-
-    //           PC         S9          iPhone SE
-    // 'native'  1785ms     26137ms
-    
-    
-    await ffBackend.version();
     console.debug("Fetching index JSON");
-    fetch("/res/folkfriend-non-user-data.json")
+    await fetch("/res/folkfriend-non-user-data.json")
         .then((response) => response.json())
         .then((response) => {
             console.debug("Downloaded tune index");
-
-            console.debug(response);
-
-            // Memory loading test...
-            //  Cutting out this results in a ~20% speedup
-            for(let settingID in response.settings) {
-                response.settings[settingID].abc = "";
-            }
-
             console.time("index-parse");
-            ffBackend.loadIndexFromJSONObj(response).then(() => {
-                console.debug("Loaded tune index into backend");
-                console.timeEnd("index-parse");
-            });
+            return ffBackend.loadIndexFromJSONObj(response);
+        })
+        .then(() => {
+            console.debug("Loaded tune index into backend");
+            console.timeEnd("index-parse");
         })
         .catch((err) => console.log(err));
+}
+
+async function runQueryDemo() {
+    console.time("query-demo");
+    const query =
+        "xACEHCEAEACEFCAEACCAxAEACEFCHvvCECEAEACEFCCEACAxAEACEFCHvvCECEA";
+    const results = await ffBackend.runTranscriptionQuery(query);
+    console.debug(results);
+    console.timeEnd("query-demo");
 }
 </script>

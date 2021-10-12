@@ -71,18 +71,26 @@ fn process_audio_files(ff: FolkFriend, input: String, with_transcription_query: 
     //  bypass the higher level wrapper.
     let feature_decoder = folkfriend::decode::FeatureDecoder::new();
 
-    let bar = ProgressBar::new(audio_file_paths.len() as u64);
-    bar.set_message("Processing audio files");
-    bar.set_style(
-        ProgressStyle::default_bar()
-            .template("[{msg} {elapsed_precise}]  {wide_bar}  {pos}/{len}  [{per_sec}, ETA {eta_precise}]"),
-    );
+    let mut progress: Option<ProgressBar> = None;
+
+    if audio_file_paths.len() > 1 {
+        let bar = ProgressBar::new(audio_file_paths.len() as u64);
+        bar.set_message("Processing audio files");
+        bar.set_style(
+            ProgressStyle::default_bar()
+                .template("[{msg} {elapsed_precise}]  {wide_bar}  {pos}/{len}  [{per_sec}, ETA {eta_precise}]"),
+        );
+        progress = Some(bar);
+    }
 
     let skipped_files: Vec<String> = Vec::new();
     let skipped_files = Arc::new(Mutex::new(skipped_files));
 
     audio_file_paths.par_iter().for_each(|audio_file_path| {
-        bar.inc(1);
+        if let Some(bar) = &progress {
+            bar.inc(1);
+        }        
+
         if !audio_file_path.ends_with(".wav") {
             skipped_files
                 .lock()
@@ -140,7 +148,9 @@ fn process_audio_files(ff: FolkFriend, input: String, with_transcription_query: 
         }
     });
 
-    bar.finish();
+    if let Some(bar) = progress {
+        bar.finish();
+    }        
 
     for skipped_file in skipped_files.lock().unwrap().iter() {
         eprintln!("{}", skipped_file);

@@ -118,14 +118,7 @@ impl FolkFriendWASM {
 
     pub fn load_index_from_json_obj(&mut self, js_value: JsValue) {
         // This function doesn't call the underlying self.ff.load_index_from_string.
-        //  JSON parsing is very slow when done like this (2-3 minutes on
-        //  modern phone in WASM).
-        // "native"
-        // let tune_index: index::TuneIndex = js_value.into_serde().unwrap();
-        // "direct"
         let tune_index: index::TuneIndex = serde_wasm_bindgen::from_value(js_value).unwrap();
-        
-        // TODO this NEEDS to be made quicker.
         self.ff.query_engine.use_tune_index(tune_index);
     }
 
