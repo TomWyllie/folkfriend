@@ -22,9 +22,8 @@ class FFBackend {
         });
     }
 
-    /* Function with args but no return values */
-    async loadIndexFromJSONObj(obj) {
-        await this.folkfriendWASMWrapper.loadIndexFromJSONObj(obj);
+    async loadIndex() {
+        await this.folkfriendWASMWrapper.loadIndex();
     }
 
     /* Functions with args and return values */

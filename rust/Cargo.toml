@@ -37,18 +37,8 @@ serde_json = "1.0"
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 wav = "1.0.0"
 
-# wasm-pack bugfix. See https://github.com/rustwasm/wasm-pack/issues/886, https://stackoverflow.com/questions/64507718/why-does-wasm-opt-fail-in-wasm-pack-builds-when-generating-a-function-returning
-#[package.metadata.wasm-pack.profile.release]
-#wasm-opt = ["-Oz", "--enable-mutable-globals"]
-
 [package.metadata.wasm-pack.profile.release]
-# Should `wasm-opt` be used to further optimize the wasm binary generated after
-# the Rust compiler has finished? Using `wasm-opt` can often further decrease
-# binary size or do clever tricks that haven't made their way into LLVM yet.
-#
-# Configuration is set to `false` by default for the dev profile, but it can
-# be set to an array of strings which are explicit arguments to pass to
-# `wasm-opt`. For example `['-Os']` would optimize for size while `['-O4']`
-# would execute very expensive optimizations passes
-# wasm-opt = ['-Os']
 wasm-opt = false
+
+[profile.release]
+lto = true

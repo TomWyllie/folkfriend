@@ -134,18 +134,25 @@ async function logVersion() {
 
 async function loadIndex() {
     console.debug("Fetching index JSON");
-    await fetch("/res/folkfriend-non-user-data.json")
-        .then((response) => response.json())
-        .then((response) => {
-            console.debug("Downloaded tune index");
-            console.time("index-parse");
-            return ffBackend.loadIndexFromJSONObj(response);
-        })
-        .then(() => {
-            console.debug("Loaded tune index into backend");
-            console.timeEnd("index-parse");
-        })
-        .catch((err) => console.log(err));
+    await ffBackend.loadIndex();
+
+    // await fetch("/res/folkfriend-non-user-data.json")
+    //     .then((response) => response.json())
+    //     .then((response) => {
+    //         console.debug("Downloaded tune index");
+    //         console.time("index-parse");
+
+    //         for (let settingID in response.settings) {
+    //             response.settings[settingID].abc = ""
+    //         }
+
+    //         return ffBackend.loadIndexFromJSONObj(response);
+    //     })
+    //     .then(() => {
+    //         console.debug("Loaded tune index into backend");
+    //         console.timeEnd("index-parse");
+    //     })
+    //     .catch((err) => console.log(err));
 }
 
 async function runQueryDemo() {

@@ -11,7 +11,7 @@ class FolkFriendWASMWrapper {
         this.loadedIndex = new Promise(resolve => {
             this.setLoadedIndex = resolve;
         });
-        
+
         init().then(() => {
             this.folkfriendWASM = new FolkFriendWASM();
             this.setLoadedWASM();
@@ -23,9 +23,23 @@ class FolkFriendWASMWrapper {
         cb(this.folkfriendWASM.version());
     }
 
-    async loadIndexFromJSONObj(obj) {
+    async loadIndex() {
+        console.time("index-fetch");
+        const response = await fetch("/res/folkfriend-non-user-data.json")
+            .then((response) => response.json())
+            .catch((err) => console.log(err));
+        console.timeEnd("index-fetch");
+
+        for (let settingID in response.settings) {
+            response.settings[settingID].abc = ""
+        }
+
         await this.loadedWASM;
-        await this.folkfriendWASM.load_index_from_json_obj(obj);
+
+        console.time('index-parse-from-worker');
+        await this.folkfriendWASM.load_index_from_json_obj(response);
+        console.timeEnd('index-parse-from-worker');
+
         this.setLoadedIndex();
     }
 
@@ -35,14 +49,14 @@ class FolkFriendWASMWrapper {
         const response = await this.folkfriendWASM.run_transcription_query(query);
         cb(JSON.parse(response));
     }
-    
+
     async runNameQuery(query, cb) {
         await this.loadedWASM;
         await this.loadedIndex;
         const response = await this.folkfriendWASM.run_name_query(query);
         cb(JSON.parse(response));
     }
-    
+
     async contourToAbc(contour, cb) {
         await this.loadedWASM;
         const abc = await this.folkfriendWASM.contour_to_abc(contour);
