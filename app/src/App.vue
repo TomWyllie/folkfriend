@@ -88,7 +88,7 @@
 
 
 <script>
-import ffBackend from "./services/backend.js";
+import ffBackend from "@/services/backend.js";
 import {
     mdiCog,
     mdiDotsVertical,
@@ -98,7 +98,6 @@ import {
     mdiMicrophone,
     mdiMusicNote,
 } from "@mdi/js";
-import store from "./services/store.js";
 
 export default {
     name: "App",
@@ -122,37 +121,13 @@ export default {
 };
 
 async function initSetup() {
-    await logVersion();
-    await loadIndex();
-    await runQueryDemo();
-}
-
-async function logVersion() {
     let version = await ffBackend.version();
     console.info("Loaded folkfriend backend version", version);
-}
 
-async function loadIndex() {
     console.debug("Fetching index JSON");
     await ffBackend.loadIndex();
 
-    // await fetch("/res/folkfriend-non-user-data.json")
-    //     .then((response) => response.json())
-    //     .then((response) => {
-    //         console.debug("Downloaded tune index");
-    //         console.time("index-parse");
-
-    //         for (let settingID in response.settings) {
-    //             response.settings[settingID].abc = ""
-    //         }
-
-    //         return ffBackend.loadIndexFromJSONObj(response);
-    //     })
-    //     .then(() => {
-    //         console.debug("Loaded tune index into backend");
-    //         console.timeEnd("index-parse");
-    //     })
-    //     .catch((err) => console.log(err));
+    // await runQueryDemo();
 }
 
 async function runQueryDemo() {

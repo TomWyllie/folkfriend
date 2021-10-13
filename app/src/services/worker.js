@@ -3,6 +3,8 @@ import * as Comlink from "./comlink";
 class FolkFriendWASMWrapper {
     constructor() {
         this.folkfriendWASM = null;
+        this.abcStringBySetting = {};
+
         this.loadedWASM = new Promise(resolve => {
             this.setLoadedWASM = resolve;
         });
@@ -28,13 +30,15 @@ class FolkFriendWASMWrapper {
             .catch((err) => console.log(err));
         console.timeEnd("index-fetch");
 
-        for (let settingID in response.settings) {
-            response.settings[settingID].abc = ""
-        }
-
         await this.loadedWASM;
-
+        
         console.time('index-parse-from-worker');
+        
+        for (let settingID in response.settings) {
+            this.abcStringBySetting[settingID] = response.settings[settingID].abc;
+            response.settings[settingID].abc = "";
+        }
+        
         let start = performance.now();
         await this.folkfriendWASM.load_index_from_json_obj(response);
         let end = performance.now();

@@ -4,7 +4,7 @@
 
 const store = {
     state: {
-
+        lastResults: []
     },
     setEntry(key, val) {
         // console.debug(`setEntry triggered with [${key}]`, val);

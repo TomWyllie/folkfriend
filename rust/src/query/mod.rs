@@ -122,17 +122,19 @@ impl QueryEngine {
                 let mut scored_names: Vec<heuristic::ScoredName> =
                     heuristic::run_name_query(query, &tune_index);
 
-                scored_names.sort_unstable_by(|a, b| match b.ngram_score.cmp(&a.ngram_score) {
-                    std::cmp::Ordering::Less => std::cmp::Ordering::Less,
-                    std::cmp::Ordering::Greater => std::cmp::Ordering::Greater,
-                    std::cmp::Ordering::Equal => {
-                        let a_alias_len =
-                            &tune_index.aliases.get(&a.tune_id).unwrap()[a.alias_index].len();
-                        let b_alias_len =
-                            &tune_index.aliases.get(&b.tune_id).unwrap()[b.alias_index].len();
-                        return a_alias_len.cmp(&b_alias_len);
-                    }
-                });
+                    scored_names.sort_unstable_by(|a, b| b.ngram_score.partial_cmp(&a.ngram_score).unwrap());
+
+                // scored_names.sort_unstable_by(|a, b| match b.ngram_score.cmp(&a.ngram_score) {
+                //     std::cmp::Ordering::Less => std::cmp::Ordering::Less,
+                //     std::cmp::Ordering::Greater => std::cmp::Ordering::Greater,
+                //     std::cmp::Ordering::Equal => {
+                //         let a_alias_len =
+                //             &tune_index.aliases.get(&a.tune_id).unwrap()[a.alias_index].len();
+                //         let b_alias_len =
+                //             &tune_index.aliases.get(&b.tune_id).unwrap()[b.alias_index].len();
+                //         return a_alias_len.cmp(&b_alias_len);
+                //     }
+                // });
 
                 let mut tune_ids_in_results: HashSet<TuneID> = HashSet::default();
 

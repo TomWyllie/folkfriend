@@ -9,7 +9,7 @@ class FFBackend {
     */
 
     constructor() {
-        const worker = new Worker("./ff-worker.js", { type: "module" });
+        const worker = new Worker("./worker.js", { type: "module" });
         this.folkfriendWASMWrapper = Comlink.wrap(worker);
     }
 
@@ -24,7 +24,7 @@ class FFBackend {
 
     async loadIndex() {
         await this.folkfriendWASMWrapper.loadIndex(Comlink.proxy(duration => {
-            alert(duration);
+            // alert(duration);
         }));
     }
 

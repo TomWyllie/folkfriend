@@ -1,29 +1,30 @@
 <template>
     <v-container class="resultsTableWrapper mx-auto">
         <v-list class="resultsTable">
-            <!-- <ResultRow
-                v-for="result in this.sharedState.lastSearch"
-                :key="`${result.tune}#${result.setting}`"
+            <ResultRow
+                v-for="result in this.lastResults"
+                :key="`${result.setting.tune_id}`"
                 :result="result"
-            ></ResultRow> -->
+            ></ResultRow>
         </v-list>
     </v-container>
 </template>
 
 <script>
-// import ResultRow from "@/components/ResultRow";
+import ResultRow from "@/components/ResultRow";
+import store from "@/services/store";
 
-// export default {
-//     name: 'Searches',
-//     components: {
-//         ResultRow,
-//     },
-//     data: function () {
-//         return {
-//             sharedState: store.state
-//         };
-//     },
-// };
+export default {
+    name: 'Searches',
+    components: {
+        ResultRow,
+    },
+    data: function () {
+        return {
+            lastResults: store.state.lastResults
+        };
+    },
+};
 </script>
 
 <style scoped>

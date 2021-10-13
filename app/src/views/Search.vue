@@ -17,15 +17,15 @@
 
         <v-container>
             <v-row wrap justify="center">
-                <v-col class="mx-auto pt-5 pb-0" sm="6" md="8">
+                <v-col class="mx-5 pt-5 pb-0" sm="6" md="8">
                     <v-text-field
                         label="Search By Tune Name"
                         outlined
                         v-model="textQuery"
-                        @keypress.enter="placeholderMethod"
+                        @keypress.enter="nameQuery"
                     >
                         <template v-slot:append>
-                            <v-icon @click="placeholderMethod">{{
+                            <v-icon @click="nameQuery">{{
                                 icons.magnify
                             }}</v-icon>
                         </template>
@@ -59,14 +59,14 @@
             </v-row>
         </v-container>
 
-        <v-container class="tuneProgress">
+        <!-- <v-container class="tuneProgress">
             <v-progress-linear
                 v-show="progressBar"
                 v-model="featureProgress"
                 :buffer-value="progressSearching ? 0 : audioProgress"
                 :indeterminate="progressSearching"
             ></v-progress-linear>
-        </v-container>
+        </v-container> -->
 
         <v-snackbar class="text-center" v-model="snackbar" :timeout="3000">
             {{ snackbarText }}
@@ -76,6 +76,9 @@
 
 <script>
 import RecorderButton from "@/components/RecorderButton";
+import ffBackend from "@/services/backend";
+import store from "@/services/store";
+
 import {
     mdiHelp,
     mdiMagnify,
@@ -90,19 +93,19 @@ export default {
     },
     data: function () {
         return {
-            tunesTable: [],
-            postProcPerf: 0,
+            // tunesTable: [],
+            // postProcPerf: 0,
             snackbar: null,
             snackbarText: null,
 
             textQuery: "",
 
             offlineButton: true,
-            progressBar: null,
-            progressSearching: null,
-            audioProgress: null,
-            featureProgress: null,
-            maxFramesProgress: null,
+            // progressBar: null,
+            // progressSearching: null,
+            // audioProgress: null,
+            // featureProgress: null,
+            // maxFramesProgress: null,
 
             timerActive: true,
 
@@ -115,6 +118,14 @@ export default {
         };
     },
     methods: {
+
+        nameQuery() {
+            ffBackend.runNameQuery(this.textQuery).then((results) => {
+                store.setEntry("lastResults", results);
+                this.$router.push({name: "results"});
+            });
+        },
+
         placeholderMethod() {
             console.debug("placeholder action");
         },
