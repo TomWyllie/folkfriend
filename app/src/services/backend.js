@@ -1,4 +1,4 @@
-import * as Comlink from "comlink";
+import * as Comlink from "./comlink";
 
 class FFBackend {
     /* Yet another layer of abstraction. This class is the route that all 
@@ -9,7 +9,7 @@ class FFBackend {
     */
 
     constructor() {
-        const worker = new Worker("/js/worker.js", { type: "module" });
+        const worker = new Worker("./ff-worker.js", { type: "module" });
         this.folkfriendWASMWrapper = Comlink.wrap(worker);
     }
 
@@ -23,7 +23,9 @@ class FFBackend {
     }
 
     async loadIndex() {
-        await this.folkfriendWASMWrapper.loadIndex();
+        await this.folkfriendWASMWrapper.loadIndex(Comlink.proxy(duration => {
+            alert(duration);
+        }));
     }
 
     /* Functions with args and return values */

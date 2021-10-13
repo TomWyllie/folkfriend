@@ -1,6 +1,4 @@
-import "/js/comlink.js";
-
-import init, { FolkFriendWASM } from "/wasm/folkfriend.js";
+import * as Comlink from "./comlink";
 
 class FolkFriendWASMWrapper {
     constructor() {
@@ -12,10 +10,10 @@ class FolkFriendWASMWrapper {
             this.setLoadedIndex = resolve;
         });
 
-        init().then(() => {
-            this.folkfriendWASM = new FolkFriendWASM();
+        import("@/wasm/folkfriend.js").then(wasm => {
+            this.folkfriendWASM = new wasm.FolkFriendWASM();
             this.setLoadedWASM();
-        })
+        });
     }
 
     async version(cb) {
@@ -23,7 +21,7 @@ class FolkFriendWASMWrapper {
         cb(this.folkfriendWASM.version());
     }
 
-    async loadIndex() {
+    async loadIndex(cb) {
         console.time("index-fetch");
         const response = await fetch("/res/folkfriend-non-user-data.json")
             .then((response) => response.json())
@@ -37,8 +35,11 @@ class FolkFriendWASMWrapper {
         await this.loadedWASM;
 
         console.time('index-parse-from-worker');
+        let start = performance.now();
         await this.folkfriendWASM.load_index_from_json_obj(response);
+        let end = performance.now();
         console.timeEnd('index-parse-from-worker');
+        cb(end - start);
 
         this.setLoadedIndex();
     }
