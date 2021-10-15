@@ -89,6 +89,7 @@
 
 <script>
 import ffBackend from "@/services/backend.js";
+import store from "@/services/store.js";
 import {
     mdiCog,
     mdiDotsVertical,
@@ -122,6 +123,8 @@ export default {
 
 async function initSetup() {
     let version = await ffBackend.version();
+    store.setEntry("backendVersion", version);
+
     console.info("Loaded folkfriend backend version", version);
 
     console.debug("Fetching index JSON");

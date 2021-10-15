@@ -9,6 +9,8 @@ use serde_json::json;
 use std::convert::TryInto;
 use std::slice;
 use wasm_bindgen::prelude::*;
+// use JsValue;
+use js_sys;
 
 #[wasm_bindgen]
 extern "C" {
@@ -144,6 +146,10 @@ impl FolkFriendWASM {
         std::mem::forget(buf);
 
         return ptr;
+    }
+
+    pub fn get_allocated_pcm_window(&mut self, ptr: *mut f32) -> js_sys::Float32Array {
+        return unsafe { js_sys::Float32Array::view(slice::from_raw_parts(ptr, ff_config::SPEC_WINDOW_SIZE)) };
     }
 
     pub fn feed_single_pcm_window(&mut self, ptr: *mut f32) {

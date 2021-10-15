@@ -4,7 +4,8 @@
 
 const store = {
     state: {
-        lastResults: []
+        lastResults: [],
+        backendVersion: "not loaded"
     },
     setEntry(key, val) {
         // console.debug(`setEntry triggered with [${key}]`, val);

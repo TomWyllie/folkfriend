@@ -49,11 +49,14 @@
                     </v-switch>
                 </v-col>
                 <v-col align="center" class="noFlexGrow px-5">
-                    <v-btn
+                    <!-- <v-btn
                         v-on:click="$refs.fileUpload.click()"
                         :disabled="!offlineButton"
                     >
                         Upload
+                    </v-btn> -->
+                    <v-btn v-on:click="uploadDemo" :disabled="!offlineButton">
+                        Demo
                     </v-btn>
                 </v-col>
             </v-row>
@@ -77,6 +80,7 @@
 <script>
 import RecorderButton from "@/components/RecorderButton";
 import ffBackend from "@/services/backend";
+import audioService from "@/services/audio";
 import store from "@/services/store";
 
 import {
@@ -118,16 +122,33 @@ export default {
         };
     },
     methods: {
-
         nameQuery() {
             ffBackend.runNameQuery(this.textQuery).then((results) => {
                 store.setEntry("lastResults", results);
-                this.$router.push({name: "results"});
+                this.$router.push({ name: "results" });
             });
         },
-
         placeholderMethod() {
             console.debug("placeholder action");
+        },
+        async uploadDemo() {
+            const audioData = await audioService.urlToTimeDomainData(
+                "/res/slide_from_grace.mp3"
+            );
+            // TODO set sample rate actually here
+
+            console.time("upload-demo-transcribe");
+            await ffBackend.feedEntirePCMSignal(audioData);
+            const contour = await ffBackend.transcribePCMBuffer();
+            console.debug(contour);
+            console.timeEnd("upload-demo-transcribe");
+
+            console.time("upload-demo-query");
+            const queryResults = await ffBackend.runTranscriptionQuery(contour);
+            console.timeEnd("upload-demo-query");
+
+            store.setEntry("lastResults", queryResults);
+            this.$router.push({ name: "results" });
         },
     },
 };

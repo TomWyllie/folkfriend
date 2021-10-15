@@ -13,7 +13,6 @@ class FFBackend {
         this.folkfriendWASMWrapper = Comlink.wrap(worker);
     }
 
-    /* Function with no args that returns values */
     async version() {
         return new Promise(resolve => {
             this.folkfriendWASMWrapper.version(Comlink.proxy(version => {
@@ -28,7 +27,38 @@ class FFBackend {
         }));
     }
 
-    /* Functions with args and return values */
+    async setSampleRate(sampleRate) {
+        await this.folkfriendWASMWrapper.setSampleRate(sampleRate);
+    }
+
+    async feedEntirePCMSignal(PCMSignal) {
+        await this.folkfriendWASMWrapper.feedEntirePCMSignal(PCMSignal);
+    }
+
+    async feedSinglePCMWindow(PCMWindow) {
+        await this.folkfriendWASMWrapper.feedSinglePCMWindow(PCMWindow);
+    }
+
+    async flushPCMBuffer() {
+        await this.folkfriendWASMWrapper.flushPCMBuffer();
+    }
+
+    async transcribePCMBuffer() {
+        return new Promise(resolve => {
+            this.folkfriendWASMWrapper.transcribePCMBuffer(Comlink.proxy(contour => {
+                resolve(contour);
+            }))
+        });
+    }
+
+    // pub fn transcribe_pcm_buffer(&mut self) -> decode::types::ContourString {
+    //     let contour = self
+    //         .feature_decoder
+    //         .decode(&mut self.feature_extractor.features);
+    //     self.feature_extractor.flush();
+    //     return contour;
+    // }
+
     async runTranscriptionQuery(query) {
         return new Promise(resolve => {
             this.folkfriendWASMWrapper.runTranscriptionQuery(query, Comlink.proxy(response => {

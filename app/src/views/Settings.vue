@@ -1,14 +1,33 @@
 <template>
     <v-container>
         <h1>Settings</h1>
-        <h2>FolkFriend Version 3.0.0 Alpha</h2>
-        <h2>© 2021 Tom Wyllie. All Rights Reserved.</h2>
+        <!-- TODO have this version match package.json automagically? -->
+        <h3>TODO Select microphone</h3>
+        <h3>TODO Test microphone</h3>
+        <h3>TODO Select performance settings (high / medium / low)</h3>
+        <h3>Test FolkFriend performance</h3>
+
+        <h1>About</h1>
+        <!-- TODO have this version match package.json automagically? -->
+        <h3>FolkFriend App Version: 3.0.1 Alpha</h3>
+        <h3>FolkFriend Backend version: {{ backendVersion }}</h3>
+        <h3>© 2021 Tom Wyllie. All Rights Reserved.</h3>
+
+        <h1>Donate</h1>
+        <h3>spiel</h3>
     </v-container>
 </template>
 
 <script>
+import store from "@/services/store.js";
+
 export default {
     name: "Settings",
+    computed: {
+        backendVersion() {
+            return store.state.backendVersion;
+        },
+    },
 };
 </script>
 
