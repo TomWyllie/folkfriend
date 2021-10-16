@@ -37,10 +37,10 @@ pub fn decode(
     let mut proposals: Vec<Vec<Proposal>> = Vec::new();
     proposals.push(Vec::new());
 
-    for pitch in 0..ff_config::MIDI_NUM {
+    for pitch in ff_config::MIDI_LOW..=ff_config::MIDI_HIGH {
         proposals[0].push(Proposal {
             note: Note::new(Pitch::new(pitch), 1),
-            score: features[0][pitch as usize],
+            score: features[0][(pitch - ff_config::MIDI_LOW) as usize],
             prev_proposal_id: 0,
             pitch_changed: true,
         })
