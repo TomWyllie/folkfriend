@@ -89,7 +89,8 @@ impl FolkFriend {
     }
 
     pub fn contour_to_abc(&self, contour_string: &decode::types::ContourString) -> String {
-        let contour: decode::types::Contour = decode::types::from_contour_string(contour_string);
+        let mut contour: decode::types::Contour = Vec::new();
+        contour = contour_string.append_to_contour(contour);
         self.abc_processor.contour_to_abc(&contour)
     }
 }
@@ -149,7 +150,9 @@ impl FolkFriendWASM {
     }
 
     pub fn get_allocated_pcm_window(&mut self, ptr: *mut f32) -> js_sys::Float32Array {
-        return unsafe { js_sys::Float32Array::view(slice::from_raw_parts(ptr, ff_config::SPEC_WINDOW_SIZE)) };
+        return unsafe {
+            js_sys::Float32Array::view(slice::from_raw_parts(ptr, ff_config::SPEC_WINDOW_SIZE))
+        };
     }
 
     pub fn feed_single_pcm_window(&mut self, ptr: *mut f32) {
@@ -163,12 +166,16 @@ impl FolkFriendWASM {
     }
 
     pub fn transcribe_pcm_buffer(&mut self) -> String {
-        self.ff.transcribe_pcm_buffer()
+        self.ff.transcribe_pcm_buffer().value()
     }
 
-    pub fn run_transcription_query(&self, contour: &str) -> String {
+    pub fn run_transcription_query(&self, contour_string: &str) -> String {
         // TODO proper error propagation in JSON back to javascript
-        let result = self.ff.run_transcription_query(&contour.to_string());
+        let result = self
+            .ff
+            .run_transcription_query(&decode::types::ContourString::from_string(
+                &contour_string.to_string(),
+            ));
         if let Ok(query_result) = result {
             return json!(query_result).to_string();
         } else {
@@ -190,7 +197,10 @@ impl FolkFriendWASM {
             .to_string();
         }
     }
-    pub fn contour_to_abc(&self, contour: &str) -> String {
-        self.ff.contour_to_abc(&contour.to_string())
+    pub fn contour_to_abc(&self, contour_string: &str) -> String {
+        self.ff
+            .contour_to_abc(&decode::types::ContourString::from_string(
+                &contour_string.to_string(),
+            ))
     }
 }

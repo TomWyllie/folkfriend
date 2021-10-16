@@ -7,7 +7,7 @@ pub mod types;
 
 use crate::feature::types::Features;
 use crate::ff_config;
-use types::{Contour, ContourString, ToContourString};
+use types::{Contour, ContourString};
 
 pub struct FeatureDecoder {
     pitch_model: pitch_model::PitchModel,
@@ -25,6 +25,6 @@ impl FeatureDecoder {
     pub fn decode(&self, features: &mut Features) -> ContourString {
         let (lattice_path, _) = beam_search::decode(features, &self.pitch_model, &self.tempo_model);
         let contour: Contour = contour::contour_from_lattice_path(&lattice_path);
-        return contour.to_contour_string();
+        return ContourString::new(contour);
     }
 }

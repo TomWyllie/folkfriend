@@ -73,7 +73,7 @@ impl QueryEngine {
                 // First pass: fast, but inaccurate. Good for eliminating many poor candidates.
                 //
                 // let nowh = Instant::now();
-                let first_search = heuristic::run_transcription_query(&contour, &tune_index);
+                let first_search = heuristic::run_transcription_query(&contour.value(), &tune_index);
                 // eprintln!("Heuristic search took {:.2?}", nowh.elapsed());
                 //
                 // === Full search ===
@@ -83,7 +83,7 @@ impl QueryEngine {
                 let mut second_search: Vec<(SettingID, f32)> = Vec::new();
                 for (setting_id, _) in &first_search[0..self.num_repass] {
                     let score =
-                        nw::needleman_wunsch(&contour, &tune_index.settings[setting_id].contour);
+                        nw::needleman_wunsch(&contour.value(), &tune_index.settings[setting_id].contour);
                     second_search.push((setting_id.clone(), score));
                 }
                 let mut sorted_rankings: Vec<_> = second_search.into_iter().collect();
