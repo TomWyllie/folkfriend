@@ -65,22 +65,13 @@
         </transition>
         <v-snackbar class="text-center" v-model="snackbar" :timeout="5000">
             {{ snackbarText }}
-            <!--            <template v-slot:action="{ attrs }">-->
-            <!--                <v-btn-->
-            <!--                    color="red"-->
-            <!--                    text-->
-            <!--                    v-bind="attrs"-->
-            <!--                    @click="snackbar = false"-->
-            <!--                >-->
-            <!--                    Close-->
-            <!--                </v-btn>-->
-            <!--            </template>-->
         </v-snackbar>
     </div>
 </template>
 
 <script>
-// import audioService from "@/folkfriend/ff-audio";
+import micService from "@/services/mic.js";
+import ffBackend from "@/services/backend.js";
 // import FFConfig from "@/folkfriend/ff-config";
 // import transcriber from "@/folkfriend/ff-transcriber.worker";
 
@@ -98,7 +89,7 @@ export default {
     },
     data: () => {
         return {
-            recording: null,
+            recording: false,
             working: null,
             transcriptionMode: null,
             transcriptionShortTimer: null,
@@ -112,7 +103,7 @@ export default {
     methods: {
         // TODO move all the logic out of here and into Record.vue
         //  link with an event bus
-        
+
         clicked: async function () {
             if (!this.recording) {
                 await this.startRecording();
@@ -132,7 +123,7 @@ export default {
 
             try {
                 // TODO nicely ask permission etc
-                // await audioService.startRecording();
+                await micService.startRecording();
 
                 // Set timeout to auto stop recording
                 this.transcriptionShortTimer = setTimeout(() => {
@@ -149,7 +140,7 @@ export default {
                 // Begin fancy button animation
                 let recB = this;
                 const buttonAnimation = async function () {
-                    recB.lastAudioVolume = Math.random()
+                    recB.lastAudioVolume = Math.random();
                     recB.updateRecorderCircleScale();
                     if (recB.recording) {
                         window.requestAnimationFrame(buttonAnimation);
@@ -161,7 +152,7 @@ export default {
                 alert(e);
                 this.snackbar = true;
                 this.snackbarText = "Couldn't open microphone";
-                this.recording = false;
+                this.stopRecording(); // Cleanup
             }
         },
         stopRecording: async function () {
@@ -172,16 +163,14 @@ export default {
 
             // Always set this, because even if we want to go straight back to
             //  the microphone (because no music was heard) we have to think
-            //  a bit first and run through the CNN to determine that no music
-            //  was heard.
+            //  a bit first to determine that no music was heard.
             this.working = true;
 
-            clearTimeout(this.transcriptionShortTimer);
-            // await audioService.stopRecording();
-            this.$emit("recording-finished");
+            await micService.stopRecording();
+            await ffBackend.submitFilledBuffer();
         },
         updateRecorderCircleScale: function () {
-            // [0.8, 1.0]
+            // [0.7, 1.0]
             this.recorderCircleScale =
                 0.7 + Math.min(0.3, Math.max(0, 0.2 * this.lastAudioVolume));
         },

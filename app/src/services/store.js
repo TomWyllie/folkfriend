@@ -5,7 +5,8 @@
 const store = {
     state: {
         lastResults: [],
-        backendVersion: "not loaded"
+        backendVersion: "not loaded",
+        recordingTimeLimited: true,
     },
     setEntry(key, val) {
         // console.debug(`setEntry triggered with [${key}]`, val);

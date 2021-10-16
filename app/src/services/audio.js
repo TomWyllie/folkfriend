@@ -1,12 +1,5 @@
 import ffBackend from '@/services/backend.js';
-import { AudioContext, OfflineAudioContext } from 'standardized-audio-context';
-
-const AUDIO_CONSTRAINTS = {
-    audio: {
-        echoCancellation: false,
-        sampleRate: 48000
-    }
-};
+// import { OfflineAudioContext } from 'standardized-audio-context';
 
 class AudioService {
     constructor() {

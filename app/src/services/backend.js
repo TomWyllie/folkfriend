@@ -1,4 +1,5 @@
-import * as Comlink from "./comlink";
+import * as Comlink from "@/services/comlink";
+import store from "@/services/store"
 
 class FFBackend {
     /* Yet another layer of abstraction. This class is the route that all 
@@ -51,20 +52,31 @@ class FFBackend {
         });
     }
 
-    // pub fn transcribe_pcm_buffer(&mut self) -> decode::types::ContourString {
-    //     let contour = self
-    //         .feature_decoder
-    //         .decode(&mut self.feature_extractor.features);
-    //     self.feature_extractor.flush();
-    //     return contour;
-    // }
-
     async runTranscriptionQuery(query) {
         return new Promise(resolve => {
             this.folkfriendWASMWrapper.runTranscriptionQuery(query, Comlink.proxy(response => {
                 resolve(response);
             }));
         })
+    }
+
+    async submitFilledBuffer(doQuery) {
+        const contour = await this.transcribePCMBuffer();
+
+        if (doQuery) {
+            const queryResults = await this.runTranscriptionQuery(contour);
+            store.setEntry("lastResults", queryResults);
+            // TODO event bus or something
+            // this.$router.push({ name: "results" });
+        }
+
+        const notes = await this.contourToAbc(contour);
+        store.setEntry("lastNotes", notes);
+
+        if (!doQuery) {
+            // TODO event bus or something
+            // this.$router.push({ name: "score" });
+        }
     }
 
     async runNameQuery(query) {

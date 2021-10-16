@@ -37,12 +37,12 @@
         <v-container class="py-0 mx-auto">
             <v-row wrap align="center" justify="center" class="mx-0">
                 <v-col align="center" class="noFlexGrow px-5">
-                    <v-switch v-model="timerActive" inset>
+                    <v-switch v-model="recordingTimeLimited" inset>
                         <template v-slot:label>
-                            <v-icon v-if="timerActive">{{
+                            <v-icon v-if="recordingTimeLimited">{{
                                 icons.timerOutline
                             }}</v-icon>
-                            <v-icon v-if="!timerActive">{{
+                            <v-icon v-if="!recordingTimeLimited">{{
                                 icons.timerOffOutline
                             }}</v-icon>
                         </template>
@@ -104,14 +104,13 @@ export default {
 
             textQuery: "",
 
+            recordingTimeLimited: true,
             offlineButton: true,
             // progressBar: null,
             // progressSearching: null,
             // audioProgress: null,
             // featureProgress: null,
             // maxFramesProgress: null,
-
-            timerActive: true,
 
             icons: {
                 help: mdiHelp,
@@ -149,6 +148,11 @@ export default {
 
             store.setEntry("lastResults", queryResults);
             this.$router.push({ name: "results" });
+        },
+    },
+    watch: {
+        recordingTimeLimited: function (val) {
+            store.setEntry("recordingTimeLimited", val);
         },
     },
 };
