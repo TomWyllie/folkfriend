@@ -4,8 +4,9 @@
         :to="{
             name: 'tune',
             params: {
-                // settingID: this.result.setting,
-                // tuneID: this.result.tune,
+                settingID: this.result.setting_id,
+                tuneID: this.result.setting.tune_id,
+                displayName: this.result.display_name
             },
         }"
     >
@@ -57,15 +58,17 @@ export default {
             //  Also if the recording is rubbish and it comes up with very poor
             //  matches now they will be flagged up as unlikely.
             if (this.result.score > 0.7) {
-                return 'Very Close Match';
+                return 'Very Close';
             } else if (this.result.score > 0.50) {
-                return 'Close Match';
+                return 'Close';
             } else if (this.result.score > 0.32) {
-                return 'Possible Match';
+                return 'Possible';
             } else if (this.result.score > 0.20) {
-                return 'Unlikely Match';
+                return 'Unlikely';
+            } else if (this.result.score > 0){
+                return 'Very Unlikely';
             } else {
-                return 'Very Unlikely Match';
+                return 'No Match'
             }
         },
         scoreColour: function () {

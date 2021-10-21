@@ -1,5 +1,5 @@
 <template>
-    <v-container class="resultsTableWrapper mx-auto">
+    <v-container class="resultsTableWrapper mx-auto px-0">
         <v-list class="resultsTable">
             <ResultRow
                 v-for="result in this.lastResults"

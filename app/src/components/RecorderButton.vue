@@ -8,7 +8,7 @@
                 viewBox="-1 -1 26 26"
                 :style="cssProps"
                 v-on:click="clicked"
-                v-if="!working"
+                v-if="buttonReady || buttonRecording"
                 key="recorder"
             >
                 <circle
@@ -16,12 +16,12 @@
                     cx="12"
                     cy="12"
                     r="12"
-                    v-bind:class="{ RecorderActive: recording }"
+                    v-bind:class="{ RecorderActive: buttonRecording }"
                 ></circle>
                 <path
                     class="RecorderMic"
                     fill="secondary"
-                    v-bind:class="{ RecorderActive: recording }"
+                    v-bind:class="{ RecorderActive: buttonRecording }"
                     d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"
                 ></path>
                 <rect
@@ -32,7 +32,7 @@
                     ry="0.9"
                     width="9"
                     height="9"
-                    v-bind:class="{ RecorderActive: recording }"
+                    v-bind:class="{ RecorderActive: buttonRecording }"
                 ></rect>
             </svg>
             <svg
@@ -72,7 +72,8 @@
 <script>
 import micService from "@/services/mic.js";
 import ffBackend from "@/services/backend.js";
-// import FFConfig from "@/folkfriend/ff-config";
+import store from "@/services/store.js";
+import ffConfig from "@/ffConfig.js";
 // import transcriber from "@/folkfriend/ff-transcriber.worker";
 
 export default {
@@ -89,90 +90,93 @@ export default {
     },
     data: () => {
         return {
-            recording: false,
-            working: null,
-            transcriptionMode: null,
             transcriptionShortTimer: null,
 
-            recorderCircleScale: null,
-            lastAudioVolume: 1,
+            recorderCircleScale: 1.0,
             snackbar: null,
             snackbarText: null,
+
+            buttonReady: true,
+            buttonWorking: false,
+            buttonRecording: false,
         };
     },
     methods: {
-        // TODO move all the logic out of here and into Record.vue
-        //  link with an event bus
-
         clicked: async function () {
-            if (!this.recording) {
-                await this.startRecording();
-                this.$emit("recording-started");
-            } else {
-                await this.stopRecording();
+            switch (store.searchState) {
+                case store.searchStates.READY:
+                    await this.startRecording();
+                    break;
+                case store.searchStates.RECORDING:
+                    await micService.stopRecording();
+                    this.updateButtonState();
+                    await ffBackend.submitFilledBuffer();
+                    break;
+                case store.searchStates.WORKING:
+                    break;
             }
+            this.updateButtonState();
+
+            console.debug(store.searchState);
+
+            // if (store.isWorking()) {
+            //     return;
+            // } else if (store.isRecording()) {
+
+            // }
+
+            // if (!this.recording) {
+            //     await this.startRecording();
+            //     // this.$emit("recording-started");
+            // } else {
+            //     await this.stopRecording();
+            // }
         },
 
         startRecording: async function () {
-            if (this.recording) {
-                return;
-            }
-            this.recording = true;
+            // Prevent multiple timers spawning
+            clearTimeout(this.recordingTimer);
 
-            this.updateRecorderCircleScale();
+            // Actually start recording
+            await micService.startRecording();
 
-            try {
-                // TODO nicely ask permission etc
-                await micService.startRecording();
+            // // Set timeout to auto stop recording
+            // this.transcriptionShortTimer = setTimeout(() => {
+            //     // So users can turn on transcription mode even if they
+            //     //  start in short query mode.
+            //     if (this.recording && !this.transcriptionMode) {
+            //         this.stopRecording();
+            //         this.snackbar = true;
+            //         this.snackbarText = "Maximum duration reached";
+            //     }
+            // }, 10000);
+            // // TODO configure query length somewhere properly lol
 
-                // Set timeout to auto stop recording
-                this.transcriptionShortTimer = setTimeout(() => {
-                    // So users can turn on transcription mode even if they
-                    //  start in short query mode.
-                    if (this.recording && !this.transcriptionMode) {
-                        this.stopRecording();
-                        this.snackbar = true;
-                        this.snackbarText = "Maximum duration reached";
-                    }
-                }, 10000);
-                // TODO configure query length somewhere properly lol
+            // Begin button animation for responsive feedback that microphone
+            //  is 'working' (we cheat and use Math.random() instead of the
+            //  actual waveform because it works and looks fine lol).
+            let recButton = this;
+            const buttonAnimation = async function () {
+                recButton.recorderCircleScale = 0.7 + 0.2 * Math.random();
+                if (store.isRecording()) {
+                    window.requestAnimationFrame(buttonAnimation);
+                }
+            };
+            window.requestAnimationFrame(buttonAnimation);
 
-                // Begin fancy button animation
-                let recB = this;
-                const buttonAnimation = async function () {
-                    recB.lastAudioVolume = Math.random();
-                    recB.updateRecorderCircleScale();
-                    if (recB.recording) {
-                        window.requestAnimationFrame(buttonAnimation);
-                    }
-                };
-                window.requestAnimationFrame(buttonAnimation);
-            } catch (e) {
-                console.error(e);
-                alert(e);
-                this.snackbar = true;
-                this.snackbarText = "Couldn't open microphone";
-                this.stopRecording(); // Cleanup
-            }
+
+            // Set timer
+            this.recordingTimer = setTimeout(() => {
+                // TODO proper settings object
+                if (store.state.recordingTimeLimited && store.isRecording()) {
+                    this.clicked();
+                }
+            }, ffConfig.RECORDING_TIME_LIMIT_MS);
         },
-        stopRecording: async function () {
-            if (!this.recording) {
-                return;
-            }
-            this.recording = false;
-
-            // Always set this, because even if we want to go straight back to
-            //  the microphone (because no music was heard) we have to think
-            //  a bit first to determine that no music was heard.
-            this.working = true;
-
-            await micService.stopRecording();
-            await ffBackend.submitFilledBuffer();
-        },
-        updateRecorderCircleScale: function () {
-            // [0.7, 1.0]
-            this.recorderCircleScale =
-                0.7 + Math.min(0.3, Math.max(0, 0.2 * this.lastAudioVolume));
+        updateButtonState() {
+            this.buttonReady = store.isReady();
+            this.buttonWorking = store.isWorking();
+            this.buttonRecording = store.isRecording();
         },
     },
 };

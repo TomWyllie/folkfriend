@@ -1,38 +1,40 @@
 <template>
     <v-card elevation="0">
-        <v-container class="ma-0 pa-0">
+        <v-container class="ma-0 pa-0" v-if="showAbcText">
             <span class="abcTextView mx-auto">{{ this.abcText }}</span>
         </v-container>
-        <div>
+        <div
+            @click="exitFullScreen"
+            v-bind:class="{ FullScreenAbcDisplay: fullscreen }"
+            class="abcSheetMusic"
+        >
             <!-- Render ABC sheet music here -->
             <div></div>
             <!-- Render MIDI thing here -->
             <div style="display: none"></div>
         </div>
-        <v-row wrap justify="center">
-            <v-btn
-                class="mx-1"
-                @click="startPlaying">
-                <v-icon>{{ paused ? 'pause' : 'play_arrow' }}</v-icon>
+        <v-row wrap justify="center" class="py-2">
+            <v-btn class="mx-1 px-3 abcControls" @click="restartPlaying">
+                <v-icon>{{ icons.replay }}</v-icon>
             </v-btn>
-            <v-btn
-                class="mx-1"
-                @click="stopPlaying">
-                <v-icon>stop</v-icon>
+            <v-btn class="mx-1 px-3 abcControls" @click="startPlaying">
+                <v-icon v-if="paused">{{ icons.play }}</v-icon>
+                <v-icon v-else>{{ icons.pause }}</v-icon>
             </v-btn>
-            <v-btn
-                class="mx-1"
-                @click="restartPlaying">
-                <v-icon>replay</v-icon>
+            <v-btn class="mx-1 px-3 abcControls" @click="stopPlaying">
+                <v-icon>{{ icons.stop }}</v-icon>
+            </v-btn>
+            <v-btn class="mx-1 px-3 abcControls" @click="goFullScreen">
+                <v-icon>{{ icons.fullscreen }}</v-icon>
             </v-btn>
         </v-row>
     </v-card>
 </template>
 
 <script>
-/* eslint-disable */
-
-// import abcjs from "abcjs/midi";
+import abcjs from "abcjs/midi";
+import { mdiFullscreen, mdiPause, mdiPlay, mdiReplay, mdiStop } from "@mdi/js";
+import store from "@/services/store.js";
 
 export default {
     name: "AbcDisplay",
@@ -41,7 +43,7 @@ export default {
         const svgDiv = abcJsWrapperDiv.firstChild;
         const midDiv = abcJsWrapperDiv.lastChild;
 
-        abcjs.renderAbc(svgDiv, this.abcText, {responsive: 'resize'});
+        abcjs.renderAbc(svgDiv, this.abcText, { responsive: "resize" });
 
         abcjs.renderMidi(midDiv, this.abcText, {});
         this.midPlayDiv = midDiv.lastChild;
@@ -49,7 +51,16 @@ export default {
     data: function () {
         return {
             midPlayDiv: null,
-            paused: false,
+            paused: true,
+            fullscreen: false,
+
+            icons: {
+                fullscreen: mdiFullscreen,
+                pause: mdiPause,
+                play: mdiPlay,
+                replay: mdiReplay,
+                stop: mdiStop,
+            },
         };
     },
     computed: {
@@ -62,7 +73,10 @@ export default {
                 abcLines.push(`M:${this.meter}`);
             }
             abcLines.push(this.abc);
-            return abcLines.join('\n');
+            return abcLines.join("\n");
+        },
+        showAbcText: function () {
+            return store.userSettings.showAbcText;
         },
     },
     props: {
@@ -79,19 +93,25 @@ export default {
     methods: {
         startPlaying: function () {
             this.paused = !this.paused;
-            console.debug('abcjs-start');
-            // abcjs.midi.startPlaying(this.midPlayDiv);
+
+            // TODO can desync the pause button by messing around with controls on another setting
+            abcjs.midi.startPlaying(this.midPlayDiv);
         },
         stopPlaying: function () {
-            this.paused = false;
-            console.debug('abcjs-stop');
-            // abcjs.midi.stopPlaying();
+            this.paused = true;
+            abcjs.midi.stopPlaying();
         },
         restartPlaying: function () {
-            this.paused = false;
-            console.debug('abcjs-restart');
-            // abcjs.midi.restartPlaying();
-        }
+            abcjs.midi.restartPlaying();
+        },
+        goFullScreen: function () {
+            this.$emit("abcGoFullScreen");
+            this.fullscreen = true;
+        },
+        exitFullScreen: function () {
+            this.$emit("abcExitFullScreen");
+            this.fullscreen = false;
+        },
     },
 };
 </script>
@@ -102,4 +122,28 @@ export default {
     white-space: pre-wrap;
     display: inline-block;
 }
+
+.FullScreenAbcDisplay {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: white;
+    overflow-y: scroll;
+
+    /* TODO z index flicker here isn't great */
+    z-index: 10;
+}
+
+.FullScreenAbcDisplay > div {
+    min-height: 100%;
+}
+
+.abcControls {
+    min-width: 0 !important;
+}
+
 </style>

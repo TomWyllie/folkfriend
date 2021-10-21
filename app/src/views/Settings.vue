@@ -7,6 +7,8 @@
         <h3>TODO Select performance settings (high / medium / low)</h3>
         <h3>Test FolkFriend performance</h3>
 
+        <v-switch inset @change="showAbcText" label="Show ABC Text"></v-switch>
+
         <h1>About</h1>
         <!-- TODO have this version match package.json automagically? -->
         <h3>FolkFriend App Version: 3.0.1 Alpha</h3>
@@ -26,6 +28,12 @@ export default {
     computed: {
         backendVersion() {
             return store.state.backendVersion;
+        },
+    },
+    methods: {
+        showAbcText(value) {
+            // TODO better handling of settings and things
+            store.userSettings.showAbcText = value;
         },
     },
 };

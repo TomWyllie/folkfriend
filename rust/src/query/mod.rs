@@ -19,6 +19,7 @@ pub struct QueryEngine {
 
 #[derive(Debug, Serialize)]
 pub struct TranscriptionQueryRecord {
+    pub setting_id: SettingID,
     pub setting: Setting,
     pub display_name: String,
     pub score: f32,
@@ -73,7 +74,8 @@ impl QueryEngine {
                 // First pass: fast, but inaccurate. Good for eliminating many poor candidates.
                 //
                 // let nowh = Instant::now();
-                let first_search = heuristic::run_transcription_query(&contour.value(), &tune_index);
+                let first_search =
+                    heuristic::run_transcription_query(&contour.value(), &tune_index);
                 // eprintln!("Heuristic search took {:.2?}", nowh.elapsed());
                 //
                 // === Full search ===
@@ -82,8 +84,10 @@ impl QueryEngine {
                 // let nowf = Instant::now();
                 let mut second_search: Vec<(SettingID, f32)> = Vec::new();
                 for (setting_id, _) in &first_search[0..self.num_repass] {
-                    let score =
-                        nw::needleman_wunsch(&contour.value(), &tune_index.settings[setting_id].contour);
+                    let score = nw::needleman_wunsch(
+                        &contour.value(),
+                        &tune_index.settings[setting_id].contour,
+                    );
                     second_search.push((setting_id.clone(), score));
                 }
                 let mut sorted_rankings: Vec<_> = second_search.into_iter().collect();
@@ -100,6 +104,7 @@ impl QueryEngine {
 
                     tune_ids_in_results.insert(setting.tune_id.clone());
                     results.push(TranscriptionQueryRecord {
+                        setting_id: setting_id.clone(),
                         setting: setting.clone(),
                         score: *score,
                         display_name: tune_index.aliases.get(&setting.tune_id).unwrap()[0].clone(),
@@ -109,6 +114,7 @@ impl QueryEngine {
                         break;
                     }
                 }
+
                 // eprintln!("Full search took {:.2?}", nowf.elapsed());
                 Ok(results)
             }
@@ -122,7 +128,7 @@ impl QueryEngine {
                 let mut scored_names: Vec<heuristic::ScoredName> =
                     heuristic::run_name_query(query, &tune_index);
 
-                    // scored_names.sort_unstable_by(|a, b| b.ngram_score.partial_cmp(&a.ngram_score).unwrap());
+                // scored_names.sort_unstable_by(|a, b| b.ngram_score.partial_cmp(&a.ngram_score).unwrap());
 
                 scored_names.sort_unstable_by(|a, b| match b.ngram_score.cmp(&a.ngram_score) {
                     std::cmp::Ordering::Less => std::cmp::Ordering::Less,
@@ -163,8 +169,46 @@ impl QueryEngine {
         }
     }
 
-    pub fn setting_ids_from_tune_id(&self, tune_id: TuneID) -> Option<&Vec<SettingID>> {
-        self.setting_ids_by_tune_id.get(&tune_id)
+    pub fn setting_ids_from_tune_id(&self, tune_id: TuneID) -> Result<&Vec<SettingID>, QueryError> {
+        Ok(self
+            .setting_ids_by_tune_id
+            .get(&tune_id)
+            .ok_or(format!("missing tune ID {}", tune_id))
+            .unwrap())
+    }
+
+    pub fn settings_from_tune_id(
+        &self,
+        tune_id: TuneID,
+    ) -> Result<Vec<(SettingID, Setting)>, QueryError> {
+        let tune_index = self.tune_index.as_ref();
+        Ok(self
+            .setting_ids_from_tune_id(tune_id)?
+            .iter()
+            .map(|setting_id| {
+                (
+                    setting_id.clone(),
+                    tune_index
+                        .unwrap()
+                        .settings
+                        .get(setting_id)
+                        .unwrap()
+                        .clone(),
+                )
+            })
+            .collect())
+    }
+
+    pub fn aliases_from_tune_id(&self, tune_id: TuneID) -> Result<Vec<String>, QueryError> {
+        Ok(self
+            .tune_index
+            .as_ref()
+            .unwrap()
+            .aliases
+            .get(&tune_id)
+            .ok_or(format!("missing tune ID {}", tune_id))
+            .unwrap()
+            .to_vec())
     }
 }
 

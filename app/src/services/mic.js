@@ -10,7 +10,6 @@ const AUDIO_CONSTRAINTS = {
 
 class MicService {
     constructor() {
-        this.micActive = false;
         this.micProcessor = null;
         this.audioCtx = null;
         this.opening = Promise.resolve();
@@ -21,11 +20,10 @@ class MicService {
     }
 
     async startRecording() {
-        if (this.micActive) {
+        if (store.isRecording()) {
             return;
         }
-
-        this.micActive = true;
+        store.setSearchState(store.searchStates.RECORDING);
 
         // It's possible for a call to stopRecording to come in whilst we are
         //  still running startRecording (if the button is pushed very quickly).
@@ -64,8 +62,17 @@ class MicService {
             await ffBackend.setSampleRate(sampleRate);
 
         } catch (e) {
-            this.micActive = false;
-            throw e;
+            this.finishOpening();
+
+            console.error(e);
+            alert(e);
+
+            // TODO better snackbar
+            // this.snackbar = true;
+            // this.snackbarText = "Couldn't open microphone";
+            await this.stopRecording();
+            store.setSearchState(store.searchStates.READY);
+            return;
         }
 
         // IMPORTANT NODE: we can simply set
@@ -107,21 +114,14 @@ class MicService {
         console.debug(this.audioCtx);
         this.micProcessor.connect(this.audioCtx.destination);
 
-        this.recordingTimer = setTimeout(() => {
-            if (store.state.recordingTimeLimited) {
-                this.stopRecording();
-                ffBackend.submitFilledBuffer();
-            }
-            this.recordingTimer = null;
-        }, ffConfig.RECORDING_TIME_LIMIT_MS);
-
         this.finishOpening();
     }
 
     async stopRecording() {
-        if (!this.micActive) {
-            return;
-        }
+        // There is never a use case where we don't want this to be in working state
+        //  Even if the mic has failed to open we might still have to wait a second
+        //  before the audio context closes.
+        store.setSearchState(store.searchStates.WORKING);
 
         // Make sure we don't try to close whilst in the process
         //  of opening.
@@ -141,10 +141,7 @@ class MicService {
             await this.audioCtx.close();
             this.audioCtx = null;
         }
-
-        this.micActive = false;
     }
-
 }
 
 const micService = new MicService();

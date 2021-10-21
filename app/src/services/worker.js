@@ -77,8 +77,6 @@ class FolkFriendWASMWrapper {
         await this.folkfriendWASM.feed_single_pcm_window(ptr);
     }
 
-
-
     async flushPCMBuffer() {
         await this.folkfriendWASM.flush_pcm_buffer();
     }
@@ -87,26 +85,6 @@ class FolkFriendWASMWrapper {
         const contour = await this.folkfriendWASM.transcribe_pcm_buffer();
         cb(contour);
     }
-
-    // pub fn feed_entire_pcm_signal(&mut self, pcm_signal: Vec<f32>) {
-    //     self.feature_extractor.feed_signal(pcm_signal);
-    // }
-
-    // pub fn feed_single_pcm_window(&mut self, pcm_window: [f32; ff_config::SPEC_WINDOW_SIZE]) {
-    //     self.feature_extractor.feed_window(pcm_window);
-    // }
-
-    // pub fn flush_pcm_buffer(&mut self) {
-    //     self.feature_extractor.flush();
-    // }
-
-    // pub fn transcribe_pcm_buffer(&mut self) -> decode::types::ContourString {
-    //     let contour = self
-    //         .feature_decoder
-    //         .decode(&mut self.feature_extractor.features);
-    //     self.feature_extractor.flush();
-    //     return contour;
-    // }
 
     async runTranscriptionQuery(query, cb) {
         await this.loadedWASM;
@@ -121,44 +99,39 @@ class FolkFriendWASMWrapper {
         const response = await this.folkfriendWASM.run_name_query(query);
         cb(JSON.parse(response));
     }
-
+    
     async contourToAbc(contour, cb) {
         await this.loadedWASM;
         const abc = await this.folkfriendWASM.contour_to_abc(contour);
         cb(abc);
     }
+    
+    async settingsFromTuneID(tuneID, cb) {
+        await this.loadedWASM;
+        await this.loadedIndex;
 
-    // async loadJsonObjJS(obj) {
-    //     this.index = obj;
-    // }
+        const response = await this.folkfriendWASM.settings_from_tune_id(tuneID);
+        let settings = JSON.parse(response);
 
-    // async demoQueryJS() {
-    //     let query = "xACEHCEAEACEFCAEACCAxAEACEFCHvvCECEAEACEFCCEACAxAEACEFCHvvCECEA";
+        // Recall that we delete the ABC string before passing data into WebAssembly,
+        //  because otherwise it takes a lot of time every startup to load that data in
+        //  and it's only used by the frontend and not the backend. So here we reinject
+        //  the ABC strings that are stored in the worker.
+        let settingsIncludingAbc = settings.map(([settingID, setting]) => {
+            setting['setting_id'] = settingID;
+            setting['abc'] = this.abcStringBySetting[settingID];
+            return setting;
+        })
 
-    //     const ktup = 3;
-    //     const queryNgrams = [];
-    //     const searchResults = [];
+        cb(settingsIncludingAbc);
+    }
 
-    //     // Get an array of each three length string in the query name
-    //     for (let i = 0; i < query.length - ktup; i++) {
-    //         queryNgrams.push(query.slice(i, i + ktup));
-    //     }
-
-    //     for (let [setting_id, setting] of Object.entries(this.index.settings)) {
-    //         let score = 0;
-
-    //         queryNgrams.forEach(ngram => {
-    //             if (setting.contour.includes(ngram)) {
-    //                 score += 1;
-    //             }
-    //         });
-
-    //         score /= Math.max(setting.contour.length, query.length);
-    //         searchResults[setting_id] = score;
-    //     }
-
-    //     return searchResults;
-    // }
+    async aliasesFromTuneID(tuneID, cb) {
+        await this.loadedWASM;
+        await this.loadedIndex;
+        const aliases = await this.folkfriendWASM.aliases_from_tune_id(tuneID);
+        cb(JSON.parse(aliases));
+    }
 }
 
 const folkfriendWASMWrapper = new FolkFriendWASMWrapper();

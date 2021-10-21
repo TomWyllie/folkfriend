@@ -5,12 +5,11 @@ pub mod ff_config;
 pub mod index;
 pub mod query;
 
+use js_sys;
 use serde_json::json;
 use std::convert::TryInto;
 use std::slice;
 use wasm_bindgen::prelude::*;
-// use JsValue;
-use js_sys;
 
 #[wasm_bindgen]
 extern "C" {
@@ -67,6 +66,7 @@ impl FolkFriend {
     }
 
     pub fn transcribe_pcm_buffer(&mut self) -> decode::types::ContourString {
+        // log(format!("{:?}", self.feature_extractor.features).as_str());
         let contour = self
             .feature_decoder
             .decode(&mut self.feature_extractor.features);
@@ -92,6 +92,20 @@ impl FolkFriend {
         let mut contour: decode::types::Contour = Vec::new();
         contour = contour_string.append_to_contour(contour);
         self.abc_processor.contour_to_abc(&contour)
+    }
+
+    pub fn settings_from_tune_id(
+        &self,
+        tune_id: index::schema::TuneID,
+    ) -> Result<Vec<(index::schema::SettingID, index::schema::Setting)>, query::QueryError> {
+        self.query_engine.settings_from_tune_id(tune_id)
+    }
+
+    pub fn aliases_from_tune_id(
+        &self,
+        tune_id: index::schema::TuneID,
+    ) -> Result<Vec<String>, query::QueryError> {
+        self.query_engine.aliases_from_tune_id(tune_id)
     }
 }
 
@@ -176,7 +190,12 @@ impl FolkFriendWASM {
             .run_transcription_query(&decode::types::ContourString::from_string(
                 &contour_string.to_string(),
             ));
-        if let Ok(query_result) = result {
+        if let Ok(mut query_result) = result {
+            // Pass back fewer results to the App than the backend is
+            //  configured to provide. Users don't have time to scroll
+            //  through a hundred results, even if we do want this sort
+            //  of granularity when assessing dataset performance.
+            query_result.truncate(20);
             return json!(query_result).to_string();
         } else {
             return "{
@@ -185,6 +204,7 @@ impl FolkFriendWASM {
             .to_string();
         }
     }
+
     pub fn run_name_query(&self, query: &str) -> String {
         // TODO proper error propagation in JSON back to javascriptx
         let result = self.ff.run_name_query(&query.to_string());
@@ -202,5 +222,31 @@ impl FolkFriendWASM {
             .contour_to_abc(&decode::types::ContourString::from_string(
                 &contour_string.to_string(),
             ))
+    }
+
+    pub fn settings_from_tune_id(&self, tune_id: index::schema::TuneID) -> String {
+        // TODO proper error propagation in JSON back to javascript
+        let result = self.ff.settings_from_tune_id(tune_id);
+        if let Ok(settings) = result {
+            return json!(settings).to_string();
+        } else {
+            return "{
+                \"error\": \"setting ID query error\"
+            }"
+            .to_string();
+        }
+    }
+
+    pub fn aliases_from_tune_id(&self, tune_id: index::schema::TuneID) -> String {
+        // TODO proper error propagation in JSON back to javascript
+        let result = self.ff.aliases_from_tune_id(tune_id);
+        if let Ok(aliases) = result {
+            return json!(aliases).to_string();
+        } else {
+            return "{
+                        \"error\": \"aliases from tune ID query error\"
+                    }"
+            .to_string();
+        }
     }
 }

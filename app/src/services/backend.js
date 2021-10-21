@@ -1,5 +1,6 @@
-import * as Comlink from "@/services/comlink";
-import store from "@/services/store"
+import * as Comlink from "@/services/comlink.js";
+import store from "@/services/store.js";
+import router from "@/router/index.js";
 
 class FFBackend {
     /* Yet another layer of abstraction. This class is the route that all 
@@ -60,23 +61,33 @@ class FFBackend {
         })
     }
 
-    async submitFilledBuffer(doQuery) {
+    async submitFilledBuffer() {
+        console.debug("Submitting filled buffer");
+
         const contour = await this.transcribePCMBuffer();
+        console.debug("contour", contour);
+
+        // If we have limited the recording time, then the query will probably
+        //  be short, and so it's sensible to run a search query. Users can
+        //  disable the automatic querying if they desire, for example if
+        //  transcribing a new and/or long tune to sheet music.
+        const doQuery = store.state.recordingTimeLimited;
 
         if (doQuery) {
             const queryResults = await this.runTranscriptionQuery(contour);
             store.setEntry("lastResults", queryResults);
-            // TODO event bus or something
-            // this.$router.push({ name: "results" });
+            router.push({ name: "results" });
+            console.debug(queryResults);
         }
 
         const notes = await this.contourToAbc(contour);
         store.setEntry("lastNotes", notes);
 
         if (!doQuery) {
-            // TODO event bus or something
-            // this.$router.push({ name: "score" });
+            console.debug(notes);
         }
+
+        store.setSearchState(store.searchStates.READY);
     }
 
     async runNameQuery(query) {
@@ -95,6 +106,21 @@ class FFBackend {
         })
     }
 
+    async settingsFromTuneID(tuneID) {
+        return new Promise(resolve => {
+            this.folkfriendWASMWrapper.settingsFromTuneID(tuneID, Comlink.proxy(response => {
+                resolve(response);
+            }));
+        })
+    }
+
+    async aliasesFromTuneID(tuneID) {
+        return new Promise(resolve => {
+            this.folkfriendWASMWrapper.aliasesFromTuneID(tuneID, Comlink.proxy(response => {
+                resolve(response);
+            }));
+        })
+    }
 }
 
 const ffBackend = new FFBackend();

@@ -37,7 +37,7 @@
         <v-container class="py-0 mx-auto">
             <v-row wrap align="center" justify="center" class="mx-0">
                 <v-col align="center" class="noFlexGrow px-5">
-                    <v-switch v-model="recordingTimeLimited" inset>
+                    <v-switch inset v-model="recordingTimeLimited" @change="recordingSwitch">
                         <template v-slot:label>
                             <v-icon v-if="recordingTimeLimited">{{
                                 icons.timerOutline
@@ -130,6 +130,9 @@ export default {
         placeholderMethod() {
             console.debug("placeholder action");
         },
+        recordingSwitch() {
+            console.debug(this.recordingTimeLimited);
+        },
         async uploadDemo() {
             const audioData = await audioService.urlToTimeDomainData(
                 "/res/slide_from_grace.mp3"
@@ -149,12 +152,7 @@ export default {
             store.setEntry("lastResults", queryResults);
             this.$router.push({ name: "results" });
         },
-    },
-    watch: {
-        recordingTimeLimited: function (val) {
-            store.setEntry("recordingTimeLimited", val);
-        },
-    },
+    }
 };
 
 // import audioService from "@/folkfriend/ff-audio";
