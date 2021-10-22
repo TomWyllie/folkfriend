@@ -32,9 +32,9 @@
 </template>
 
 <script>
-import abcjs from "abcjs/midi";
 import { mdiFullscreen, mdiPause, mdiPlay, mdiReplay, mdiStop } from "@mdi/js";
 import store from "@/services/store.js";
+import abcjs from "abcjs/midi";
 
 export default {
     name: "AbcDisplay",
@@ -145,5 +145,4 @@ export default {
 .abcControls {
     min-width: 0 !important;
 }
-
 </style>

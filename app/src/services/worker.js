@@ -26,6 +26,11 @@ class FolkFriendWASMWrapper {
 
     async loadIndex(cb) {
         console.time("index-fetch");
+
+        // URL of an old commit which definitely works.
+        //  Don't use raw github links it's not good (serves without GZIP for one thing...).
+        // https://raw.githubusercontent.com/TomWyllie/folkfriend-app-data/1b3ff6006760e5e1b75fe162aadcab695160b96f/folkfriend-non-user-data.json
+
         const response = await fetch("/res/folkfriend-non-user-data.json")
             .then((response) => response.json())
             .catch((err) => console.log(err));

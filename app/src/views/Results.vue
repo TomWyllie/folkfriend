@@ -33,7 +33,8 @@ export default {
     max-width: min(90vh, 90vw);
 }
 
-.resultsTable div:nth-child(odd) {
+.resultsTable > a:nth-child(odd) {
     background: #efefef;
 }
+
 </style>

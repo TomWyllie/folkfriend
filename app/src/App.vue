@@ -5,7 +5,7 @@
                   Guess otherwise vuetify thinks it's not clickable?
                   The 0 is insignificant I just needed any valid javascript-->
             <v-list dense>
-                <router-link tag="div" to="/">
+                <router-link to="/">
                     <v-list-item @click="0">
                         <v-list-item-action>
                             <v-icon>{{ icons.microphone }}</v-icon>
@@ -16,7 +16,7 @@
                     </v-list-item>
                 </router-link>
 
-                <router-link tag="div" to="/score">
+                <router-link to="/score">
                     <v-list-item @click="0">
                         <v-list-item-action>
                             <v-icon>{{ icons.musicNote }}</v-icon>
@@ -27,7 +27,7 @@
                     </v-list-item>
                 </router-link>
 
-                <router-link tag="div" to="/results">
+                <router-link to="/results">
                     <v-list-item @click="0">
                         <v-list-item-action>
                             <v-icon>{{ icons.formatListBulleted }}</v-icon>
@@ -38,7 +38,7 @@
                     </v-list-item>
                 </router-link>
 
-                <router-link tag="div" to="/history">
+                <router-link to="/history">
                     <v-list-item @click="0">
                         <v-list-item-action>
                             <v-icon>{{ icons.history }}</v-icon>
@@ -49,7 +49,7 @@
                     </v-list-item>
                 </router-link>
 
-                <router-link tag="div" to="/settings">
+                <router-link to="/settings">
                     <v-list-item @click="0">
                         <v-list-item-action>
                             <v-icon>{{ icons.cog }}</v-icon>
@@ -142,3 +142,9 @@ async function runQueryDemo() {
     console.timeEnd("query-demo");
 }
 </script>
+
+<style scoped>
+.v-list > a {
+    text-decoration: none;
+}
+</style>

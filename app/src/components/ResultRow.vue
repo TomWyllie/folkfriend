@@ -1,12 +1,12 @@
 <template>
     <router-link
-        tag="div"
+        
         :to="{
             name: 'tune',
             params: {
                 settingID: this.result.setting_id,
                 tuneID: this.result.setting.tune_id,
-                displayName: this.result.display_name
+                displayName: this.result.display_name,
             },
         }"
     >
@@ -36,8 +36,8 @@
 import utils from "@/services/utils";
 
 export default {
-    name: 'ResultRow',
-    props: ['result'],
+    name: "ResultRow",
+    props: ["result"],
     computed: {
         descriptor: function () {
             return utils.parseDisplayableDescription(this.result.setting);
@@ -58,17 +58,17 @@ export default {
             //  Also if the recording is rubbish and it comes up with very poor
             //  matches now they will be flagged up as unlikely.
             if (this.result.score > 0.7) {
-                return 'Very Close';
-            } else if (this.result.score > 0.50) {
-                return 'Close';
+                return "Very Close";
+            } else if (this.result.score > 0.5) {
+                return "Close";
             } else if (this.result.score > 0.32) {
-                return 'Possible';
-            } else if (this.result.score > 0.20) {
-                return 'Unlikely';
-            } else if (this.result.score > 0){
-                return 'Very Unlikely';
+                return "Possible";
+            } else if (this.result.score > 0.2) {
+                return "Unlikely";
+            } else if (this.result.score > 0) {
+                return "Very Unlikely";
             } else {
-                return 'No Match'
+                return "No Match";
             }
         },
         scoreColour: function () {
@@ -77,11 +77,11 @@ export default {
             x = Math.max(0.0, x);
             x = (x - 0.1) / 0.7;
 
-            const a = '#CC1111';
-            const b = '#11CC11';
+            const a = "#CC1111";
+            const b = "#11CC11";
             return utils.lerpColor(a, b, x);
-        }
-    }
+        },
+    },
 };
 </script>
 
@@ -97,5 +97,14 @@ export default {
 .score {
     font-weight: bolder;
     font-style: italic;
+}
+
+.resultsTable a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.resultsTable a div {
+    background: inherit;
 }
 </style>

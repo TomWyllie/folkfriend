@@ -1,7 +1,6 @@
 <template>
     <v-container>
         <h1>Settings</h1>
-        <!-- TODO have this version match package.json automagically? -->
         <h3>TODO Select microphone</h3>
         <h3>TODO Test microphone</h3>
         <h3>TODO Select performance settings (high / medium / low)</h3>
@@ -10,7 +9,6 @@
         <v-switch inset @change="showAbcText" label="Show ABC Text"></v-switch>
 
         <h1>About</h1>
-        <!-- TODO have this version match package.json automagically? -->
         <h3>FolkFriend App Version: {{ frontendVersion }}</h3>
         <h3>FolkFriend Backend version: {{ backendVersion }}</h3>
         <h3>© 2021 Tom Wyllie. All Rights Reserved.</h3>
