@@ -27,7 +27,7 @@ class Store {
 
         this.userSettings = USER_SETTING_DEFAULTS;
         this.settingsLoaded = get('userSettings').then(userSettings => {
-            this.userSettings = userSettings;
+            this.userSettings = userSettings || USER_SETTING_DEFAULTS;
         });
 
         this.searchState = this.searchStates.READY;
