@@ -1,7 +1,7 @@
 /* https://vuejs.org/v2/guide/state-management.html#Simple-State-Management-from-Scratch */
 // Vuex is overkill for out needs. Use a very simple global object store for
 //  very basic state management.
-
+import { get, set } from 'idb-keyval';
 
 // TODO load from local storage or similar
 const USER_SETTING_DEFAULTS = {
@@ -25,20 +25,37 @@ class Store {
             WORKING: "working"
         };
 
-        // TODO load from local storage or similar
         this.userSettings = USER_SETTING_DEFAULTS;
+        this.settingsLoaded = get('userSettings').then(userSettings => {
+            this.userSettings = userSettings;
+        });
 
         this.searchState = this.searchStates.READY;
     }
-    
-    setEntry(key, val) {
-        // console.debug(`setEntry triggered with [${key}]`, val);
-        this.state[key] = val;
+
+    async getLocalTuneIndex() {
+        return await get('tuneIndex');
     }
-    
-    clearEntry(key) {
-        // console.debug(`clearEntry triggered [${key}]`);
-        this.state[key] = null;
+
+    async storeDownloadedTuneIndex(downloadedTuneIndex) {
+        return await set('tuneIndex', downloadedTuneIndex);
+    }
+
+    async getLocalTuneIndexMetadata() {
+        return await get('tuneIndexMetadata');
+    }
+
+    async storeDownloadedTuneIndexMetadata(downloadedTuneIndexMetadata) {
+        return await set('tuneIndexMetadata', downloadedTuneIndexMetadata);
+    }
+
+    async updateUserSettings(userSettings) {
+        // Usable immediately and synchronously by the entire application.
+        this.userSettings = userSettings;
+
+        // Save for later so that when we reload the settings page / restart 
+        //  app, the settings are maintained.
+        set('userSettings', userSettings);
     }
 
     isReady() {

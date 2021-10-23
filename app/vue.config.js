@@ -20,6 +20,15 @@ module.exports = {
             })
         ],
     },
+    chainWebpack: config => {
+        if (process.env.NODE_ENV === "production") {
+            config.plugin("copy").tap(opts => {
+                opts[0][0].ignore.push({ glob: "folkfriend-non-user-data.json*" });
+                opts[0][0].ignore.push({ glob: "nud-meta.json" });
+                return opts;
+            });
+        }
+    },
     pwa: {
         name: "FolkFriend",
         theme_color: '#055581',

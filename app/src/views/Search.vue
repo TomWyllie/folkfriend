@@ -37,14 +37,6 @@
         <v-container class="py-0 mx-auto">
             <v-row wrap align="center" justify="center" class="mx-0">
                 <v-col align="center" class="noFlexGrow px-5">
-                    <v-switch
-                        inset
-                        @change="advancedMode"
-                        label="Advanced Mode"
-                    >
-                    </v-switch>
-                </v-col>
-                <v-col align="center" class="noFlexGrow px-5">
                     <!-- <v-btn
                         v-on:click="$refs.fileUpload.click()"
                         :disabled="!offlineButton"
@@ -80,7 +72,6 @@ import audioService from "@/services/audio";
 import store from "@/services/store";
 
 import {
-    mdiHelp,
     mdiMagnify,
     mdiTimerOutline,
     mdiTimerOffOutline,
@@ -93,22 +84,13 @@ export default {
     },
     data: function () {
         return {
-            // tunesTable: [],
-            // postProcPerf: 0,
             snackbar: null,
             snackbarText: null,
 
             textQuery: "",
-
             offlineButton: true,
-            // progressBar: null,
-            // progressSearching: null,
-            // audioProgress: null,
-            // featureProgress: null,
-            // maxFramesProgress: null,
 
             icons: {
-                help: mdiHelp,
                 magnify: mdiMagnify,
                 timerOutline: mdiTimerOutline,
                 timerOffOutline: mdiTimerOffOutline,
@@ -118,7 +100,7 @@ export default {
     methods: {
         nameQuery() {
             ffBackend.runNameQuery(this.textQuery).then((results) => {
-                store.setEntry("lastResults", results);
+                store.state.lastResults = results;
                 this.$router.push({ name: "results" });
             });
         },

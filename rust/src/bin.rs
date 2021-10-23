@@ -201,8 +201,9 @@ pub fn get_tune_index_json() -> String {
     std::fs::create_dir_all(&folkfriend_index).unwrap();
 
     folkfriend_index.push("folkfriend-non-user-data.json");
-    let index_url = "https://raw.githubusercontent.com/TomWyllie/folkfriend-app-data/master/folkfriend-non-user-data.json";
-
+    // let index_url = "https://raw.githubusercontent.com/TomWyllie/folkfriend-app-data/master/folkfriend-non-user-data.json";
+    let index_url = "https://folkfriend-app-data.web.app/folkfriend-non-user-data.json";
+    
     if !folkfriend_index.exists() {
         let resp = reqwest::blocking::get(index_url).unwrap().text().unwrap();
         fs::write(&folkfriend_index, resp).expect("Couldn't write data to index file");

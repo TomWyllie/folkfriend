@@ -74,16 +74,17 @@ impl QueryEngine {
                 // First pass: fast, but inaccurate. Good for eliminating many poor candidates.
                 //
                 // let nowh = Instant::now();
-                let first_search =
+                let mut first_search =
                     heuristic::run_transcription_query(&contour.value(), &tune_index);
-                // eprintln!("Heuristic search took {:.2?}", nowh.elapsed());
+                first_search.truncate(self.num_repass);
+                    // eprintln!("Heuristic search took {:.2?}", nowh.elapsed());
                 //
                 // === Full search ===
                 // Second pass: slow, but accurate. Good for refining a shortlist of candidates.
                 //
                 // let nowf = Instant::now();
                 let mut second_search: Vec<(SettingID, f32)> = Vec::new();
-                for (setting_id, _) in &first_search[0..self.num_repass] {
+                for (setting_id, _) in &first_search {
                     let score = nw::needleman_wunsch(
                         &contour.value(),
                         &tune_index.settings[setting_id].contour,

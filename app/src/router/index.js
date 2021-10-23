@@ -6,6 +6,7 @@ import Results from '@/views/Results.vue';
 import Tune from "@/views/Tune.vue";
 import Settings from "@/views/Settings.vue";
 import History from "@/views/History.vue";
+import Help from "@/views/Help.vue";
 
 Vue.use(VueRouter)
 
@@ -40,6 +41,11 @@ const routes = [
         path: '/settings',
         name: 'settings',
         component: Settings,
+    },
+    {
+        path: '/help',
+        name: 'help',
+        component: Help,
     }
 ];
 

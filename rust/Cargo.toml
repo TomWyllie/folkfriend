@@ -1,6 +1,6 @@
 [package]
 name = "folkfriend"
-version = "3.0.1"
+version = "3.0.6"   # MAKE SURE THIS MATCHES ff_config.rs
 authors = ["Tom Wyllie <tom@wyllie.dev>"]
 edition = "2018"
 description = "Transcription and recognition of traditional instrumental folk music"

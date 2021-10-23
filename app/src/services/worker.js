@@ -24,36 +24,56 @@ class FolkFriendWASMWrapper {
         cb(this.folkfriendWASM.version());
     }
 
-    async loadIndex(cb) {
+    async fetchTuneIndexData() {
         console.time("index-fetch");
 
-        // URL of an old commit which definitely works.
-        //  Don't use raw github links it's not good (serves without GZIP for one thing...).
-        // https://raw.githubusercontent.com/TomWyllie/folkfriend-app-data/1b3ff6006760e5e1b75fe162aadcab695160b96f/folkfriend-non-user-data.json
-
-        const response = await fetch("/res/folkfriend-non-user-data.json")
-            .then((response) => response.json())
-            .catch((err) => console.log(err));
-        console.timeEnd("index-fetch");
-
-        await this.loadedWASM;
-
-        console.time('index-parse-from-worker');
-
-        for (let settingID in response.settings) {
-            this.abcStringBySetting[settingID] = response.settings[settingID].abc;
-            response.settings[settingID].abc = "";
+        let url = "/res/folkfriend-non-user-data.json";
+        if (process.env.NODE_ENV === 'production') {
+            url = "https://folkfriend-app-data.web.app/folkfriend-non-user-data.json";
         }
 
-        let start = performance.now();
-        await this.folkfriendWASM.load_index_from_json_obj(response);
-        let end = performance.now();
-        console.timeEnd('index-parse-from-worker');
-        cb(end - start);
+        // Fetch
+        let indexData = await fetch(url)
+            .then((response) => response.json())
+            .catch((err) => console.log(err));
 
-        this.setLoadedIndex();
+        // Lightly postprocess. ABC strings don't go to WASM because
+        //  of slow memory loading in WebAssembly.        
+        let abcStringBySetting = {};
+        for (let settingID in indexData.settings) {
+            abcStringBySetting[settingID] = indexData.settings[settingID].abc;
+            indexData.settings[settingID].abc = "";
+        }
+
+        const downloadedTuneIndex = {
+            indexData: indexData,
+            abcStrings: abcStringBySetting
+        }
+
+        console.timeEnd("index-fetch");
+
+        return downloadedTuneIndex;
     }
 
+    async firstTimeIndexSetup(cb) {
+        // Download
+        const downloadedTuneIndex = await this.fetchTuneIndexData();
+        
+        // Load (so the user can start using the application)
+        console.time('index-parse-from-worker');
+        await this.loadTuneIndex(downloadedTuneIndex);
+        console.timeEnd('index-parse-from-worker');
+        
+        // Pass the object back to the main thread for caching
+        cb(downloadedTuneIndex);
+    }
+    
+    async loadTuneIndex(tuneIndex) {
+        await this.loadedWASM;
+        await this.folkfriendWASM.load_index_from_json_obj(tuneIndex.indexData);
+        this.abcStringBySetting = tuneIndex.abcStrings;
+        this.setLoadedIndex();
+    }
 
     async setSampleRate(sampleRate) {
         await this.folkfriendWASM.set_sample_rate(sampleRate);
@@ -104,13 +124,13 @@ class FolkFriendWASMWrapper {
         const response = await this.folkfriendWASM.run_name_query(query);
         cb(JSON.parse(response));
     }
-    
+
     async contourToAbc(contour, cb) {
         await this.loadedWASM;
         const abc = await this.folkfriendWASM.contour_to_abc(contour);
         cb(abc);
     }
-    
+
     async settingsFromTuneID(tuneID, cb) {
         await this.loadedWASM;
         await this.loadedIndex;

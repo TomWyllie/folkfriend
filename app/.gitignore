@@ -2,7 +2,7 @@
 node_modules
 /dist
 public/wasm/*
-public/res/*.json
+public/res/*.json*
 public/res/*.mp3
 
 # local env files

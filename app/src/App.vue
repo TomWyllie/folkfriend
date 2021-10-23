@@ -59,6 +59,17 @@
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
+
+                <router-link to="/help">
+                    <v-list-item @click="0">
+                        <v-list-item-action>
+                            <v-icon>{{ icons.help }}</v-icon>
+                        </v-list-item-action>
+                        <v-list-item-content>
+                            <v-list-item-title>Help</v-list-item-title>
+                        </v-list-item-content>
+                    </v-list-item>
+                </router-link>
             </v-list>
         </v-navigation-drawer>
 
@@ -94,6 +105,7 @@ import {
     mdiCog,
     mdiDotsVertical,
     mdiFormatListBulleted,
+    mdiHelpCircleOutline,
     mdiHistory,
     mdiMenu,
     mdiMicrophone,
@@ -110,6 +122,7 @@ export default {
             cog: mdiCog,
             dotsVertical: mdiDotsVertical,
             formatListBulleted: mdiFormatListBulleted,
+            help: mdiHelpCircleOutline,
             history: mdiHistory,
             menu: mdiMenu,
             microphone: mdiMicrophone,
@@ -123,12 +136,11 @@ export default {
 
 async function initSetup() {
     let version = await ffBackend.version();
-    store.setEntry("backendVersion", version);
+    store.state.backendVersion = version;
 
     console.info("Loaded folkfriend backend version", version);
 
-    console.debug("Fetching index JSON");
-    await ffBackend.loadIndex();
+    await ffBackend.setupTuneIndex();
 
     // await runQueryDemo();
 }
