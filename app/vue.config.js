@@ -6,22 +6,23 @@ const version = JSON.parse(packageJson).version || "";
 const webpack = require('webpack');
 
 module.exports = {
-  transpileDependencies: [
-    'vuetify'
-  ],
-  configureWebpack: {
-    plugins: [
-      new WorkerPlugin(),
-      // This is just to pull the version from package.json into ffConfig.js
-      new webpack.DefinePlugin({
-        'process.env': {
-          PACKAGE_VERSION: '"' + version + '"'
-        }
-      })
+    transpileDependencies: [
+        'vuetify'
     ],
-  },
-  pwa: {
-    name: "FolkFriend",
-    theme_color: '#055581',
-  }
+    configureWebpack: {
+        plugins: [
+            new WorkerPlugin(),
+            // This is just to pull the version from package.json into ffConfig.js
+            new webpack.DefinePlugin({
+                'process.env': {
+                    PACKAGE_VERSION: '"' + version + '"'
+                }
+            })
+        ],
+    },
+    pwa: {
+        name: "FolkFriend",
+        theme_color: '#055581',
+        background_color: '#055581',
+    }
 }

@@ -46,45 +46,46 @@ class FFBackend {
     }
 
     async transcribePCMBuffer() {
+        console.time("transcribe-pcm-buffer");
         return new Promise(resolve => {
             this.folkfriendWASMWrapper.transcribePCMBuffer(Comlink.proxy(contour => {
+                console.timeEnd("transcribe-pcm-buffer");
                 resolve(contour);
             }))
         });
     }
 
     async runTranscriptionQuery(query) {
+        console.time("run-transcription-query");
         return new Promise(resolve => {
             this.folkfriendWASMWrapper.runTranscriptionQuery(query, Comlink.proxy(response => {
+                console.timeEnd("run-transcription-query");
                 resolve(response);
             }));
         })
     }
 
     async submitFilledBuffer() {
-        console.debug("Submitting filled buffer");
-
         const contour = await this.transcribePCMBuffer();
         console.debug("contour", contour);
-
+        
         // If we have limited the recording time, then the query will probably
         //  be short, and so it's sensible to run a search query. Users can
         //  disable the automatic querying if they desire, for example if
         //  transcribing a new and/or long tune to sheet music.
-        const doQuery = store.state.recordingTimeLimited;
+        const doQuery = !store.userSettings.advancedMode;
 
         if (doQuery) {
             const queryResults = await this.runTranscriptionQuery(contour);
             store.setEntry("lastResults", queryResults);
             router.push({ name: "results" });
-            console.debug(queryResults);
         }
-
+        
         const notes = await this.contourToAbc(contour);
         store.setEntry("lastNotes", notes);
-
+        
         if (!doQuery) {
-            console.debug(notes);
+            router.push({ name: "score" });
         }
 
         store.setSearchState(store.searchStates.READY);

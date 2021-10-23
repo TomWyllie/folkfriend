@@ -15,8 +15,8 @@ class Store {
     constructor() {
         this.state = {
             lastResults: [],
+            lastNotes: "",
             backendVersion: "not loaded",
-            recordingTimeLimited: true,
         };
 
         this.searchStates = {

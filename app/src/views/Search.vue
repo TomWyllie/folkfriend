@@ -37,15 +37,11 @@
         <v-container class="py-0 mx-auto">
             <v-row wrap align="center" justify="center" class="mx-0">
                 <v-col align="center" class="noFlexGrow px-5">
-                    <v-switch inset v-model="recordingTimeLimited" @change="recordingSwitch">
-                        <template v-slot:label>
-                            <v-icon v-if="recordingTimeLimited">{{
-                                icons.timerOutline
-                            }}</v-icon>
-                            <v-icon v-if="!recordingTimeLimited">{{
-                                icons.timerOffOutline
-                            }}</v-icon>
-                        </template>
+                    <v-switch
+                        inset
+                        @change="advancedMode"
+                        label="Advanced Mode"
+                    >
                     </v-switch>
                 </v-col>
                 <v-col align="center" class="noFlexGrow px-5">
@@ -104,7 +100,6 @@ export default {
 
             textQuery: "",
 
-            recordingTimeLimited: true,
             offlineButton: true,
             // progressBar: null,
             // progressSearching: null,
@@ -130,8 +125,8 @@ export default {
         placeholderMethod() {
             console.debug("placeholder action");
         },
-        recordingSwitch() {
-            console.debug(this.recordingTimeLimited);
+        advancedMode(mode) {
+            store.userSettings.advancedMode = mode;
         },
         async uploadDemo() {
             const audioData = await audioService.urlToTimeDomainData(
@@ -139,20 +134,13 @@ export default {
             );
             // TODO set sample rate actually here
 
-            console.time("upload-demo-transcribe");
+            console.time("feed-pcm-signal");
             await ffBackend.feedEntirePCMSignal(audioData);
-            const contour = await ffBackend.transcribePCMBuffer();
-            console.debug(contour);
-            console.timeEnd("upload-demo-transcribe");
+            console.timeEnd("feed-pcm-signal");
 
-            console.time("upload-demo-query");
-            const queryResults = await ffBackend.runTranscriptionQuery(contour);
-            console.timeEnd("upload-demo-query");
-
-            store.setEntry("lastResults", queryResults);
-            this.$router.push({ name: "results" });
+            await ffBackend.submitFilledBuffer();
         },
-    }
+    },
 };
 
 // import audioService from "@/folkfriend/ff-audio";
