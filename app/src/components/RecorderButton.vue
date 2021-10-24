@@ -74,10 +74,21 @@ import micService from "@/services/mic.js";
 import ffBackend from "@/services/backend.js";
 import store from "@/services/store.js";
 import ffConfig from "@/ffConfig.js";
-// import transcriber from "@/folkfriend/ff-transcriber.worker";
+import eventBus from "@/eventBus.js";
 
 export default {
     name: "RecorderButton",
+    data: () => {
+        return {
+            recorderCircleScale: 1.0,
+            snackbar: null,
+            snackbarText: null,
+
+            buttonReady: true,
+            buttonWorking: false,
+            buttonRecording: false,
+        };
+    },
     computed: {
         cssProps() {
             return {
@@ -88,49 +99,37 @@ export default {
             };
         },
     },
-    data: () => {
-        return {
-            transcriptionShortTimer: null,
-
-            recorderCircleScale: 1.0,
-            snackbar: null,
-            snackbarText: null,
-
-            buttonReady: true,
-            buttonWorking: false,
-            buttonRecording: false,
-        };
+    created: function() {
+        let rb = this;
+        eventBus.$on("setSearchState", () => {
+            rb.buttonReady = store.isReady();
+            rb.buttonWorking = store.isWorking();
+            rb.buttonRecording = store.isRecording();
+        });
     },
     methods: {
         clicked: async function () {
             switch (store.searchState) {
                 case store.searchStates.READY:
-                    await this.startRecording();
+                    if (store.userSettings.preferFileUpload) {
+                        this.$emit("clickFileUpload");
+                    } else {
+                        try {
+                            await this.startRecording();
+                        } catch (e) {
+                            console.warn(
+                                `Could not access microphone (${e.message}). You can still upload audio files by setting 'file upload' in settings.`
+                            );
+                        }
+                    }
                     break;
                 case store.searchStates.RECORDING:
                     await micService.stopRecording();
-                    this.updateButtonState();
                     await ffBackend.submitFilledBuffer();
                     break;
                 case store.searchStates.WORKING:
                     break;
             }
-            this.updateButtonState();
-
-            console.debug(store.searchState);
-
-            // if (store.isWorking()) {
-            //     return;
-            // } else if (store.isRecording()) {
-
-            // }
-
-            // if (!this.recording) {
-            //     await this.startRecording();
-            //     // this.$emit("recording-started");
-            // } else {
-            //     await this.stopRecording();
-            // }
         },
 
         startRecording: async function () {
@@ -164,19 +163,12 @@ export default {
             };
             window.requestAnimationFrame(buttonAnimation);
 
-
             // Set timer
             this.recordingTimer = setTimeout(() => {
-                // TODO proper settings object
-                if (store.state.recordingTimeLimited && store.isRecording()) {
+                if (!store.userSettings.advancedMode && store.isRecording()) {
                     this.clicked();
                 }
             }, ffConfig.RECORDING_TIME_LIMIT_MS);
-        },
-        updateButtonState() {
-            this.buttonReady = store.isReady();
-            this.buttonWorking = store.isWorking();
-            this.buttonRecording = store.isRecording();
         },
     },
 };

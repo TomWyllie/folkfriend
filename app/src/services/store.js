@@ -2,6 +2,7 @@
 // Vuex is overkill for out needs. Use a very simple global object store for
 //  very basic state management.
 import { get, set } from 'idb-keyval';
+import eventBus from "@/eventBus.js";
 
 // TODO load from local storage or similar
 const USER_SETTING_DEFAULTS = {
@@ -73,8 +74,10 @@ class Store {
     setSearchState(state) {
         this.searchState = state;
         if (!(this.isReady() || this.isRecording() || this.isWorking())) {
-            throw "Invalid state";
+            this.searchState = this.searchStates.READY;
+            console.error(`Invalid state ${state}`);
         }
+        eventBus.$emit("setSearchState");
     }
 };
 

@@ -1,6 +1,5 @@
 <template>
     <router-link
-        
         :to="{
             name: 'tune',
             params: {
@@ -10,7 +9,7 @@
             },
         }"
     >
-        <v-container v-ripple>
+        <v-container v-ripple @click="childViewActivated">
             <v-row class="pt-1 pb-0">
                 <v-col class="py-0">
                     <h2>{{ this.name }}</h2>
@@ -33,7 +32,8 @@
 </template>
 
 <script>
-import utils from "@/services/utils";
+import utils from "@/services/utils.js";
+import eventBus from "@/eventBus.js";
 
 export default {
     name: "ResultRow",
@@ -80,6 +80,11 @@ export default {
             const a = "#CC1111";
             const b = "#11CC11";
             return utils.lerpColor(a, b, x);
+        },
+    },
+    methods: {
+        childViewActivated() {
+            eventBus.$emit("childViewActivated");
         },
     },
 };

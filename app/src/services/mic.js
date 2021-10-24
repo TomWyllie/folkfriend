@@ -65,14 +65,12 @@ class MicService {
             this.finishOpening();
 
             console.error(e);
-            alert(e);
 
-            // TODO better snackbar
-            // this.snackbar = true;
-            // this.snackbarText = "Couldn't open microphone";
             await this.stopRecording();
             store.setSearchState(store.searchStates.READY);
-            return;
+
+            // Propagate
+            throw e;
         }
 
         // IMPORTANT NODE: we can simply set

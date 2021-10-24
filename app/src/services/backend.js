@@ -108,7 +108,6 @@ class FFBackend {
     }
 
     async loadIndex() {
-
         await this.folkfriendWorker.loadIndex(Comlink.proxy(duration => {
             // alert(duration);
         }));
