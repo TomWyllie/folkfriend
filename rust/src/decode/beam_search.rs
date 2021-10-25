@@ -1,12 +1,14 @@
 use crate::decode::pitch_model::PitchModel;
 use crate::decode::proposal::Proposal;
 use crate::decode::tempo_model::TempoModel;
-use crate::decode::types::{LatticePath, Pitch};
-use crate::ff_config;
-use crate::feature::types::Features;
+use crate::decode::types::{LatticePath, Note, Pitch};
 use crate::feature::normalise::Normalisable;
+use crate::feature::types::Features;
+use crate::ff_config;
 
-use std::collections::{HashMap, HashSet};
+// use std::collections::{HashMap, HashSet};
+use fnv::FnvHashSet as HashSet;
+use fnv::FnvHashMap as HashMap;
 
 pub fn decode(
     features: &mut Features,
@@ -35,12 +37,11 @@ pub fn decode(
     let mut proposals: Vec<Vec<Proposal>> = Vec::new();
     proposals.push(Vec::new());
 
-    for pitch in 0..ff_config::MIDI_NUM {
+    for pitch in ff_config::MIDI_LOW..=ff_config::MIDI_HIGH {
         proposals[0].push(Proposal {
+            note: Note::new(Pitch::new(pitch), 1),
+            score: features[0][(pitch - ff_config::MIDI_LOW) as usize],
             prev_proposal_id: 0,
-            pitch: pitch,
-            score: features[0][pitch as usize],
-            duration: 1,
             pitch_changed: true,
         })
     }
@@ -50,18 +51,18 @@ pub fn decode(
         // === Draft and score new proposals ===
         // =====================================
 
-        let mut pitches: HashSet<Pitch> = HashSet::new();
-        for (pitch, energy) in features[frame].iter().enumerate() {
+        let mut pitches: HashSet<Pitch> = HashSet::default();
+        for (pitch_index, energy) in features[frame].iter().enumerate() {
             if energy > &0. {
-                pitches.insert(pitch as Pitch);
+                pitches.insert(Pitch::new(ff_config::MIDI_LOW + pitch_index as u32));
             }
         }
         let mut drafted_proposals: Vec<Proposal> = Vec::new();
         for (i, prev_prop) in proposals[frame - 1].iter().enumerate() {
-            let mut last_pitch: HashSet<Pitch> = HashSet::new();
-            last_pitch.insert(prev_prop.pitch as Pitch);
+            let mut last_pitches: HashSet<Pitch> = HashSet::default();
+            last_pitches.insert(prev_prop.note.pitch());
 
-            for pitch in pitches.union(&last_pitch) {
+            for pitch in pitches.union(&last_pitches) {
                 // Add all non-zero-energy pitches as possible transitions,
                 //   as well as possibility of continuing on current pitch.
                 let proposal: Proposal = prev_prop.compute_child_proposal(
@@ -69,7 +70,7 @@ pub fn decode(
                     &tempo_model,
                     i,
                     *pitch,
-                    features[frame][*pitch as usize],
+                    features[frame][(pitch.value() - ff_config::MIDI_LOW) as usize],
                 );
                 drafted_proposals.push(proposal);
             }
@@ -90,7 +91,7 @@ pub fn decode(
         //   at the same time.
 
         let mut proposal_ids_to_keep: Vec<usize> = Vec::new();
-        let mut best_transitions: HashMap<Pitch, (f32, usize)> = HashMap::new();
+        let mut best_transitions: HashMap<Pitch, (f32, usize)> = HashMap::default();
 
         for (i, proposal) in proposals[frame].iter().enumerate() {
             // Carry over paths that didn't change pitch ("can't be ruled out")
@@ -98,12 +99,12 @@ pub fn decode(
                 proposal_ids_to_keep.push(i)
             } else {
                 let (existing_score, _) = best_transitions
-                    .get(&proposal.pitch)
+                    .get(&proposal.note.pitch())
                     .unwrap_or(&(-f32::INFINITY, 0));
 
                 // Retain only the best of lattice paths that just changed
                 if proposal.score > *existing_score {
-                    best_transitions.insert(proposal.pitch, (proposal.score, i));
+                    best_transitions.insert(proposal.note.pitch(), (proposal.score, i));
                 }
             }
         }
@@ -156,10 +157,9 @@ pub fn decode(
         frame -= 1;
     }
 
-    let lattice_path: Vec<u32> = lattice_path_proposals
+    let lattice_path: LatticePath = lattice_path_proposals
         .iter()
-        .map(|p| p.pitch as u32) // Extract proposed pitch
-        .map(|pitch| pitch + ff_config::MIDI_LOW) // Index -> MIDI pitch
+        .map(|p| p.note.pitch())
         .collect();
 
     return (lattice_path, best_final_proposal.score);

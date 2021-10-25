@@ -9,18 +9,18 @@ impl AbcProcessor {
     pub fn new() -> AbcProcessor {
         AbcProcessor {
             base_map: [
-                (72, "c"),
-                (73, "^c"),
-                (74, "d"),
-                (75, "^d"),
-                (76, "e"),
-                (77, "f"),
-                (78, "^f"),
-                (79, "g"),
-                (80, "^g"),
-                (81, "a"),
-                (82, "^a"),
-                (83, "b"),
+                (Pitch::new(72), "c"),
+                (Pitch::new(73), "^c"),
+                (Pitch::new(74), "d"),
+                (Pitch::new(75), "^d"),
+                (Pitch::new(76), "e"),
+                (Pitch::new(77), "f"),
+                (Pitch::new(78), "^f"),
+                (Pitch::new(79), "g"),
+                (Pitch::new(80), "^g"),
+                (Pitch::new(81), "a"),
+                (Pitch::new(82), "^a"),
+                (Pitch::new(83), "b"),
             ]
             .iter()
             .cloned()
@@ -43,7 +43,7 @@ impl AbcProcessor {
             midi += 12;
         }
 
-        let mut base = self.base_map.get(&midi).unwrap().to_string();
+        let mut base = self.base_map.get(&Pitch::new(midi)).unwrap().to_string();
 
         if commas >= 1 {
             base = base.to_uppercase();
@@ -55,11 +55,11 @@ impl AbcProcessor {
 
     pub fn contour_to_abc(&self, contour: &Contour) -> String {
         let mut hold = 0;
-        let mut last_n = None;
+        let mut last_pitch = None;
         let mut out = Vec::new();
 
-        for n in contour {
-            if Some(n) == last_n {
+        for pitch in contour {
+            if Some(pitch) == last_pitch {
                 hold += 1;
                 continue;
             } else if hold > 0 {
@@ -67,8 +67,8 @@ impl AbcProcessor {
                 hold = 0;
             }
 
-            out.push(format!(" {}", self.midi_to_abc(*n)));
-            last_n = Some(n);
+            out.push(format!(" {}", self.midi_to_abc(pitch.value())));
+            last_pitch = Some(pitch);
         }
 
         return out.join("");

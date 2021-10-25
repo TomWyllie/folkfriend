@@ -1,13 +1,12 @@
 use crate::decode::pitch_model::PitchModel;
 use crate::decode::tempo_model::TempoModel;
-use crate::decode::types::{Duration, Pitch, PitchInterval};
+use crate::decode::types::{Note, PitchInterval, Pitch, Duration};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Proposal {
-    pub prev_proposal_id: usize,
-    pub pitch: Pitch,
+    pub note: Note,
     pub score: f32,
-    pub duration: Duration,
+    pub prev_proposal_id: usize,
     pub pitch_changed: bool,
 }
 
@@ -27,25 +26,24 @@ impl Proposal {
         let mut new_score = self.score;
         new_score += child_energy;
 
-        let interval = child_pitch as PitchInterval - self.pitch as PitchInterval;
+        let interval = child_pitch.value() as PitchInterval - self.note.pitch().value() as PitchInterval;
         let pitch_changed: bool = interval != 0;
         let duration: Duration;
 
         if pitch_changed {
             // This is the same for each value of the inner loop that calls this
             //   function. This is a performance optimisation.
-            new_score += tempo_model.score(&self.duration);
+            new_score += tempo_model.score(&self.note);
             new_score += pitch_model.score(&interval);
             duration = 1;
         } else {
-            duration = self.duration + 1;
+            duration = self.note.duration() + 1;
         }
 
         return Proposal {
-            prev_proposal_id: parent_id,
-            pitch: child_pitch,
+            note: Note::new(child_pitch, duration),
             score: new_score,
-            duration: duration,
+            prev_proposal_id: parent_id,
             pitch_changed: pitch_changed,
         };
     }

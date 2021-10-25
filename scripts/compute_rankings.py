@@ -21,7 +21,11 @@ def main(queries_path, labels_path):
         original_audio_path = audio_slice_path.replace('slices/', '')
         original_audio_path = original_audio_path[:-8] + '.mp3'
         
-        assert original_audio_path in labels
+        try:
+            assert original_audio_path in labels
+        except AssertionError as e:
+            print(original_audio_path)
+            raise e
 
         # 0 = top rank, i.e. best guess was ground truth.
         rank = 0
@@ -32,6 +36,9 @@ def main(queries_path, labels_path):
             if query_result == ground_truth:
                 break
             rank += 1
+        else:
+            rank = -1
+
 
         print(f'{audio_slice_path},{rank}')
 

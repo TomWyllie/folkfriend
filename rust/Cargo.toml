@@ -1,10 +1,12 @@
 [package]
 name = "folkfriend"
-version = "3.0.0"
+version = "3.0.6"   # MAKE SURE THIS MATCHES ff_config.rs
 authors = ["Tom Wyllie <tom@wyllie.dev>"]
 edition = "2018"
 description = "Transcription and recognition of traditional instrumental folk music"
 documentation = "https://github.com/TomWyllie/folkfriend/blob/master/README.md"
+repository = "https://github.com/TomWyllie/folkfriend"
+license = "GPL-3.0-only"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,16 +20,25 @@ name = "folkfriend"
 path = "src/bin.rs"
 
 [dependencies]
+aho-corasick = "0.7.18"
 clap = "3.0.0-beta.4"
 csv = "1.1"
 dirs = "4.0.0"
 fnv = "1.0.7"
 image = "0.23.14"
 indicatif = "0.16.2"
+js-sys = "0.3.55"
 rayon = "1.5"
 reqwest = { version = "0.11.4", features = ["blocking"] }
 rustfft = "6.0.1"
 serde = { version = "1.0.126", features = ["derive"] }
+serde-wasm-bindgen = "0.3.1"
 serde_json = "1.0"
-wasm-bindgen = "0.2"
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
 wav = "1.0.0"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[profile.release]
+# lto = true

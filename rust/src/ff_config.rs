@@ -1,4 +1,6 @@
 // Stores important global parameters that are re-used across FolkFriend.
+// MAKE SURE THIS MATCHES CARGO.TOML
+pub const VERSION: &str = "3.0.6";
 
 // ====================================
 // === Signal Processing Paramaters ===
@@ -73,3 +75,9 @@ pub const CONTOUR_TO_QUERY_CHAR: [char; MIDI_NUM as usize] = [
     'O', 'P', 'Q', 'R', 'S',
     'T', 'U', 'V'
 ];
+
+// Just found in testing that with musical notes 4 is better
+//  and with searching strings for names 3 seems to be better :)
+pub const QUERY_NGRAM_SIZE_CONTOUR: usize = 4;  // "quadgram"
+pub const QUERY_NGRAM_SIZE_NAME: usize = 3;     // "trigram"
+pub const QUERY_REPASS_SIZE: usize = 1200;

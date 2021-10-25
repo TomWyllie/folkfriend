@@ -1,4 +1,3 @@
-
 pub mod abc;
 pub mod decode;
 pub mod feature;
@@ -6,11 +5,25 @@ pub mod ff_config;
 pub mod index;
 pub mod query;
 
+use js_sys;
+use serde_json::json;
+use std::convert::TryInto;
+use std::slice;
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
 pub struct FolkFriend {
-    pub query_engine: query::QueryEngine,
-    pub feature_extractor: feature::feature_extractor::FeatureExtractor,
-    pub feature_decoder: decode::FeatureDecoder,
-    pub abc_processor: abc::AbcProcessor,
+    query_engine: query::QueryEngine,
+    feature_extractor: feature::feature_extractor::FeatureExtractor,
+    feature_decoder: decode::FeatureDecoder,
+    abc_processor: abc::AbcProcessor,
 }
 
 impl FolkFriend {
@@ -23,6 +36,10 @@ impl FolkFriend {
             feature_decoder: decode::FeatureDecoder::new(),
             abc_processor: abc::AbcProcessor::new(),
         }
+    }
+
+    pub fn version(&self) -> String {
+        ff_config::VERSION.to_string()
     }
 
     pub fn load_index_from_json_string(&mut self, json_string: String) {
@@ -48,7 +65,8 @@ impl FolkFriend {
         self.feature_extractor.flush();
     }
 
-    pub fn transcribe_pcm_buffer(&mut self) -> decode::types::Contour {
+    pub fn transcribe_pcm_buffer(&mut self) -> decode::types::ContourString {
+        // log(format!("{:?}", self.feature_extractor.features).as_str());
         let contour = self
             .feature_decoder
             .decode(&mut self.feature_extractor.features);
@@ -58,7 +76,7 @@ impl FolkFriend {
 
     pub fn run_transcription_query(
         &self,
-        contour: &decode::types::Contour,
+        contour: &decode::types::ContourString,
     ) -> Result<query::TranscriptionQueryResults, query::QueryError> {
         self.query_engine.run_contour_query(contour)
     }
@@ -70,21 +88,165 @@ impl FolkFriend {
         self.query_engine.run_name_query(query)
     }
 
-    pub fn contour_to_abc(&self, contour: &decode::types::Contour) -> String {
-        self.abc_processor.contour_to_abc(contour)
+    pub fn contour_to_abc(&self, contour_string: &decode::types::ContourString) -> String {
+        let mut contour: decode::types::Contour = Vec::new();
+        contour = contour_string.append_to_contour(contour);
+        self.abc_processor.contour_to_abc(&contour)
+    }
+
+    pub fn settings_from_tune_id(
+        &self,
+        tune_id: index::schema::TuneID,
+    ) -> Result<Vec<(index::schema::SettingID, index::schema::Setting)>, query::QueryError> {
+        self.query_engine.settings_from_tune_id(tune_id)
+    }
+
+    pub fn aliases_from_tune_id(
+        &self,
+        tune_id: index::schema::TuneID,
+    ) -> Result<Vec<String>, query::QueryError> {
+        self.query_engine.aliases_from_tune_id(tune_id)
     }
 }
 
-// TODO single exposed interface
+// Define a WASM-safe version of this FolkFriend class. The key point is that
+//  all function signatures will have simple types that can pass between WASM
+//  and JS. e.g. search results are encoded as a JSON String rather than a
+//  vector of structs. The latter would be better, but WASM/JS can't hadnle
+//  this yet.
 
-// methods
-//  x constructor
-//  x load_index_from_json_string
-//  x set_sample_rate
-//  x feed_entire_pcm_signal
-//  x feed_single_pcm_window
-//  x flush_pcm_buffer() -> ()
-//  x transcribe_pcm_buffer() -> Transcription
-//  x query_by_transcription(Transcription) -> QueryResults
-//  x query_by_name(String) -> QueryResults
-//  x contour_to_abc(Contour) -> String
+#[wasm_bindgen]
+pub struct FolkFriendWASM {
+    ff: FolkFriend,
+}
+
+#[wasm_bindgen]
+impl FolkFriendWASM {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> FolkFriendWASM {
+        FolkFriendWASM {
+            ff: FolkFriend::new(),
+        }
+    }
+
+    pub fn version(&self) -> String {
+        self.ff.version()
+    }
+
+    pub fn load_index_from_json_obj(&mut self, js_value: JsValue) {
+        // This function doesn't call the underlying self.ff.load_index_from_string.
+        let tune_index: index::TuneIndex = serde_wasm_bindgen::from_value(js_value).unwrap();
+        self.ff.query_engine.use_tune_index(tune_index);
+    }
+
+    pub fn set_sample_rate(&mut self, sample_rate: u32) {
+        self.ff.set_sample_rate(sample_rate);
+    }
+
+    pub fn feed_entire_pcm_signal(&mut self) {
+        panic!("Cannot feed entire PCM signal from WebAssembly!");
+    }
+
+    pub fn alloc_single_pcm_window(&mut self) -> *mut f32 {
+        // This function is not required in the non-WASM version of FolkFriend.
+        //  This is required for passing Float32Arrays (audio data) from
+        //   javascript into rust.
+        let mut buf: [f32; ff_config::SPEC_WINDOW_SIZE] = [0.; ff_config::SPEC_WINDOW_SIZE];
+
+        // This pointer will be given to JavaScript so that it can write
+        //  directly into WebAssembly's memory
+        let ptr = buf.as_mut_ptr();
+        // Take ownership of this memory block to prevent destruction
+        // See https://radu-matei.com/blog/practical-guide-to-wasm-memory/
+        std::mem::forget(buf);
+
+        return ptr;
+    }
+
+    pub fn get_allocated_pcm_window(&mut self, ptr: *mut f32) -> js_sys::Float32Array {
+        return unsafe {
+            js_sys::Float32Array::view(slice::from_raw_parts(ptr, ff_config::SPEC_WINDOW_SIZE))
+        };
+    }
+
+    pub fn feed_single_pcm_window(&mut self, ptr: *mut f32) {
+        let pcm_window = unsafe { slice::from_raw_parts(ptr, ff_config::SPEC_WINDOW_SIZE) };
+        self.ff
+            .feed_single_pcm_window(pcm_window.try_into().unwrap());
+    }
+
+    pub fn flush_pcm_buffer(&mut self) {
+        self.ff.flush_pcm_buffer();
+    }
+
+    pub fn transcribe_pcm_buffer(&mut self) -> String {
+        self.ff.transcribe_pcm_buffer().value()
+    }
+
+    pub fn run_transcription_query(&self, contour_string: &str) -> String {
+        // TODO proper error propagation in JSON back to javascript
+        let result = self
+            .ff
+            .run_transcription_query(&decode::types::ContourString::from_string(
+                &contour_string.to_string(),
+            ));
+        if let Ok(mut query_result) = result {
+            // Pass back fewer results to the App than the backend is
+            //  configured to provide. Users don't have time to scroll
+            //  through a hundred results, even if we do want this sort
+            //  of granularity when assessing dataset performance.
+            query_result.truncate(20);
+            return json!(query_result).to_string();
+        } else {
+            return "{
+                \"error\": \"transcription query error\"
+            }"
+            .to_string();
+        }
+    }
+
+    pub fn run_name_query(&self, query: &str) -> String {
+        // TODO proper error propagation in JSON back to javascriptx
+        let result = self.ff.run_name_query(&query.to_string());
+        if let Ok(query_result) = result {
+            return json!(query_result).to_string();
+        } else {
+            return "{
+                \"error\": \"name query error\"
+            }"
+            .to_string();
+        }
+    }
+    pub fn contour_to_abc(&self, contour_string: &str) -> String {
+        self.ff
+            .contour_to_abc(&decode::types::ContourString::from_string(
+                &contour_string.to_string(),
+            ))
+    }
+
+    pub fn settings_from_tune_id(&self, tune_id: index::schema::TuneID) -> String {
+        // TODO proper error propagation in JSON back to javascript
+        let result = self.ff.settings_from_tune_id(tune_id);
+        if let Ok(settings) = result {
+            return json!(settings).to_string();
+        } else {
+            return "{
+                \"error\": \"setting ID query error\"
+            }"
+            .to_string();
+        }
+    }
+
+    pub fn aliases_from_tune_id(&self, tune_id: index::schema::TuneID) -> String {
+        // TODO proper error propagation in JSON back to javascript
+        let result = self.ff.aliases_from_tune_id(tune_id);
+        if let Ok(aliases) = result {
+            return json!(aliases).to_string();
+        } else {
+            return "{
+                        \"error\": \"aliases from tune ID query error\"
+                    }"
+            .to_string();
+        }
+    }
+}
