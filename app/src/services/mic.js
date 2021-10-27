@@ -102,7 +102,6 @@ class MicService {
         this.micProcessor.onaudioprocess = function (audioProcessingEvent) {
             let channelData = audioProcessingEvent.inputBuffer.getChannelData(0);
             // TODO can this desync? Because feedSinglePCMWindow is asynchronous?
-            console.debug("audioProcessingEvent");
             ffBackend.feedSinglePCMWindow(channelData);
         }
 

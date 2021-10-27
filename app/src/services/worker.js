@@ -24,6 +24,12 @@ class FolkFriendWASMWrapper {
         cb(this.folkfriendWASM.version());
     }
 
+    async onIndexLoad(cb) {
+        await this.loadedWASM;
+        await this.loadedIndex;
+        cb();
+    }
+
     async fetchTuneIndexData() {
         console.time("index-fetch");
 

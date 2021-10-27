@@ -14,6 +14,10 @@ class FFBackend {
     constructor() {
         const worker = new Worker("./worker.js", { type: "module" });
         this.folkfriendWorker = Comlink.wrap(worker);
+
+        this.folkfriendWorker.onIndexLoad(Comlink.proxy(() => {
+            eventBus.$emit("indexLoaded");
+        }));
     }
 
     async version() {

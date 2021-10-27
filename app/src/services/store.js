@@ -15,6 +15,7 @@ const USER_SETTING_DEFAULTS = {
 class Store {
     constructor() {
         this.state = {
+            indexLoaded: false,
             lastResults: [],
             lastNotes: "",
             backendVersion: "not loaded",

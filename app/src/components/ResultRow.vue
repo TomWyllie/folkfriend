@@ -57,16 +57,14 @@ export default {
             //  inaccurate and they wished FolkFriend was a bit more confident.
             //  Also if the recording is rubbish and it comes up with very poor
             //  matches now they will be flagged up as unlikely.
-            if (this.result.score > 0.7) {
+            if (this.result.score > 0.65) {
                 return "Very Close";
             } else if (this.result.score > 0.5) {
                 return "Close";
-            } else if (this.result.score > 0.32) {
+            } else if (this.result.score > 0.35) {
                 return "Possible";
-            } else if (this.result.score > 0.2) {
+            } else if (this.result.score > 0.15) {
                 return "Unlikely";
-            } else if (this.result.score > 0) {
-                return "Very Unlikely";
             } else {
                 return "No Match";
             }

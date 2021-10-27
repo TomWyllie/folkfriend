@@ -16,7 +16,7 @@
 
         <v-container>
             <v-row wrap justify="center">
-                <v-col class="mx-5 pt-5 pb-0" sm="6" md="8">
+                <v-col class="mx-5 pt-8 pb-0" sm="6" md="8">
                     <v-text-field
                         label="Search By Tune Name"
                         outlined
@@ -33,24 +33,13 @@
             </v-row>
         </v-container>
 
-        <!-- <v-container class="py-0 mx-auto">
-            <v-row wrap align="center" justify="center" class="mx-0">
-                <v-col align="center" class="noFlexGrow px-5">
-                    <v-btn v-on:click="uploadDemo" :disabled="!offlineButton">
-                        Demo
-                    </v-btn>
-                </v-col>
-            </v-row>
-        </v-container> -->
-
-        <!-- <v-container class="tuneProgress">
+        <v-container class="tuneProgress">
             <v-progress-linear
-                v-show="progressBar"
-                v-model="featureProgress"
-                :buffer-value="progressSearching ? 0 : audioProgress"
-                :indeterminate="progressSearching"
+                v-bind:class="{ Transparent: indexLoaded }"
+                indeterminate
+                rounded
             ></v-progress-linear>
-        </v-container> -->
+        </v-container>
 
         <v-snackbar class="text-center" v-model="snackbar" :timeout="3000">
             {{ snackbarText }}
@@ -63,7 +52,7 @@ import RecorderButton from "@/components/RecorderButton";
 import ffBackend from "@/services/backend";
 import audioService from "@/services/audio";
 import store from "@/services/store";
-import eventBus from "@/eventBus"
+import eventBus from "@/eventBus";
 
 import { mdiMagnify, mdiTimerOutline, mdiTimerOffOutline } from "@mdi/js";
 
@@ -79,6 +68,7 @@ export default {
 
             textQuery: "",
             offlineButton: true,
+            indexLoaded: store.state.indexLoaded,
 
             icons: {
                 magnify: mdiMagnify,
@@ -87,11 +77,22 @@ export default {
             },
         };
     },
-    created: function() {
+    created: function () {
         eventBus.$emit("parentViewActivated");
+
+        if(!this.indexLoaded) {
+            eventBus.$on("indexLoaded", () => {
+                this.indexLoaded = true;
+            });
+        }
     },
     methods: {
         nameQuery() {
+            if(this.textQuery.length < 2) {
+                this.snackbar = true;
+                this.snackbarText = "Search query too short";
+            }
+
             ffBackend.runNameQuery(this.textQuery).then((results) => {
                 store.state.lastResults = results;
                 this.$router.push({ name: "results" });
@@ -125,7 +126,12 @@ export default {
 
 <style scoped>
 .tuneProgress {
-    max-width: 60%;
+    max-width: 50%;
+    opacity: 1;
+}
+
+.Transparent {
+    opacity: 0;
 }
 
 .noFlexGrow {

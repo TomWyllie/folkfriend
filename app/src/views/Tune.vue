@@ -6,12 +6,12 @@
         >
             {{ this.name }}
         </h1>
-        <v-container class="my-1" v-show="displayableAliases.length">
+        <v-container class="my-1" v-if="displayableAliases.length">
             <span class="font-italic text--secondary">Also known as: </span>
             <v-chip
                 v-for="alias in this.displayableAliases"
                 :key="alias"
-                class="nameChip ma-1"
+                class="nameChip ma-1 px-2"
                 label
                 small
                 >{{ alias }}
@@ -91,28 +91,30 @@ export default {
         this.settings = await ffBackend.settingsFromTuneID(this.tuneID);
         let aliases = await ffBackend.aliasesFromTuneID(this.tuneID);
 
+        console.debug(this.settings);
+
         let primaryAliasIndex = 0;
 
         if (typeof this.displayName !== "undefined") {
             primaryAliasIndex = aliases.indexOf(this.displayName);
             if (primaryAliasIndex == -1) {
                 console.warn("Display name was not found in aliases!");
+                primaryAliasIndex = 0;
             }
         }
 
         this.displayableAliases = aliases.map((a) =>
             utils.parseDisplayableName(a)
         );
-        this.name = this.displayableAliases.pop(primaryAliasIndex);
+        this.name = this.displayableAliases.splice(primaryAliasIndex, 1)[0];
 
         // Auto-pop open the matched setting and scroll into view
         // TODO auto pop open
         // if (!this.empty) {
         if (this.settingID) {
             for (const [i, setting] of this.settings.entries()) {
-                if (setting.setting === this.settingID) {
+                if (setting.setting_id === this.settingID) {
                     this.expandedIndex = [i];
-                    console.debug(this.expandedIndex);
                 }
             }
         } else {
@@ -155,5 +157,9 @@ export default {
 
 .abcFullScreen {
     z-index: 8;
+}
+
+h1 {
+    font-size: x-large;
 }
 </style>

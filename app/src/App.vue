@@ -196,6 +196,10 @@ export default {
         eventBus.$on("parentViewActivated", () => {
             this.hamburgerState = this.hamburgerStates.hamburger;
         });
+
+        eventBus.$on("indexLoaded", () => {
+            store.state.indexLoaded = true;
+        });
     },
     methods: {
         hamburgerBack() {
