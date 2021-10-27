@@ -4,7 +4,7 @@
         <h3>TODO Select microphone</h3>
         <h3>TODO Select performance settings</h3>
 
-        <v-container v-if="settingsLoaded" class="mx-auto px-5">
+        <v-container class="mx-auto px-5">
             <v-row>
                 <v-switch
                     inset
@@ -50,16 +50,11 @@ export default {
     }),
     created: function () {
         eventBus.$emit("parentViewActivated");
-        this.ensureSettingsLoaded();
     },
     methods: {
         settingsChanged() {
             store.updateUserSettings(this.userSettings);
-        },
-        async ensureSettingsLoaded() {
-            await store.settingsLoaded;
-            this.settingsLoaded = true;
-        },
+        }
     },
 };
 </script>

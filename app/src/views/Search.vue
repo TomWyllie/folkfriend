@@ -96,6 +96,7 @@ export default {
             ffBackend.runNameQuery(this.textQuery).then((results) => {
                 store.state.lastResults = results;
                 this.$router.push({ name: "results" });
+                eventBus.$emit("childViewActivated");
             });
         },
         placeholderMethod() {

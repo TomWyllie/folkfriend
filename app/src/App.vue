@@ -161,7 +161,7 @@ export default {
 
         // We cannot interrupt long running queries in WASM so we prevent the
         //  user from navigating to different pages in the app whilst recording
-        //  or working. Otherwise they could navigate back to the search page 
+        //  or working. Otherwise they could navigate back to the search page
         //  and trigger multiple concurrent requests to the worker backend.
         //  This could happen accidentally on slow devices. Instead we nudge
         //  the user towards sitting tight and waiting if it's taking a while
@@ -169,9 +169,16 @@ export default {
         //  hamburger. As a fallback, the navigation hamburger becomes a cross
         //  which refreshes the page in case recording / working hangs completely.
         eventBus.$on("setSearchState", () => {
-            if(this.hamburgerState === this.hamburgerStates.cancel && store.isReady()) {
-                this.hamburgerState = this.hamburgerStates.hamburger;
+            if (store.isReady()) {
+                if (this.hamburgerState === this.hamburgerStates.cancel) {
+                    this.hamburgerState = this.hamburgerStates.hamburger;
+                }
+            } else {
+                this.hamburgerState = this.hamburgerStates.cancel;
             }
+            // if(this.hamburgerState === this.hamburgerStates.cancel && store.isReady()) {
+            //     this.hamburgerState = this.hamburgerStates.hamburger;
+            // }
         });
 
         // When clicking on a link in a table, which is
@@ -185,13 +192,13 @@ export default {
         //  wants to check if an entry is the right tune, and if not then
         //  return to the results and try the next one down. This introduces
         //  a hierarchy for which hamburger navigation on its own becomes
-        //  unintuitive and cumbersome. 
+        //  unintuitive and cumbersome.
         eventBus.$on("childViewActivated", () => {
             this.hamburgerState = this.hamburgerStates.back;
         });
 
         // Make sure hamburger is in the right state if we navigate back
-        //  from a child view WITHOUT pressing the back button in app 
+        //  from a child view WITHOUT pressing the back button in app
         //  (e.g. physical back button on phone, alt + left shortcut on PC)
         eventBus.$on("parentViewActivated", () => {
             this.hamburgerState = this.hamburgerStates.hamburger;
@@ -207,17 +214,18 @@ export default {
         },
         hamburgerCancel() {
             let result = window.confirm("Cancel this search?");
-            if(result) {
-                window.location.reload(false); 
+            if (result) {
+                window.location.reload(false);
             }
-        }
-    }
+        },
+    },
 };
 
 async function initSetup() {
-    let version = await ffBackend.version();
-    store.state.backendVersion = version;
-    console.info("Loaded folkfriend backend version", version);
+    ffBackend.version().then((version) => {
+        store.state.backendVersion = version;
+        console.info("Loaded folkfriend backend version", version);
+    });
     await ffBackend.setupTuneIndex();
 }
 </script>

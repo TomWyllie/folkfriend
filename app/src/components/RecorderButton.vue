@@ -134,22 +134,11 @@ export default {
 
         startRecording: async function () {
             // Prevent multiple timers spawning
+            console.warn(this.recordingTimer);
             clearTimeout(this.recordingTimer);
 
             // Actually start recording
             await micService.startRecording();
-
-            // // Set timeout to auto stop recording
-            // this.transcriptionShortTimer = setTimeout(() => {
-            //     // So users can turn on transcription mode even if they
-            //     //  start in short query mode.
-            //     if (this.recording && !this.transcriptionMode) {
-            //         this.stopRecording();
-            //         this.snackbar = true;
-            //         this.snackbarText = "Maximum duration reached";
-            //     }
-            // }, 10000);
-            // // TODO configure query length somewhere properly lol
 
             // Begin button animation for responsive feedback that microphone
             //  is 'working' (we cheat and use Math.random() instead of the
@@ -165,10 +154,14 @@ export default {
 
             // Set timer
             this.recordingTimer = setTimeout(() => {
-                if (!store.userSettings.advancedMode && store.isRecording()) {
+                if (!store.userSettings.advancedMode && store.isRecording() && this.recordingTimer === store.state.lastTimer) {
                     this.clicked();
                 }
             }, ffConfig.RECORDING_TIME_LIMIT_MS);
+
+            // Extra to make sure that only one timer is ever active, in case
+            //  user spams many recordings in a short space of time.
+            store.state.lastTimer = this.recordingTimer;
         },
     },
 };

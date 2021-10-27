@@ -33,7 +33,6 @@ class MicService {
             this.finishOpening = resolve;
         });
 
-        await ffBackend.flushPCMBuffer();
 
         // This is the case on ios/chrome, when clicking links from within ios/slack (sometimes), etc.
         if (!navigator || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -58,9 +57,9 @@ class MicService {
             //     throw `Sample rate too low: ${sampleRate}`;
             // }
 
-            console.debug(`Using context sample rate ${sampleRate}Hz`);
-            await ffBackend.setSampleRate(sampleRate);
-
+            ffBackend.setSampleRate(sampleRate).then(() => {
+                console.debug(`Using context sample rate ${sampleRate}Hz`);
+            });
         } catch (e) {
             this.finishOpening();
 
@@ -101,7 +100,7 @@ class MicService {
         this.micProcessor = this.audioCtx.createScriptProcessor(this.bufferSize, 1, 1);
         this.micProcessor.onaudioprocess = function (audioProcessingEvent) {
             let channelData = audioProcessingEvent.inputBuffer.getChannelData(0);
-            // TODO can this desync? Because feedSinglePCMWindow is asynchronous?
+            // console.debug("audioProcessingEvent");
             ffBackend.feedSinglePCMWindow(channelData);
         }
 
