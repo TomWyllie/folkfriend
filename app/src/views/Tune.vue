@@ -61,6 +61,7 @@
 import utils from "@/services/utils.js";
 import AbcDisplay from "@/components/AbcDisplay";
 import ffBackend from "@/services/backend.js";
+import eventBus from "@/eventBus";
 
 export default {
     name: "Tune",
@@ -81,6 +82,8 @@ export default {
     components: { AbcDisplay },
 
     created: async function () {
+        eventBus.$emit("childViewActivated");
+
         if (typeof this.tuneID === "undefined") {
             return;
         }

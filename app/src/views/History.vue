@@ -5,8 +5,13 @@
 </template>
 
 <script>
+import eventBus from "@/eventBus";
+
 export default {
     name: "History",
+    created: function () {
+        eventBus.$emit("parentViewActivated");
+    },
 };
 </script>
 

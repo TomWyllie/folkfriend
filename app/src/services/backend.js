@@ -1,6 +1,7 @@
 import * as Comlink from "@/services/comlink.js";
 import store from "@/services/store.js";
 import router from "@/router/index.js";
+import eventBus from "@/eventBus";
 
 class FFBackend {
     /* Yet another layer of abstraction. This class is the route that all 
@@ -32,7 +33,6 @@ class FFBackend {
         }
 
         let indexData = await fetch(url)
-        // let indexData = await fetch("/res/nud-meta.json")
             .then((response) => response.json())
             .catch((err) => console.log(err));
         console.timeEnd("index-fetch-meta");
@@ -163,6 +163,7 @@ class FFBackend {
             const queryResults = await this.runTranscriptionQuery(contour);
             store.state.lastResults = queryResults;
             router.push({ name: "results" });
+            eventBus.$emit("childViewActivated");
         }
 
         const notes = await this.contourToAbc(contour);
@@ -170,6 +171,7 @@ class FFBackend {
 
         if (!doQuery) {
             router.push({ name: "score" });
+            eventBus.$emit("childViewActivated");
         }
 
         store.setSearchState(store.searchStates.READY);

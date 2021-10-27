@@ -63,6 +63,7 @@ import RecorderButton from "@/components/RecorderButton";
 import ffBackend from "@/services/backend";
 import audioService from "@/services/audio";
 import store from "@/services/store";
+import eventBus from "@/eventBus"
 
 import { mdiMagnify, mdiTimerOutline, mdiTimerOffOutline } from "@mdi/js";
 
@@ -85,6 +86,9 @@ export default {
                 timerOffOutline: mdiTimerOffOutline,
             },
         };
+    },
+    created: function() {
+        eventBus.$emit("parentViewActivated");
     },
     methods: {
         nameQuery() {
@@ -114,7 +118,7 @@ export default {
 
             await ffBackend.submitFilledBuffer();
             store.setSearchState(store.searchStates.READY);
-        }
+        },
     },
 };
 </script>

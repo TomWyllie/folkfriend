@@ -28,9 +28,6 @@ export default {
             lastResults: store.state.lastResults
         };
     },
-    mounted: function() {
-        eventBus.$emit("parentViewActivated");
-    }
 };
 </script>
 

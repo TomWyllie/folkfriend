@@ -169,10 +169,8 @@ export default {
         //  hamburger. As a fallback, the navigation hamburger becomes a cross
         //  which refreshes the page in case recording / working hangs completely.
         eventBus.$on("setSearchState", () => {
-            if(store.isReady()) {
+            if(this.hamburgerState === this.hamburgerStates.cancel && store.isReady()) {
                 this.hamburgerState = this.hamburgerStates.hamburger;
-            } else {
-                this.hamburgerState = this.hamburgerStates.cancel;
             }
         });
 
@@ -202,7 +200,6 @@ export default {
     methods: {
         hamburgerBack() {
             router.back();
-            this.hamburgerState = this.hamburgerStates.hamburger;
         },
         hamburgerCancel() {
             let result = window.confirm("Cancel this search?");

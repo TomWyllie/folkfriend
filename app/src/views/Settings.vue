@@ -40,6 +40,7 @@
 
 <script>
 import store from "@/services/store.js";
+import eventBus from "@/eventBus";
 
 export default {
     name: "Settings",
@@ -47,7 +48,8 @@ export default {
         settingsLoaded: false,
         userSettings: store.userSettings,
     }),
-    mounted: function () {
+    created: function () {
+        eventBus.$emit("parentViewActivated");
         this.ensureSettingsLoaded();
     },
     methods: {

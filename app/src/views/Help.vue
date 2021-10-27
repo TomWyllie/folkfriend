@@ -13,6 +13,7 @@
 <script>
 import store from "@/services/store.js";
 import ffConfig from "@/ffConfig.js";
+import eventBus from "@/eventBus";
 
 export default {
     name: "Help",
@@ -23,6 +24,9 @@ export default {
         frontendVersion() {
             return ffConfig.FRONTEND_VERSION;
         },
+    },
+    created: function () {
+        eventBus.$emit("parentViewActivated");
     },
 };
 </script>
