@@ -1,6 +1,6 @@
 // Stores important global parameters that are re-used across FolkFriend.
 // MAKE SURE THIS MATCHES CARGO.TOML
-pub const VERSION: &str = "3.0.6";
+pub const VERSION: &str = "3.0.8";
 
 // ====================================
 // === Signal Processing Paramaters ===
