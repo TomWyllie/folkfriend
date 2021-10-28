@@ -21,6 +21,11 @@ module.exports = {
         ],
     },
     chainWebpack: config => {
+        
+        // Getting PWA stuff like this to work with vue / webpack is a faff.
+        //  It's super easy to just supply the manifest file in /public ourselves.
+        config.plugins.delete("pwa");
+
         if (process.env.NODE_ENV === "production") {
             config.plugin("copy").tap(opts => {
                 opts[0][0].ignore.push({ glob: "folkfriend-non-user-data.json*" });

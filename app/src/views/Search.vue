@@ -19,7 +19,7 @@
                 <v-col class="mx-5 pt-8 pb-0" sm="6" md="8">
                     <v-text-field
                         label="Search By Tune Name"
-                        outlined
+                        solo
                         v-model="textQuery"
                         @keypress.enter="nameQuery"
                     >
@@ -91,6 +91,7 @@ export default {
             if(this.textQuery.length < 2) {
                 this.snackbar = true;
                 this.snackbarText = "Search query too short";
+                return;
             }
 
             ffBackend.runNameQuery(this.textQuery).then((results) => {

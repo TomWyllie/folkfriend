@@ -1,0 +1,20 @@
+{
+    "name": "FolkFriend",
+    "short_name": "FolkFriend",
+    "icons": [
+        {
+            "src": "/img/android-chrome-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/img/android-chrome-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ],
+    "theme_color": "#055581",
+    "background_color": "#055581",
+    "start_url": ".",
+    "display": "standalone"
+}
