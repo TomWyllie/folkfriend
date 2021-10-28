@@ -32,7 +32,7 @@ fn main() {
                 .long("debug")
                 .required(false)
                 .takes_value(false)
-                .help("Write out PNG files showing intermediate steps of transcription")
+                .help("Write out PNG files showing intermediate steps of transcription"),
         )
         .get_matches();
 
@@ -114,6 +114,7 @@ fn process_audio_files(ff: FolkFriend, input: String, with_transcription_query: 
         } else {
             wav_path = Path::new(&audio_file_path).to_path_buf();
         }
+        let base_debug_path = wav_path.as_path().display().to_string().replace(".wav", "");
 
         let (signal, sample_rate) = pcm_signal_from_wav(&wav_path);
         // The FolkFriend struct is not set up for happy concurrency.
@@ -123,16 +124,30 @@ fn process_audio_files(ff: FolkFriend, input: String, with_transcription_query: 
         fe.feed_signal(signal);
 
         if debug {
-            let out_path = format!("{}.feat.png", wav_path.as_path().display().to_string());
-            println!("{}", out_path);
+            let out_path = format!("{}.a-features.png", base_debug_path);
             save_features_as_img(&fe.features, &out_path);
         }
-        let contour_string = feature_decoder.decode(&mut fe.features);
+
+        // If there's an error, such as the decoder failing to find any notes,
+        //  we can't just gloss over it and pretend we never saw this audio
+        //  file. Continue with an empty string as the contour. The results
+        //  be terrible but that's fair if we couldn't find any notes.
+        let lattice_path = feature_decoder
+            .decode_lattice_path(&mut fe.features)
+            .unwrap_or(folkfriend::decode::types::LatticePath::new());
+        let contour_string = feature_decoder.decode_contour(&lattice_path).unwrap_or("".to_string());
+
         if debug {
-            let mut contour = folkfriend::decode::types::Contour::new();
-            contour = contour_string.append_to_contour(contour);
-            let out_path = format!("{}.cont.png", wav_path.as_path().display().to_string());
-            save_contour_as_img(&contour, &out_path);
+            if lattice_path.len() > 0 {
+                let out_path = format!("{}.b-lattice-path.png", base_debug_path);
+                save_lattice_path_as_img(&lattice_path, &out_path);
+            }
+
+            let contour = folkfriend::decode::types::contour_string_to_contour(&contour_string);
+            if contour.len() > 0 {
+                let out_path = format!("{}.c-decoded-contour.png", base_debug_path);
+                save_contour_as_img(&contour, &out_path);
+            }
         }
 
         if !with_transcription_query {
@@ -144,7 +159,7 @@ fn process_audio_files(ff: FolkFriend, input: String, with_transcription_query: 
 
         let results = &ff
             .run_transcription_query(&contour_string)
-            .expect("something failed");
+            .expect("Transcription query failed");
         if verbose {
             println!("=== Query for file {:?} ===", audio_file_path);
             for result in results.iter().take(10) {
@@ -262,7 +277,21 @@ pub fn save_contour_as_img(contour: &folkfriend::decode::types::Contour, path: &
     for x in 0..imgx {
         let contour_ind = (x as f32 / folkfriend::ff_config::TEMP_TEMPO_PARAM).floor() as usize;
         let pitch = contour[contour_ind];
-        let y = imgy - 1 - (pitch.value() - folkfriend::ff_config::MIDI_LOW);
+        let y = imgy - 1 - (pitch as u32 - folkfriend::ff_config::MIDI_LOW);
+        imgbuf.put_pixel(x as u32, y, image::Luma([255 as u8]));
+    }
+
+    // Save the image
+    imgbuf.save(path).unwrap();
+}
+
+pub fn save_lattice_path_as_img(lattice_path: &folkfriend::decode::types::LatticePath, path: &String) {
+    let imgx = lattice_path.len() as u32;
+    let imgy = folkfriend::ff_config::MIDI_NUM;
+    let mut imgbuf = image::ImageBuffer::new(imgx, imgy);
+
+    for (x, lattice_index) in lattice_path.iter().enumerate() {
+        let y = folkfriend::ff_config::MIDI_NUM - 1 - *lattice_index as u32;
         imgbuf.put_pixel(x as u32, y, image::Luma([255 as u8]));
     }
 

@@ -75,7 +75,7 @@ impl QueryEngine {
                 //
                 // let nowh = Instant::now();
                 let mut first_search =
-                    heuristic::run_transcription_query(&contour.value(), &tune_index);
+                    heuristic::run_transcription_query(&contour, &tune_index);
                 first_search.truncate(self.num_repass);
                     // eprintln!("Heuristic search took {:.2?}", nowh.elapsed());
                 //
@@ -86,7 +86,7 @@ impl QueryEngine {
                 let mut second_search: Vec<(SettingID, f32)> = Vec::new();
                 for (setting_id, _) in &first_search {
                     let score = nw::needleman_wunsch(
-                        &contour.value(),
+                        &contour,
                         &tune_index.settings[setting_id].contour,
                     );
                     second_search.push((setting_id.clone(), score));

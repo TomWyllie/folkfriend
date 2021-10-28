@@ -65,11 +65,14 @@ impl FolkFriend {
         self.feature_extractor.flush();
     }
 
-    pub fn transcribe_pcm_buffer(&mut self) -> decode::types::ContourString {
+    pub fn transcribe_pcm_buffer(
+        &mut self,
+    ) -> Result<decode::types::ContourString, decode::DecoderError> {
         // log(format!("{:?}", self.feature_extractor.features).as_str());
-        let contour = self
+        let lattice_path = self
             .feature_decoder
-            .decode(&mut self.feature_extractor.features);
+            .decode_lattice_path(&mut self.feature_extractor.features)?;
+        let contour = self.feature_decoder.decode_contour(&lattice_path);
         self.feature_extractor.flush();
         return contour;
     }
@@ -89,9 +92,7 @@ impl FolkFriend {
     }
 
     pub fn contour_to_abc(&self, contour_string: &decode::types::ContourString) -> String {
-        let mut contour: decode::types::Contour = Vec::new();
-        contour = contour_string.append_to_contour(contour);
-        self.abc_processor.contour_to_abc(&contour)
+        self.abc_processor.contour_to_abc(&decode::types::contour_string_to_contour(contour_string))
     }
 
     pub fn settings_from_tune_id(
@@ -180,16 +181,18 @@ impl FolkFriendWASM {
     }
 
     pub fn transcribe_pcm_buffer(&mut self) -> String {
-        self.ff.transcribe_pcm_buffer().value()
+        match self.ff.transcribe_pcm_buffer() {
+            Ok(transcription) => transcription,
+            Err(_) => json!({
+                "error": "Could not transcribe any music".to_string()
+            })
+            .to_string(),
+        }
     }
 
     pub fn run_transcription_query(&self, contour_string: &str) -> String {
         // TODO proper error propagation in JSON back to javascript
-        let result = self
-            .ff
-            .run_transcription_query(&decode::types::ContourString::from_string(
-                &contour_string.to_string(),
-            ));
+        let result = self.ff.run_transcription_query(&contour_string.to_string());
         if let Ok(mut query_result) = result {
             // Pass back fewer results to the App than the backend is
             //  configured to provide. Users don't have time to scroll
@@ -198,9 +201,9 @@ impl FolkFriendWASM {
             query_result.truncate(20);
             return json!(query_result).to_string();
         } else {
-            return "{
-                \"error\": \"transcription query error\"
-            }"
+            return json!({
+                "error": "Transcription query error".to_string()
+            })
             .to_string();
         }
     }
@@ -211,17 +214,14 @@ impl FolkFriendWASM {
         if let Ok(query_result) = result {
             return json!(query_result).to_string();
         } else {
-            return "{
-                \"error\": \"name query error\"
-            }"
-            .to_string();
+            json!({
+                "error": "Name query error".to_string()
+            })
+            .to_string()
         }
     }
     pub fn contour_to_abc(&self, contour_string: &str) -> String {
-        self.ff
-            .contour_to_abc(&decode::types::ContourString::from_string(
-                &contour_string.to_string(),
-            ))
+        self.ff.contour_to_abc(&contour_string.to_string())
     }
 
     pub fn settings_from_tune_id(&self, tune_id: index::schema::TuneID) -> String {
@@ -230,10 +230,10 @@ impl FolkFriendWASM {
         if let Ok(settings) = result {
             return json!(settings).to_string();
         } else {
-            return "{
-                \"error\": \"setting ID query error\"
-            }"
-            .to_string();
+            json!({
+                "error": "Setting ID query error".to_string()
+            })
+            .to_string()
         }
     }
 
@@ -243,10 +243,10 @@ impl FolkFriendWASM {
         if let Ok(aliases) = result {
             return json!(aliases).to_string();
         } else {
-            return "{
-                        \"error\": \"aliases from tune ID query error\"
-                    }"
-            .to_string();
+            json!({
+                "error": "Aliases from tune ID query error".to_string()
+            })
+            .to_string()
         }
     }
 }

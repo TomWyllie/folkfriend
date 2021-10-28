@@ -55,10 +55,17 @@ pub const SAMPLE_RATE_DEFAULT: u32 = 48_000;
 // Retain only this many features
 pub const RETAINED_FEATURES_PER_FRAME: u32 = 5;
 
-pub const PITCH_MODEL_WEIGHT: f32 = 0.12;
-pub const TEMPO_MODEL_WEIGHT: f32 = 0.40;
+// pub const SILENCE_TRIM_THRESHOLD: f32 = 0.01;
 
-pub const BEAM_WIDTH: usize = 20;
+pub const PITCH_MODEL_WEIGHT: f32 = 0.05;
+pub const PITCH_MODEL_SHIFT: f32 = -7.0;
+pub const BASE_ENERGY_SCORE: f32 = -0.2;
+
+// Why do we cap this? Because otherwise score can decay very low after long silence
+//  and then miss the first couple of notes when music actually starts.
+pub const MIN_LATTICE_SCORE: f32 = -5.0;
+
+// pub const BEAM_WIDTH: usize = 100;
 
 // TODO experiment with varying this tempo parameter.
 pub const TEMP_TEMPO_PARAM: f32 = 8.0;

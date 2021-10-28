@@ -1,53 +1,62 @@
-use std::collections::HashMap;
+use crate::decode::types::PitchInterval;
 use crate::ff_config;
-use crate::decode::types::{PitchInterval};
-
-const ALL_OTHER_SCORES: f32 = -50. * ff_config::PITCH_MODEL_WEIGHT;
-const BASE_SCORES: [(PitchInterval, f32); 24] = [
-    (-12, -2.639916731),
-    (-11, -4.394149488),
-    (-10, -2.972304221),
-    (-9, -2.166698359),
-    (-8, -2.306580069),
-    (-7, -1.162611053),
-    (-6, -3.731280049),
-    (-5, -0.6308846752),
-    (-4, -0.6756249503),
-    (-3, -0.3947562571),
-    (-2, -0.2396100196),
-    (-1, -1.375965628),
-    (1, -1.300531153),
-    (2, 0.),
-    (3, -0.3356148385),
-    (4, -0.59683188),
-    (5, -0.3042728195),
-    (6, -3.049916994),
-    (7, -1.22192358),
-    (8, -2.487884978),
-    (9, -2.772818809),
-    (10, -3.572246443),
-    (11, -5.149161163),
-    (12, -3.4140682)
-];
 
 pub struct PitchModel {
-    scores: HashMap<PitchInterval, f32>
+    scores: Vec<f32>,
+    all_other_scores: f32,
 }
 
 impl PitchModel {
     pub fn new() -> PitchModel {
-        let mut pm = PitchModel {
-            scores: HashMap::new()
-        };
+        let base_scores = vec![
+            -2.6399, // -12,
+            -4.3941, // -11,
+            -2.9723, // -10,
+            -2.1666, // -9,
+            -2.3065, // -8,
+            -1.1626, // -7,
+            -3.7312, // -6,
+            -0.6308, // -5,
+            -0.6756, // -4,
+            -0.3947, // -3,
+            -0.2396, // -2,
+            -1.3759, // -1,
+            -f32::INFINITY  // zero is handled separately. By definition it's not a note transition.
+            -1.3005, // 1,
+            -0.0000, // 2,
+            -0.3356, // 3,
+            -0.5968, // 4,
+            -0.3042, // 5,
+            -3.0499, // 6,
+            -1.2219, // 7,
+            -2.4878, // 8,
+            -2.7728, // 9,
+            -3.5722, // 10,
+            -5.1491, // 11,
+            -3.4140, // 12,
+        ];
 
-        for (interval, base_score) in BASE_SCORES {
-            pm.scores.insert(interval, base_score * ff_config::PITCH_MODEL_WEIGHT);
+        let base_scores = base_scores
+            .iter()
+            .map(|x| (ff_config::PITCH_MODEL_SHIFT + x) * ff_config::PITCH_MODEL_WEIGHT)
+            .collect();
+        let all_other_scores =
+            (ff_config::PITCH_MODEL_SHIFT + -8.0) * ff_config::PITCH_MODEL_WEIGHT;
+
+        PitchModel {
+            scores: base_scores,
+            all_other_scores: all_other_scores,
         }
-
-        return pm;
     }
 
     pub fn score(&self, interval: &PitchInterval) -> f32 {
-        return self.scores.get(interval).cloned().unwrap_or(ALL_OTHER_SCORES);
+        if interval == &0 {
+            return ff_config::BASE_ENERGY_SCORE;
+        }
+
+        match self.scores.get((12 + interval) as usize) {
+            Some(x) => *x,
+            None => self.all_other_scores,
+        }
     }
 }

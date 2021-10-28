@@ -1,12 +1,11 @@
 use crate::feature::autocorrelate;
+use crate::feature::interpolate::compute_interp_inds;
 use crate::feature::signal::validate_sample_rate;
 use crate::feature::types::{Features, Frame, InterpInds, Window};
 use crate::feature::window::gen_blackman_window;
 use crate::ff_config;
 use rustfft::{algorithm::Radix4, FftDirection};
 use std::convert::TryInto;
-
-use crate::feature::interpolate::compute_interp_inds;
 
 pub struct FeatureExtractor {
     pub sample_rate: u32,
@@ -45,7 +44,6 @@ impl FeatureExtractor {
             );
         }
     }
-    
     pub fn feed_window(&mut self, window: [f32; ff_config::SPEC_WINDOW_SIZE]) {
         let frame: Frame = autocorrelate::modified_autocorrelation(
             window,
