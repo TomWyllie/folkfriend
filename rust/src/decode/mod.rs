@@ -1,8 +1,6 @@
 mod beam_search;
 mod contour;
 mod pitch_model;
-mod proposal;
-mod tempo_model;
 pub mod types;
 
 use crate::feature::types::Features;
