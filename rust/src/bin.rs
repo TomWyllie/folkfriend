@@ -266,12 +266,12 @@ pub fn save_features_as_img(features: &folkfriend::feature::types::Features, pat
 }
 
 pub fn save_contour_as_img(contour: &folkfriend::decode::types::Contour, path: &String) {
-    let imgx = (contour.len() as f32 * folkfriend::ff_config::TEMP_TEMPO_PARAM) as u32;
+    let imgx = 8 * contour.len() as u32;
     let imgy = folkfriend::ff_config::MIDI_NUM;
     let mut imgbuf = image::ImageBuffer::new(imgx, imgy);
 
     for x in 0..imgx {
-        let contour_ind = (x as f32 / folkfriend::ff_config::TEMP_TEMPO_PARAM).floor() as usize;
+        let contour_ind = (x as f32 / 8.0).floor() as usize;
         let pitch = contour[contour_ind];
         let y = imgy - 1 - (pitch as u32 - folkfriend::ff_config::MIDI_LOW);
         imgbuf.put_pixel(x as u32, y, image::Luma([255 as u8]));

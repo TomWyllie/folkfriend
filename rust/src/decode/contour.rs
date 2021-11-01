@@ -118,7 +118,7 @@ fn quantise_notes(notes: &Notes, frames_per_quaver: f32) -> Result<QuantisedNote
         //   But be more lenient to giving each least one.
         let exact_quavers: f32 = note.duration as f32 / frames_per_quaver;
         let mut quant_quavers: u32 = 0;
-        if exact_quavers > 0.2 {
+        if exact_quavers > ff_config::MIN_NOTE_DURATION_REL {
             quant_quavers = f32::max(1.0, exact_quavers.round()) as u32;
         }
         quantised_notes.push(QuantisedNote {
@@ -142,10 +142,7 @@ fn score_quantised_notes(
     frames_per_quaver: f32,
 ) -> f32 {
     let num_input_frames: f32 = notes.iter().map(|note| note.duration as f32).sum();
-    let quant_output_frames: f32 = quantised_notes
-        .iter()
-        .map(|note| note.quavers_quant as f32 * frames_per_quaver)
-        .sum();
+
     // What is the quantisation error? Scale this by power
     //   so quantisation error is more important on stronger
     //   notes.
@@ -157,10 +154,6 @@ fn score_quantised_notes(
     // Normalise score to [0, 1]. This score represents how well the quantisation of
     //  each individual note accounts for the original note length. 1.0 = perfect.
     let quant_score = 1.0 - quant_error * frames_per_quaver / num_input_frames;
-
-    // Now find the quantisation error from the overall change in length.
-    let overall_temporal_score =
-        1.0 - (num_input_frames - quant_output_frames).abs() / num_input_frames;
 
     // We use a very simple model of how many notes we expect to see before
     //   the note changes (ie the distribution of values of quantError).
@@ -182,7 +175,7 @@ fn score_quantised_notes(
     //   bias towards shorter tempos which have more positive scores.
     probability_model_score /= quantised_notes.len() as f32;
 
-    return probability_model_score * overall_temporal_score * quant_score;
+    return probability_model_score * quant_score;
 }
 
 pub fn bpm_to_num_frames(bpm: u32, sample_rate: u32) -> f32 {

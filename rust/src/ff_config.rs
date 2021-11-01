@@ -53,28 +53,18 @@ pub const SAMPLE_RATE_MAX: u32 = 66_974;
 pub const SAMPLE_RATE_DEFAULT: u32 = 48_000;
 
 // Retain only this many features
-// TODO investigate removing this parameter
-pub const RETAINED_FEATURES_PER_FRAME: u32 = 20;
-
-
-pub const PITCH_MODEL_WEIGHT: f32 = 0.05;
+pub const RETAINED_FEATURES_PER_FRAME: u32 = 5;
+pub const PITCH_MODEL_WEIGHT: f32 = 0.050;
 pub const PITCH_MODEL_SHIFT: f32 = -7.0;
-pub const BASE_ENERGY_SCORE: f32 = -0.2;
+pub const BASE_ENERGY_SCORE: f32 = -0.18;
 
 // Why do we cap this? Because otherwise score can decay very low after long silence
 //  and then miss the first couple of notes when music actually starts.
-pub const MIN_LATTICE_SCORE: f32 = -5.0;
+// pub const MIN_LATTICE_SCORE: f32 = -5.0;
 
-// pub const BEAM_WIDTH: usize = 100;
-
-// TODO experiment with varying this tempo parameter.
-pub const TEMP_TEMPO_PARAM: f32 = 8.0;
-
-// pub const MIN_NOTE_DURATION: usize = 4;
-// pub const MIN_NOTE_POWER: f32 = 0.02;
-
-pub const MIN_NOTE_DURATION: usize = 4;
-pub const MIN_NOTE_POWER: f32 = 0.1;
+pub const MIN_NOTE_DURATION: usize = 3;
+pub const MIN_NOTE_DURATION_REL: f32 = 0.2;
+pub const MIN_NOTE_POWER: f32 = 0.10;
 
 
 pub const CONTOUR_TO_QUERY_CHAR: [char; MIDI_NUM as usize] = [
@@ -94,4 +84,4 @@ pub const CONTOUR_TO_QUERY_CHAR: [char; MIDI_NUM as usize] = [
 //  and with searching strings for names 3 seems to be better :)
 pub const QUERY_NGRAM_SIZE_CONTOUR: usize = 4;  // "quadgram"
 pub const QUERY_NGRAM_SIZE_NAME: usize = 3;     // "trigram"
-pub const QUERY_REPASS_SIZE: usize = 1200;
+pub const QUERY_REPASS_SIZE: usize = 2000;

@@ -64,7 +64,7 @@ pub fn decode(features: &mut Features) -> Result<LatticePath, DecoderError> {
                 let energy_score = features[frame][state_t];
                 let carry_score = lattice_scores[frame - 1][state_t_minus_one];
                 let proposed_score = carry_score + interval_score + energy_score;
-                let proposed_score = f32::max(proposed_score, ff_config::MIN_LATTICE_SCORE);
+                // let proposed_score = f32::max(proposed_score, ff_config::MIN_LATTICE_SCORE);
 
                 if proposed_score > next_scores[state_t] {
                     next_scores[state_t] = proposed_score;
