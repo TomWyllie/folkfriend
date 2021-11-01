@@ -8,8 +8,7 @@ use std::fmt;
 use types::{Contour, ContourString, LatticePath};
 
 pub struct FeatureDecoder {
-    // pitch_model: pitch_model::PitchModel,
-// tempo_model: tempo_model::TempoModel,
+    pub sample_rate: u32
 }
 
 #[derive(Debug, Clone)]
@@ -22,10 +21,9 @@ impl fmt::Display for DecoderError {
 }
 
 impl FeatureDecoder {
-    pub fn new() -> FeatureDecoder {
+    pub fn new(sample_rate: u32) -> FeatureDecoder {
         FeatureDecoder {
-            // pitch_model: pitch_model::PitchModel::new(),
-            // tempo_model: tempo_model::TempoModel::new(ff_config::TEMP_TEMPO_PARAM),
+            sample_rate: sample_rate
         }
     }
 
@@ -40,8 +38,9 @@ impl FeatureDecoder {
     pub fn decode_contour(
         &self,
         lattice_path: &LatticePath,
+        features: &Features
     ) -> Result<ContourString, DecoderError> {
-        let contour: Contour = contour::contour_from_lattice_path(lattice_path)?;
+        let contour: Contour = contour::contour_from_lattice_path(lattice_path, features, self.sample_rate)?;
         return Ok(types::contour_to_contour_string(&contour));
     }
 }

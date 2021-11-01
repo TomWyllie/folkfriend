@@ -41,7 +41,7 @@ impl PitchModel {
             .map(|x| (ff_config::PITCH_MODEL_SHIFT + x) * ff_config::PITCH_MODEL_WEIGHT)
             .collect();
         let all_other_scores =
-            (ff_config::PITCH_MODEL_SHIFT + -8.0) * ff_config::PITCH_MODEL_WEIGHT;
+            (ff_config::PITCH_MODEL_SHIFT + -30.0) * ff_config::PITCH_MODEL_WEIGHT;
 
         PitchModel {
             scores: base_scores,

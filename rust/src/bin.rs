@@ -75,12 +75,6 @@ fn process_audio_files(ff: FolkFriend, input: String, with_transcription_query: 
     }
 
     let verbose: bool = { audio_file_paths.len() == 1 };
-
-    // The FolkFriend struct is not set up for happy concurrency.
-    //  To avoid the unecessary complication of mutex etc, we just
-    //  bypass the higher level wrapper.
-    let feature_decoder = folkfriend::decode::FeatureDecoder::new();
-
     let mut progress: Option<ProgressBar> = None;
 
     if audio_file_paths.len() > 1 {
@@ -120,7 +114,9 @@ fn process_audio_files(ff: FolkFriend, input: String, with_transcription_query: 
         // The FolkFriend struct is not set up for happy concurrency.
         //  To avoid the unecessary complication of mutex etc, we just
         //  bypass the higher level wrapper.
-        let mut fe = folkfriend::feature::feature_extractor::FeatureExtractor::new(sample_rate);
+        let mut fe = folkfriend::feature::FeatureExtractor::new(sample_rate);
+        let feature_decoder = folkfriend::decode::FeatureDecoder::new(sample_rate);
+
         fe.feed_signal(signal);
 
         if debug {
@@ -135,7 +131,7 @@ fn process_audio_files(ff: FolkFriend, input: String, with_transcription_query: 
         let lattice_path = feature_decoder
             .decode_lattice_path(&mut fe.features)
             .unwrap_or(folkfriend::decode::types::LatticePath::new());
-        let contour_string = feature_decoder.decode_contour(&lattice_path).unwrap_or("".to_string());
+        let contour_string = feature_decoder.decode_contour(&lattice_path, &fe.features).unwrap_or("".to_string());
 
         if debug {
             if lattice_path.len() > 0 {

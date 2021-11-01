@@ -21,7 +21,7 @@ extern "C" {
 
 pub struct FolkFriend {
     query_engine: query::QueryEngine,
-    feature_extractor: feature::feature_extractor::FeatureExtractor,
+    feature_extractor: feature::FeatureExtractor,
     feature_decoder: decode::FeatureDecoder,
     abc_processor: abc::AbcProcessor,
 }
@@ -30,10 +30,10 @@ impl FolkFriend {
     pub fn new() -> FolkFriend {
         FolkFriend {
             query_engine: query::QueryEngine::new(),
-            feature_extractor: feature::feature_extractor::FeatureExtractor::new(
+            feature_extractor: feature::FeatureExtractor::new(
                 ff_config::SAMPLE_RATE_DEFAULT,
             ),
-            feature_decoder: decode::FeatureDecoder::new(),
+            feature_decoder: decode::FeatureDecoder::new(ff_config::SAMPLE_RATE_DEFAULT),
             abc_processor: abc::AbcProcessor::new(),
         }
     }
@@ -49,7 +49,10 @@ impl FolkFriend {
 
     pub fn set_sample_rate(&mut self, sample_rate: u32) {
         if self.feature_extractor.sample_rate != sample_rate {
-            self.feature_extractor = feature::feature_extractor::FeatureExtractor::new(sample_rate);
+            self.feature_extractor = feature::FeatureExtractor::new(sample_rate);
+        }
+        if self.feature_decoder.sample_rate != sample_rate {
+            self.feature_decoder = decode::FeatureDecoder::new(sample_rate);
         }
     }
 
@@ -72,7 +75,9 @@ impl FolkFriend {
         let lattice_path = self
             .feature_decoder
             .decode_lattice_path(&mut self.feature_extractor.features)?;
-        let contour = self.feature_decoder.decode_contour(&lattice_path);
+        let contour = self
+            .feature_decoder
+            .decode_contour(&lattice_path, &self.feature_extractor.features);
         self.feature_extractor.flush();
         return contour;
     }
@@ -92,7 +97,8 @@ impl FolkFriend {
     }
 
     pub fn contour_to_abc(&self, contour_string: &decode::types::ContourString) -> String {
-        self.abc_processor.contour_to_abc(&decode::types::contour_string_to_contour(contour_string))
+        self.abc_processor
+            .contour_to_abc(&decode::types::contour_string_to_contour(contour_string))
     }
 
     pub fn settings_from_tune_id(

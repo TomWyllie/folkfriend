@@ -57,6 +57,11 @@ impl Normalisable for Features {
         for i in 0..self.len() {
             for j in 0..ff_config::MIDI_NUM {
                 self[i][j as usize] *= norm_const;
+                
+                // TODO Don't forget that this is here
+                // if j > ff_config::MIDI_NUM - 10 {
+                //     self[i][j as usize] *= 0.0;
+                // }
             }
         }
 

@@ -1,6 +1,6 @@
 // Stores important global parameters that are re-used across FolkFriend.
 // MAKE SURE THIS MATCHES CARGO.TOML
-pub const VERSION: &str = "1.0.0";
+pub const VERSION: &str = "1.1.0";
 
 // ====================================
 // === Signal Processing Paramaters ===
@@ -53,9 +53,9 @@ pub const SAMPLE_RATE_MAX: u32 = 66_974;
 pub const SAMPLE_RATE_DEFAULT: u32 = 48_000;
 
 // Retain only this many features
-pub const RETAINED_FEATURES_PER_FRAME: u32 = 5;
+// TODO investigate removing this parameter
+pub const RETAINED_FEATURES_PER_FRAME: u32 = 20;
 
-// pub const SILENCE_TRIM_THRESHOLD: f32 = 0.01;
 
 pub const PITCH_MODEL_WEIGHT: f32 = 0.05;
 pub const PITCH_MODEL_SHIFT: f32 = -7.0;
@@ -69,6 +69,13 @@ pub const MIN_LATTICE_SCORE: f32 = -5.0;
 
 // TODO experiment with varying this tempo parameter.
 pub const TEMP_TEMPO_PARAM: f32 = 8.0;
+
+// pub const MIN_NOTE_DURATION: usize = 4;
+// pub const MIN_NOTE_POWER: f32 = 0.02;
+
+pub const MIN_NOTE_DURATION: usize = 4;
+pub const MIN_NOTE_POWER: f32 = 0.1;
+
 
 pub const CONTOUR_TO_QUERY_CHAR: [char; MIDI_NUM as usize] = [
     'a', 'b', 'c', 'd', 'e', 
