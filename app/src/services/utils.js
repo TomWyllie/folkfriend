@@ -38,56 +38,6 @@ export default class utils {
         return `${setting.dance} in ${setting.mode.slice(0, 4)}`;
     }
 
-    // static parseQueryableString(s) {
-    //     return s.toLowerCase();
-    // }
-
-    // static midiToHertz(midi) {
-    //     return 440 * Math.pow(2, (midi - 69) / 12);
-    // }
-
-    // static hertzToMidi(hertz) {
-    //     return 69 + 12 * Math.log2(hertz / 440);
-    // }
-
-    // static renderImageForDebug(typedArrays) {
-    //     console.debug(typedArrays);
-
-    //     const w = typedArrays.length;
-    //     const h = typedArrays[0].length;
-    //     const scale = 1;
-
-    //     const canvas = document.createElement('canvas');
-    //     canvas.setAttribute("style", "zoom: 2; image-rendering: pixelated;");
-    //     canvas.width = scale * w;
-    //     canvas.height = scale * h;
-
-    //     const ctx = canvas.getContext('2d');
-    //     ctx.scale(scale, scale);
-    //     const imageData = ctx.createImageData(w, h);
-
-    //     const max = Math.max(...typedArrays.map(x => Math.max(...x)).filter(x => isFinite(x)));
-    //     const min = Math.min(...typedArrays.map(x => Math.min(...x)).filter(x => isFinite(x)));
-    //     const range = max - min;
-
-    //     // Iterate through every pixel
-    //     for (let x = 0; x < w; x++) {
-    //         for (let y = 0; y < h; y++) {
-    //             const i = 4 * (y * w + x);
-    //             const v = Math.round(255 * (typedArrays[x][y] - min) / range);
-    //             imageData.data[i] = v;          // R value
-    //             imageData.data[i + 1] = v;      // G value
-    //             imageData.data[i + 2] = v;      // B value
-    //             imageData.data[i + 3] = 255;    // A value
-    //         }
-    //     }
-
-    //     // Draw image data to the canvas
-    //     ctx.putImageData(imageData, 0, 0);
-
-    //     document.body.appendChild(canvas);
-    // }
-
     static lerpColor(a, b, amount) {
         a = a.replace('#', '0x');
         b = b.replace('#', '0x');
@@ -106,5 +56,47 @@ export default class utils {
             rb = ab + amount * (bb - ab);
 
         return `rgb(${Math.round(rr)}, ${Math.round(rg)}, ${Math.round(rb)})`;
+    }
+
+    static checkUserAgent() {
+        //  https://github.com/ng-chicago/AddToHomeScreen
+        const uaString = navigator.userAgent.toLowerCase();
+        let ua = {};
+
+        ua.isChrome = /chrome/.test(uaString);
+        ua.isExplorer = /msie/.test(uaString);
+        ua.isExplorer_11 = /rv:11/.test(uaString);
+        ua.isFirefox = /firefox/.test(uaString);
+        ua.isSafari = /safari/.test(uaString);
+        ua.isOpera = /opr/.test(uaString);
+        ua.isEdgeDesktop = /edge/.test(uaString);
+        ua.isEdgeiOS = /edgios/.test(uaString);
+        ua.isEdgeAndroid = /edga/.test(uaString);
+
+        ua.isIOS = /ipad|iphone|ipod/.test(uaString);
+        ua.isMobile = /mobile/.test(uaString);
+        if ((ua.isChrome) && (ua.isSafari)) { ua.isSafari = false; }
+        if ((ua.isChrome) && ((ua.isEdgeDesktop) ||
+            (ua.isEdgeiOS) ||
+            (ua.isEdgeAndroid))) { ua.isChrome = false; }
+        if ((ua.isSafari) && ((ua.isEdgeDesktop) ||
+            (ua.isEdgeiOS) ||
+            (ua.isEdgeAndroid))) { ua.isSafari = false; }
+        if ((ua.isChrome) && (ua.isOpera)) { ua.isChrome = false; }
+
+        if (/ipad/.test(uaString)) {
+            ua.whereIsShare = 'top';
+        }
+
+        return ua;
+    }
+
+    static checkStandalone() {
+        //  https://github.com/ng-chicago/AddToHomeScreen
+        return (window.matchMedia('(display-mode: standalone)').matches);
+    }
+
+    static isStableRelease() {
+        return /folkfriend.app/.test(window.location.href.toLowerCase());
     }
 }

@@ -8,10 +8,10 @@
                 <router-link to="/">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon>{{ icons.microphone }}</v-icon>
+                            <v-icon medium>{{ icons.microphone }}</v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title>Search</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">Search</v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
@@ -19,10 +19,10 @@
                 <router-link to="/score">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon>{{ icons.musicNote }}</v-icon>
+                            <v-icon medium>{{ icons.musicNote }}</v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title>Score</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">Score</v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
@@ -30,32 +30,32 @@
                 <router-link to="/results">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon>{{ icons.formatListBulleted }}</v-icon>
+                            <v-icon medium>{{ icons.formatListBulleted }}</v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title>Results</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">Results</v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
 
-                <router-link to="/history">
+                <!-- <router-link to="/history">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon>{{ icons.history }}</v-icon>
+                            <v-icon medium>{{ icons.history }}</v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title>History</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">History</v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
-                </router-link>
+                </router-link> -->
 
                 <router-link to="/settings">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon>{{ icons.cog }}</v-icon>
+                            <v-icon medium>{{ icons.cog }}</v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title>Settings</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">Settings</v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
@@ -63,10 +63,10 @@
                 <router-link to="/help">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon>{{ icons.help }}</v-icon>
+                            <v-icon medium>{{ icons.help }}</v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title>Help</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">About</v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
@@ -103,7 +103,8 @@
                 contain
             ></v-img>
             <v-btn icon color="primary">
-                <v-icon>{{ icons.dotsVertical }}</v-icon>
+                <v-icon @click="clickShare" v-if="isPWA">{{ icons.shareVariant }}</v-icon>
+                <v-icon @click="clickDownload" v-else>{{ icons.download }}</v-icon>
             </v-btn>
         </v-app-bar>
 
@@ -123,14 +124,16 @@ import {
     mdiArrowLeft,
     mdiCog,
     mdiClose,
-    mdiDotsVertical,
+    mdiDownload,
     mdiFormatListBulleted,
     mdiHelpCircleOutline,
     mdiHistory,
     mdiMenu,
     mdiMicrophone,
     mdiMusicNote,
+    mdiShareVariant,
 } from "@mdi/js";
+import utils from "@/services/utils";
 
 export default {
     name: "App",
@@ -147,14 +150,16 @@ export default {
             arrowLeft: mdiArrowLeft,
             cog: mdiCog,
             close: mdiClose,
-            dotsVertical: mdiDotsVertical,
+            download: mdiDownload,
             formatListBulleted: mdiFormatListBulleted,
             help: mdiHelpCircleOutline,
             history: mdiHistory,
             menu: mdiMenu,
             microphone: mdiMicrophone,
             musicNote: mdiMusicNote,
+            shareVariant: mdiShareVariant,
         },
+        isPWA: utils.checkStandalone(),
     }),
     mounted: function () {
         initSetup().then();
@@ -176,9 +181,6 @@ export default {
             } else {
                 this.hamburgerState = this.hamburgerStates.cancel;
             }
-            // if(this.hamburgerState === this.hamburgerStates.cancel && store.isReady()) {
-            //     this.hamburgerState = this.hamburgerStates.hamburger;
-            // }
         });
 
         // When clicking on a link in a table, which is
@@ -218,6 +220,16 @@ export default {
                 window.location.reload(false);
             }
         },
+        clickDownload() {
+            if(this.$route.name != "help") {
+                router.push({ name: "help", params: {download: true} });
+            }
+        },
+        clickShare() {
+            if(this.$route.name != "help") {
+                router.push({ name: "help", params: {share: true} });
+            }
+        }
     },
 };
 
@@ -230,8 +242,17 @@ async function initSetup() {
 }
 </script>
 
-<style scoped>
+<style>
 .v-list > a {
     text-decoration: none;
 }
+
+h1 {
+    color: var(--v-secondary-base);
+}
+
+/* .navBarEntry {
+    font-size: large !important;
+    line-height: 1.2 !important;
+} */
 </style>

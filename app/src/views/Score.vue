@@ -1,15 +1,13 @@
 <template>
     <v-container v-if="abc">
-        <h1
-            class="my-2"
-            :style="`color:${this.$vuetify.theme.currentTheme.secondary};`"
-        >
-            Transcribed Notes
-        </h1>
+        <h1 class="my-2">Transcribed Notes</h1>
         <AbcDisplay :abc="abc"></AbcDisplay>
     </v-container>
     <v-container v-else>
-        <p class="px-10">Please record some music or upload an audio file to generate sheet music.</p>
+        <p class="px-10">
+            Please record some music or upload an audio file to generate sheet
+            music.
+        </p>
     </v-container>
 </template>
 
@@ -36,7 +34,7 @@ export default {
                 if (line.length < 20 && i + 1 < notes.length) {
                     line.push(notes[i]);
                 } else {
-                    abc += line.join(" ") + "\n";
+                    abc += line.join(" ") + "|\n";
                     line = [];
                 }
             }

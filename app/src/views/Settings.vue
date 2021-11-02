@@ -1,9 +1,7 @@
 <template>
     <v-container>
-        <h1>Settings</h1>
-        <h3>TODO Select microphone</h3>
-        <h3>TODO Select performance settings</h3>
-
+        <h1 class="my-2">Settings</h1>
+        <!-- <h3>TODO Select microphone</h3> -->
         <v-container class="mx-auto px-5">
             <v-row>
                 <v-switch
@@ -54,7 +52,7 @@ export default {
     methods: {
         settingsChanged() {
             store.updateUserSettings(this.userSettings);
-        }
+        },
     },
 };
 </script>

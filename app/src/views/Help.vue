@@ -1,12 +1,73 @@
 <template>
     <v-container>
-        <h1>Help</h1>
-        <h1>Donate</h1>
-        <h3>spiel</h3>
-        <h1>About</h1>
-        <h3>FolkFriend App Version: {{ frontendVersion }}</h3>
-        <h3>FolkFriend Backend version: {{ backendVersion }}</h3>
-        <h3>© 2021 Tom Wyllie. All Rights Reserved.</h3>
+        <v-card class="pa-5 my-2 UnstableRelease" v-if="!isStableRelease">
+            <v-icon class="WarningIcon px-3">{{ icons.alertCircle }}</v-icon>
+            <span>You are not using the stable release version of FolkFriend, which is at <a href="https://folkfriend.app">folkfriend.app</a>. This is the development version, which may contain features which are untested.</span>
+        </v-card>
+        <v-card class="pa-5 my-2">
+            <h1>About</h1>
+            <p>
+                FolkFriend listens to instrumental folk music, transcribes the
+                melody to sheet music, and searches a database of traditional
+                tunes for matches. You may either use the microphone on your
+                device, or upload an existing audio file. FolkFriend runs
+                entirely in browser and works without an internet connection.
+            </p>
+        </v-card>
+        <v-card class="pa-5 my-2" ref="helpDownload">
+            <h1>Download</h1>
+            <p>
+                FolkFriend is a "Web App", which means it installs onto your
+                Home Screen just like any other app.
+            </p>
+            <p v-if="isPWA" align="center" >FolkFriend is installed <v-icon class="pb-1 Installed">{{ icons.checkCircle }}</v-icon></p>
+            <p v-else-if="ua.isSafari && ua.isMobile">
+                On iOS Safari,
+                <ul>
+                    <li>Tap <v-icon class="pb-2">{{ icons.iosShare }}</v-icon> "share"</li>
+                    <li>Scroll down</li>
+                    <li>Tap <v-icon class="pb-1">{{ icons.iosAddToHomeScreen }}</v-icon> "add to home screen"</li>
+                </ul>
+            </p>
+            <p v-else-if="ua.isChrome && ua.isMobile">On Chrome mobile,
+                <ul>
+                    <li>Tap <v-icon class="pb-1">{{ icons.dotsVertical }}</v-icon> "Customise"</li>
+                    <li>Tap <v-icon class="pb-1">{{ icons.cellphoneArrowDown }}</v-icon> "Install FolkFriend"</li>
+                </ul>
+            </p>
+            <p v-else-if="ua.isChrome && !ua.isMobile">On Chrome desktop,
+                <ul>
+                    <li>Tap <v-icon class="pb-1">{{ icons.cellphoneArrowDown }}</v-icon> "install app"</li>
+                </ul>
+            </p>
+            <p v-else>
+                To install FolkFriend, navigate to the settings of your browser
+                and select "Add to Home Screen" or "Install App".
+            </p>
+        </v-card>
+        <v-card class="pa-5 my-2" ref="helpShare">
+            <h1>Share</h1>
+            <p>Scan the QR code on another device to open FolkFriend.</p>
+            <v-img
+                src="@/assets/qr-code.svg"
+                class="mx-auto QRCode"
+                align-center
+                center
+                contain
+            ></v-img>
+        </v-card>
+        <v-card class="pa-5 my-2">
+            <h1>Donate</h1>
+            <p>
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                Pellentesque id tellus cursus, pellentesque tortor gravida,
+                sollicitudin nulla. Nulla sit amet tellus nulla.
+            </p>
+        </v-card>
+        <p class="AppInfo">
+            App version: {{ frontendVersion }}<br />Backend version:
+            {{ backendVersion }}<br />© 2021 Tom Wyllie. All Rights Reserved.
+        </p>
     </v-container>
 </template>
 
@@ -14,9 +75,37 @@
 import store from "@/services/store.js";
 import ffConfig from "@/ffConfig.js";
 import eventBus from "@/eventBus";
+import utils from "@/services/utils";
+
+import {
+    mdiAlertCircle,
+    mdiCellphoneArrowDown,
+    mdiCheckCircleOutline,
+    mdiDotsVertical,
+    mdiExportVariant,
+    mdiPlusBoxOutline,
+    // mdiInstallDesktop,
+    // mdiInstallMobile,
+} from "@mdi/js";
 
 export default {
     name: "Help",
+    props: ["download", "share"],
+    data: () => ({
+        icons: {
+            alertCircle: mdiAlertCircle,
+            iosShare: mdiExportVariant,
+            iosAddToHomeScreen: mdiPlusBoxOutline,
+            checkCircle: mdiCheckCircleOutline,
+            // TODO these haven't been added yet
+            // mdiInstallDesktop: mdiInstallDesktop,
+            // mdiInstallMobile: mdiInstallMobile,
+            cellphoneArrowDown: mdiCellphoneArrowDown,
+            dotsVertical: mdiDotsVertical,
+        },
+        isStableRelease: utils.isStableRelease(),
+        isPWA: utils.checkStandalone(),
+    }),
     computed: {
         backendVersion() {
             return store.state.backendVersion;
@@ -27,9 +116,53 @@ export default {
     },
     created: function () {
         eventBus.$emit("parentViewActivated");
+        this.ua = utils.checkUserAgent();
+    },
+    mounted: function () {
+        console.debug(this.download, this.share);
+        if(this.download) {
+            this.$refs["helpDownload"].$el.scrollIntoView();
+        } else if(this.share) {
+            this.$refs["helpShare"].$el.scrollIntoView();
+        }
     },
 };
 </script>
 
 <style scoped>
+.v-card {
+    scroll-margin-top: 60px;
+}
+
+.AppInfo {
+    color: dimgray;
+    text-align: center;
+    font-size: smaller;
+}
+
+.Installed {
+    color: var(--v-secondary-base);
+}
+
+.QRCode {
+    max-width: 240px;
+    min-width: 100px;
+    width: 40vw;
+    fill: var(--v-primary-darken1);
+}
+
+.UnstableRelease {
+    background: var(--v-secondary-lighten5);
+}
+
+.WarningIcon {
+    animation: blinker 1.5s linear infinite;
+    color: var(--v-secondary-base);
+}
+
+@keyframes blinker {
+    50% {
+        opacity: 0.2;
+    }
+}
 </style>

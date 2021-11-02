@@ -46,6 +46,7 @@ const routes = [
         path: '/help',
         name: 'help',
         component: Help,
+        props: true
     }
 ];
 

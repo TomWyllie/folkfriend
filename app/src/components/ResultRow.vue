@@ -9,7 +9,7 @@
             },
         }"
     >
-        <v-container v-ripple @click="childViewActivated">
+        <v-container v-ripple>
             <v-row class="pt-1 pb-0">
                 <v-col class="py-0">
                     <h2>{{ this.name }}</h2>
@@ -33,7 +33,6 @@
 
 <script>
 import utils from "@/services/utils.js";
-import eventBus from "@/eventBus.js";
 
 export default {
     name: "ResultRow",
@@ -61,9 +60,9 @@ export default {
                 return "Very Close";
             } else if (this.result.score > 0.5) {
                 return "Close";
-            } else if (this.result.score > 0.35) {
+            } else if (this.result.score > 0.2) {
                 return "Possible";
-            } else if (this.result.score > 0.15) {
+            } else if (this.result.score > 0) {
                 return "Unlikely";
             } else {
                 return "No Match";
@@ -73,18 +72,13 @@ export default {
             let x = this.result.score;
             x = Math.min(0.7, x);
             x = Math.max(0.0, x);
-            x = (x - 0.1) / 0.7;
+            x = x / 0.7;
 
             const a = "#CC1111";
             const b = "#11CC11";
             return utils.lerpColor(a, b, x);
         },
-    },
-    methods: {
-        childViewActivated() {
-            eventBus.$emit("childViewActivated");
-        },
-    },
+    }
 };
 </script>
 

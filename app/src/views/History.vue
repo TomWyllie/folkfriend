@@ -1,6 +1,7 @@
 <template>
     <v-container>
         <h1>History</h1>
+        <span>Coming soon</span>
     </v-container>
 </template>
 
