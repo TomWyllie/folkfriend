@@ -67,7 +67,11 @@ impl AbcProcessor {
                 hold = 0;
             }
 
-            out.push(format!(" {}", self.midi_to_abc(*pitch)));
+            if out.len() == 0 {
+                out.push(format!("{}", self.midi_to_abc(*pitch)));
+            } else {
+                out.push(format!(" {}", self.midi_to_abc(*pitch)));
+            }
             last_pitch = Some(pitch);
         }
 
