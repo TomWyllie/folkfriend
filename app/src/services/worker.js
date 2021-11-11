@@ -1,5 +1,7 @@
-import * as Comlink from "./comlink";
-import ffConfig from "@/ffConfig";
+import * as Comlink from '@/js/comlink';
+import ffConfig from '@/ffConfig';
+import {get, set } from 'idb-keyval';
+
 
 class FolkFriendWASMWrapper {
     constructor() {
@@ -12,8 +14,11 @@ class FolkFriendWASMWrapper {
         this.loadedIndex = new Promise(resolve => {
             this.setLoadedIndex = resolve;
         });
+        this.loadedSampleRate = new Promise(resolve => {
+            this.setLoadedSampleRate = resolve;
+        });
 
-        import("@/wasm/folkfriend.js").then(wasm => {
+        import ('@/wasm/folkfriend.js').then(wasm => {
             this.folkfriendWASM = new wasm.FolkFriendWASM();
             this.setLoadedWASM();
         });
@@ -24,12 +29,32 @@ class FolkFriendWASMWrapper {
         cb(this.folkfriendWASM.version());
     }
 
-    async fetchTuneIndexData() {
-        console.time("index-fetch");
+    async onIndexLoad(cb) {
+        await this.loadedWASM;
+        await this.loadedIndex;
+        cb();
+    }
 
-        let url = "/res/folkfriend-non-user-data.json";
+    async fetchTuneIndexMetadata() {
+        let url = '/res/nud-meta.json';
+        // eslint-disable-next-line no-undef
         if (process.env.NODE_ENV === 'production') {
-            url = "https://folkfriend-app-data.web.app/folkfriend-non-user-data.json";
+            url = 'https://folkfriend-app-data.web.app/nud-meta.json';
+        }
+        let indexData = await fetch(url)
+            .then((response) => response.json())
+            .catch((err) => console.log(err));
+        return indexData;
+    }
+
+    async fetchTuneIndexData() {
+        console.time('index-fetch');
+
+        let url = '/res/folkfriend-non-user-data.json';
+
+        // eslint-disable-next-line no-undef
+        if (process.env.NODE_ENV === 'production') {
+            url = 'https://folkfriend-app-data.web.app/folkfriend-non-user-data.json';
         }
 
         // Fetch
@@ -42,41 +67,96 @@ class FolkFriendWASMWrapper {
         let abcStringBySetting = {};
         for (let settingID in indexData.settings) {
             abcStringBySetting[settingID] = indexData.settings[settingID].abc;
-            indexData.settings[settingID].abc = "";
+            indexData.settings[settingID].abc = '';
         }
 
         const downloadedTuneIndex = {
             indexData: indexData,
             abcStrings: abcStringBySetting
-        }
+        };
 
-        console.timeEnd("index-fetch");
+        console.timeEnd('index-fetch');
 
         return downloadedTuneIndex;
     }
 
-    async firstTimeIndexSetup(cb) {
-        // Download
-        const downloadedTuneIndex = await this.fetchTuneIndexData();
-        
-        // Load (so the user can start using the application)
-        console.time('index-parse-from-worker');
-        await this.loadTuneIndex(downloadedTuneIndex);
-        console.timeEnd('index-parse-from-worker');
-        
-        // Pass the object back to the main thread for caching
-        cb(downloadedTuneIndex);
+    async setupTuneIndex() {
+        // This is the entry point, run every application start, for
+        //  loading in the tune index ASAP and also maintaining an up-to-date
+        //  offline copy.
+        console.time('tune-index-setup');
+        console.time('tune-index-load');
+
+        // This will be null if no tune index has been stored.
+        const localTuneIndex = await get('tuneIndex');
+
+        if (typeof localTuneIndex === 'undefined') {
+            console.debug('No tune index was cached, requesting download');
+
+            const downloadedTuneIndex = await this.fetchTuneIndexData();
+
+            // Load (so the user can start using the application)
+            await this.loadTuneIndex(downloadedTuneIndex);
+            console.timeEnd('tune-index-load');
+
+            // Store the version of this newly downloaded tune index
+            const tuneIndexMetadata = await this.fetchTuneIndexMetadata();
+            await set('tuneIndex', downloadedTuneIndex);
+            await set('tuneIndexMetadata', tuneIndexMetadata);
+
+        } else {
+            console.debug('Found cached tune index');
+
+            // Load cached copy
+            await this.loadTuneIndex(localTuneIndex);
+            console.timeEnd('tune-index-load');
+
+            // THEN check the latest version and if we want to upgrade
+            const tuneIndexMetadataRemote = await this.fetchTuneIndexMetadata();
+            let tuneIndexMetadataLocal = await get('tuneIndexMetadata');
+
+            if (typeof tuneIndexMetadataLocal === 'undefined') {
+                // This is a near-impossible state, only reached by people 
+                //  selectively deleting from IndexedDB. As browsers do delete
+                //   from IndexedDB when under storage pressure it's best to
+                //   cover this case and be safe.
+                tuneIndexMetadataLocal = { 'v': 0 };
+            }
+
+            const remoteVersion = tuneIndexMetadataRemote['v'];
+            const localVersion = tuneIndexMetadataLocal['v'];
+            const daysSinceUpdate = remoteVersion - localVersion;
+            console.debug(`Tune index was ${daysSinceUpdate} days out of date`);
+
+            // Folkfriend's TuneIndex (at time of writing) updates once a week,
+            //  scheduled to update just after the latest data dump on Github
+            //  from thesession.org. Having all users automatically update the 
+            //  whole index every week is a little overkill though and uses a
+            //  lot of bandwidth (which may not be free). Only auto-update if
+            //  it's been a while since the last update. A while = 4 weeks.
+            if (daysSinceUpdate >= 28) {
+                console.debug('Upgrading tune index');
+                const downloadedTuneIndex = await this.fetchTuneIndexData();
+                await set('tuneIndex', downloadedTuneIndex);
+                await set('tuneIndexMetadata', tuneIndexMetadataRemote);
+            }
+        }
+        console.timeEnd('tune-index-setup');
     }
-    
+
     async loadTuneIndex(tuneIndex) {
+        console.time('tune-index-to-wasm');
         await this.loadedWASM;
         await this.folkfriendWASM.load_index_from_json_obj(tuneIndex.indexData);
         this.abcStringBySetting = tuneIndex.abcStrings;
         this.setLoadedIndex();
+        console.timeEnd('tune-index-to-wasm');
     }
 
     async setSampleRate(sampleRate) {
+        await this.loadedWASM;
         await this.folkfriendWASM.set_sample_rate(sampleRate);
+        this.setLoadedSampleRate();
     }
 
     async feedEntirePCMSignal(PCMSignal) {
@@ -94,12 +174,15 @@ class FolkFriendWASMWrapper {
     }
 
     async feedSinglePCMWindow(PCMWindow) {
+        await this.loadedWASM;
+        await this.loadedSampleRate;
         const ptr = await this.folkfriendWASM.alloc_single_pcm_window();
         const arr = await this.folkfriendWASM.get_allocated_pcm_window(ptr);
 
         arr.set(PCMWindow);
 
         await this.folkfriendWASM.feed_single_pcm_window(ptr);
+        // console.debug("feedSinglePCMWindow: complete");
     }
 
     async flushPCMBuffer() {
@@ -146,7 +229,7 @@ class FolkFriendWASMWrapper {
             setting['setting_id'] = settingID;
             setting['abc'] = this.abcStringBySetting[settingID];
             return setting;
-        })
+        });
 
         cb(settingsIncludingAbc);
     }

@@ -1,6 +1,5 @@
-import ffBackend from "@/services/backend.js";
-import ffConfig from "@/ffConfig.js";
-import store from "./store";
+import ffBackend from '@/services/backend.js';
+import store from './store';
 
 const AUDIO_CONSTRAINTS = {
     audio: {
@@ -33,7 +32,6 @@ class MicService {
             this.finishOpening = resolve;
         });
 
-        await ffBackend.flushPCMBuffer();
 
         // This is the case on ios/chrome, when clicking links from within ios/slack (sometimes), etc.
         if (!navigator || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -58,13 +56,13 @@ class MicService {
             //     throw `Sample rate too low: ${sampleRate}`;
             // }
 
-            console.debug(`Using context sample rate ${sampleRate}Hz`);
-            await ffBackend.setSampleRate(sampleRate);
-
+            ffBackend.setSampleRate(sampleRate).then(() => {
+                console.debug(`Using context sample rate ${sampleRate}Hz`);
+            });
         } catch (e) {
             this.finishOpening();
 
-            console.error(e);
+            console.warn(e);
 
             await this.stopRecording();
             store.setSearchState(store.searchStates.READY);
@@ -80,7 +78,9 @@ class MicService {
         //  trust that this works in Safari etc so we allow arbitrary
         //  sampleRates (within reason), which we detect after getUserMedia.
         //  The WebAssembly DSP functions can handle arbitrary sample rates.
-        this.audioCtx = new AudioContext({ sampleRate: sampleRate });
+        this.audioCtx = new AudioContext({
+            sampleRate: sampleRate
+        });
 
         // TODO this needs investigated further and confirmed the value is high
         //  enough for different devices.
@@ -99,12 +99,11 @@ class MicService {
         //  it yet. But the cognoscente (rtoy) reckon it's not going anywhere 
         //  anytime soon; https://github.com/WebAudio/web-audio-api/issues/2391.
         this.micProcessor = this.audioCtx.createScriptProcessor(this.bufferSize, 1, 1);
-        this.micProcessor.onaudioprocess = function (audioProcessingEvent) {
+        this.micProcessor.onaudioprocess = function(audioProcessingEvent) {
             let channelData = audioProcessingEvent.inputBuffer.getChannelData(0);
-            // TODO can this desync? Because feedSinglePCMWindow is asynchronous?
-            console.debug("audioProcessingEvent");
+            // console.debug("audioProcessingEvent");
             ffBackend.feedSinglePCMWindow(channelData);
-        }
+        };
 
         // Connect things up
         this.micSource = this.audioCtx.createMediaStreamSource(this.micStream);

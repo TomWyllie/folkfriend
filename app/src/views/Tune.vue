@@ -1,30 +1,34 @@
 <template>
-    <v-container class="tune mx-auto" v-if="!empty">
-        <h1
-            class="my-2"
-            :style="`color:${this.$vuetify.theme.currentTheme.secondary};`"
-        >
-            {{ this.name }}
+    <v-container
+        v-if="name"
+        class="tune mx-auto"
+    >
+        <h1 class="my-2">
+            {{ name }}
         </h1>
-        <v-container class="my-1" v-show="displayableAliases.length">
+        <v-container
+            v-if="displayableAliases.length"
+            class="my-1"
+        >
             <span class="font-italic text--secondary">Also known as: </span>
             <v-chip
-                v-for="alias in this.displayableAliases"
+                v-for="alias in displayableAliases"
                 :key="alias"
-                class="nameChip ma-1"
+                class="nameChip ma-1 px-2"
                 label
                 small
-                >{{ alias }}
+            >
+                {{ alias }}
             </v-chip>
         </v-container>
         <v-expansion-panels
             v-model="expandedIndex"
-            v-bind:class="{ abcFullScreen: abcFullScreen }"
+            :class="{ abcFullScreen: abcFullScreen }"
             multiple
         >
             <v-expansion-panel
+                v-for="settingData in settings"
                 v-show="settings"
-                v-for="settingData in this.settings"
                 :key="settingData.setting_id"
                 :setting="settingData"
             >
@@ -45,31 +49,46 @@
                         :meter="settingData.meter"
                         @abcGoFullScreen="abcGoFullScreen"
                         @abcExitFullScreen="abcExitFullScreen"
-                    ></AbcDisplay>
-                    <!-- <div>placeholder ABC display</div> -->
+                    />
                 </v-expansion-panel-content>
             </v-expansion-panel>
         </v-expansion-panels>
     </v-container>
     <!-- This actually shouldn't ever happen unless the user manually navigates to /tunes -->
-    <v-container v-else>
-        <p>No tune loaded. Please search for a tune.</p>
+    <v-container v-else-if="!tuneID">
+        <p class="px-10">
+            No tune loaded. Please search for a tune.
+        </p>
     </v-container>
 </template>
 
 <script>
-import utils from "@/services/utils.js";
-import AbcDisplay from "@/components/AbcDisplay";
-import ffBackend from "@/services/backend.js";
+import utils from '@/js/utils.js';
+import AbcDisplay from '@/components/AbcDisplay';
+import ffBackend from '@/services/backend.js';
+import eventBus from '@/eventBus';
+import abcjs from 'abcjs/midi';
 
 export default {
-    name: "Tune",
+    name: 'TuneView',
+    components: { AbcDisplay },
+    props: {
+        tuneID: {
+            type: String,
+            required: true
+        },
+        displayName: {
+            type: String,
+            required: true
+        },
+        settingID: {
+            type: String,
+            required: false,
+            default: null
+        },
+    },
     data: function () {
         return {
-            // Important it starts empty otherwise we see it flash very
-            //  briefly on load.
-            empty: false,
-
             settings: null,
             name: null,
             displayableAliases: [],
@@ -78,10 +97,11 @@ export default {
             expandedIndex: [],
         };
     },
-    components: { AbcDisplay },
 
     created: async function () {
-        if (typeof this.tuneID === "undefined") {
+        eventBus.$emit('childViewActivated');
+
+        if (typeof this.tuneID === 'undefined') {
             return;
         }
 
@@ -90,26 +110,24 @@ export default {
 
         let primaryAliasIndex = 0;
 
-        if (typeof this.displayName !== "undefined") {
+        if (typeof this.displayName !== 'undefined') {
             primaryAliasIndex = aliases.indexOf(this.displayName);
             if (primaryAliasIndex == -1) {
-                console.warn("Display name was not found in aliases!");
+                console.warn('Display name was not found in aliases!');
+                primaryAliasIndex = 0;
             }
         }
 
         this.displayableAliases = aliases.map((a) =>
             utils.parseDisplayableName(a)
         );
-        this.name = this.displayableAliases.pop(primaryAliasIndex);
+        this.name = this.displayableAliases.splice(primaryAliasIndex, 1)[0];
 
         // Auto-pop open the matched setting and scroll into view
-        // TODO auto pop open
-        // if (!this.empty) {
         if (this.settingID) {
             for (const [i, setting] of this.settings.entries()) {
-                if (setting.setting === this.settingID) {
+                if (setting.setting_id === this.settingID) {
                     this.expandedIndex = [i];
-                    console.debug(this.expandedIndex);
                 }
             }
         } else {
@@ -119,7 +137,10 @@ export default {
             //  as above.
             this.expandedIndex = [0];
         }
-        // }
+
+        // Stop any MIDI tracks that might be playing already
+        abcjs.midi.stopPlaying();
+
     },
     methods: {
         descriptor: function (setting) {
@@ -131,11 +152,6 @@ export default {
         abcExitFullScreen: function () {
             this.abcFullScreen = false;
         },
-    },
-    props: {
-        tuneID: null,
-        settingID: null,
-        displayName: null,
     },
 };
 </script>
@@ -152,5 +168,9 @@ export default {
 
 .abcFullScreen {
     z-index: 8;
+}
+
+h1 {
+    font-size: x-large;
 }
 </style>

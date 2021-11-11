@@ -1,6 +1,6 @@
 [package]
 name = "folkfriend"
-version = "3.0.6"   # MAKE SURE THIS MATCHES ff_config.rs
+version = "1.1.4"   # MAKE SURE THIS MATCHES ff_config.rs
 authors = ["Tom Wyllie <tom@wyllie.dev>"]
 edition = "2018"
 description = "Transcription and recognition of traditional instrumental folk music"
@@ -21,7 +21,7 @@ path = "src/bin.rs"
 
 [dependencies]
 aho-corasick = "0.7.18"
-clap = "3.0.0-beta.4"
+clap = "2.33.3"
 csv = "1.1"
 dirs = "4.0.0"
 fnv = "1.0.7"

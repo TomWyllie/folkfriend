@@ -55,7 +55,7 @@ impl QueryEngine {
         }
 
         for (_, setting_ids) in setting_ids_by_tune_id.iter_mut() {
-            setting_ids.sort()
+            setting_ids.sort_by_key(|k| k.parse::<i32>().unwrap());
         }
 
         self.setting_ids_by_tune_id = setting_ids_by_tune_id;
@@ -75,7 +75,7 @@ impl QueryEngine {
                 //
                 // let nowh = Instant::now();
                 let mut first_search =
-                    heuristic::run_transcription_query(&contour.value(), &tune_index);
+                    heuristic::run_transcription_query(&contour, &tune_index);
                 first_search.truncate(self.num_repass);
                     // eprintln!("Heuristic search took {:.2?}", nowh.elapsed());
                 //
@@ -86,7 +86,7 @@ impl QueryEngine {
                 let mut second_search: Vec<(SettingID, f32)> = Vec::new();
                 for (setting_id, _) in &first_search {
                     let score = nw::needleman_wunsch(
-                        &contour.value(),
+                        &contour,
                         &tune_index.settings[setting_id].contour,
                     );
                     second_search.push((setting_id.clone(), score));
@@ -131,7 +131,7 @@ impl QueryEngine {
 
                 // scored_names.sort_unstable_by(|a, b| b.ngram_score.partial_cmp(&a.ngram_score).unwrap());
 
-                scored_names.sort_unstable_by(|a, b| match b.ngram_score.cmp(&a.ngram_score) {
+                scored_names.sort_unstable_by(|a, b| match b.ngram_score.partial_cmp(&a.ngram_score).unwrap() {
                     std::cmp::Ordering::Less => std::cmp::Ordering::Less,
                     std::cmp::Ordering::Greater => std::cmp::Ordering::Greater,
                     std::cmp::Ordering::Equal => {

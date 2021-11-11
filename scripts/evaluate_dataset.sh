@@ -22,4 +22,5 @@ fi
 
 folkfriend query $SLICES > queries.csv
 python compute_rankings.py queries.csv $RECORDINGS > rankings.csv
+sort -o rankings.csv rankings.csv
 cat rankings.csv | python analyse_rankings.py

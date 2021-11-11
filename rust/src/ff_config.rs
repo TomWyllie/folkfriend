@@ -1,6 +1,6 @@
 // Stores important global parameters that are re-used across FolkFriend.
 // MAKE SURE THIS MATCHES CARGO.TOML
-pub const VERSION: &str = "3.0.6";
+pub const VERSION: &str = "1.1.4";
 
 // ====================================
 // === Signal Processing Paramaters ===
@@ -54,14 +54,18 @@ pub const SAMPLE_RATE_DEFAULT: u32 = 48_000;
 
 // Retain only this many features
 pub const RETAINED_FEATURES_PER_FRAME: u32 = 5;
+pub const PITCH_MODEL_WEIGHT: f32 = 0.050;
+pub const PITCH_MODEL_SHIFT: f32 = -7.0;
+pub const BASE_ENERGY_SCORE: f32 = -0.18;
 
-pub const PITCH_MODEL_WEIGHT: f32 = 0.12;
-pub const TEMPO_MODEL_WEIGHT: f32 = 0.40;
+// Why do we cap this? Because otherwise score can decay very low after long silence
+//  and then miss the first couple of notes when music actually starts.
+// pub const MIN_LATTICE_SCORE: f32 = -5.0;
 
-pub const BEAM_WIDTH: usize = 20;
+pub const MIN_NOTE_DURATION: usize = 3;
+pub const MIN_NOTE_DURATION_REL: f32 = 0.2;
+pub const MIN_NOTE_POWER: f32 = 0.10;
 
-// TODO experiment with varying this tempo parameter.
-pub const TEMP_TEMPO_PARAM: f32 = 8.0;
 
 pub const CONTOUR_TO_QUERY_CHAR: [char; MIDI_NUM as usize] = [
     'a', 'b', 'c', 'd', 'e', 
@@ -80,4 +84,4 @@ pub const CONTOUR_TO_QUERY_CHAR: [char; MIDI_NUM as usize] = [
 //  and with searching strings for names 3 seems to be better :)
 pub const QUERY_NGRAM_SIZE_CONTOUR: usize = 4;  // "quadgram"
 pub const QUERY_NGRAM_SIZE_NAME: usize = 3;     // "trigram"
-pub const QUERY_REPASS_SIZE: usize = 1200;
+pub const QUERY_REPASS_SIZE: usize = 2000;
