@@ -97,12 +97,20 @@
             />
         </v-card>
         <v-card class="pa-5 my-2">
-            <h1>Donate</h1>
+            <h1>Feedback</h1>
+            FolkFriend has been a five-year project by a single developer. 
+            Please send any bugs reports, feature requests, or general feedback, 
+            to <a
+                class="feedbackEmail"
+                href="mailto:feedback@folkfriend.app"
+            >feedback@folkfriend.app</a>.
+            <!-- TODO donations -->
+            <!-- <h1>Donate</h1>
             <p>
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit.
                 Pellentesque id tellus cursus, pellentesque tortor gravida,
                 sollicitudin nulla. Nulla sit amet tellus nulla.
-            </p>
+            </p> -->
         </v-card>
         <p class="AppInfo">
             App version: {{ frontendVersion }}<br>Backend version:
@@ -178,6 +186,11 @@ export default {
 </script>
 
 <style scoped>
+.feedbackEmail {
+    font-weight: bold;
+    color: --var(--v-primary-base);
+}
+
 .v-card {
     scroll-margin-top: 60px;
 }

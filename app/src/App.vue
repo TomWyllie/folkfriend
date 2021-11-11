@@ -297,4 +297,8 @@ async function initSetup() {
 h1 {
     color: var(--v-secondary-base);
 }
+
+html, body {
+    overscroll-behavior-y: contain;  
+}
 </style>
