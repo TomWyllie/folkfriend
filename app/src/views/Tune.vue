@@ -73,9 +73,19 @@ export default {
     name: 'TuneView',
     components: { AbcDisplay },
     props: {
-        tuneID: null,
-        settingID: null,
-        displayName: null,
+        tuneID: {
+            type: String,
+            required: true
+        },
+        displayName: {
+            type: String,
+            required: true
+        },
+        settingID: {
+            type: String,
+            required: false,
+            default: null
+        },
     },
     data: function () {
         return {

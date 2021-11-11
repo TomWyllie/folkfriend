@@ -128,7 +128,18 @@ import {
 
 export default {
     name: 'HelpView',
-    props: ['download', 'share'],
+    props: {
+        'download': {
+            type: Boolean,
+            required: false,
+            default: false
+        }, 
+        'share':  {
+            type: Boolean,
+            required: false,
+            default: false
+        }, 
+    },
     data: () => ({
         icons: {
             alertCircle: mdiAlertCircle,

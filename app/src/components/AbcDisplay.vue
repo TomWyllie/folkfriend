@@ -55,21 +55,24 @@
 </template>
 
 <script>
-import { mdiFullscreen, mdiPause, mdiPlay, mdiReplay, mdiStop } from "@mdi/js";
-import store from "@/services/store.js";
-import abcjs from "abcjs/midi";
+import { mdiFullscreen, mdiPause, mdiPlay, mdiReplay, mdiStop } from '@mdi/js';
+import store from '@/services/store.js';
+import abcjs from 'abcjs/midi';
 
 export default {
-    name: "AbcDisplay",
+    name: 'AbcDisplay',
     props: {
         abc: {
             type: String,
+            required: true,
         },
         mode: {
             type: String,
+            required: true,
         },
         meter: {
             type: String,
+            required: true,
         },
     },
     data: function () {
@@ -97,7 +100,7 @@ export default {
                 abcLines.push(`M:${this.meter}`);
             }
             abcLines.push(this.abc);
-            return abcLines.join("\n");
+            return abcLines.join('\n');
         },
         showAbcText: function () {
             return store.userSettings.showAbcText;
@@ -108,7 +111,7 @@ export default {
         const svgDiv = abcJsWrapperDiv.firstChild;
         const midDiv = abcJsWrapperDiv.lastChild;
 
-        abcjs.renderAbc(svgDiv, this.abcText, { responsive: "resize" });
+        abcjs.renderAbc(svgDiv, this.abcText, { responsive: 'resize' });
 
         abcjs.renderMidi(midDiv, this.abcText, {});
         this.midPlayDiv = midDiv.lastChild;
@@ -128,11 +131,11 @@ export default {
             abcjs.midi.restartPlaying();
         },
         goFullScreen: function () {
-            this.$emit("abcGoFullScreen");
+            this.$emit('abcGoFullScreen');
             this.fullscreen = true;
         },
         exitFullScreen: function () {
-            this.$emit("abcExitFullScreen");
+            this.$emit('abcExitFullScreen');
             this.fullscreen = false;
         },
     },
