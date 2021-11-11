@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "folkfriend-dev"
-  }
+    "dev": "folkfriend-dev",
+    "prod": "folk-friend"
+  },
+  "targets": {}
 }
