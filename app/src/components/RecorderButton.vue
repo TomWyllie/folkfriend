@@ -76,7 +76,7 @@
         <v-snackbar
             v-model="snackbar"
             class="text-center"
-            :timeout="5000"
+            :timeout="8000"
         >
             {{ snackbarText }}
         </v-snackbar>
@@ -128,9 +128,10 @@ export default {
                     try {
                         await this.startRecording();
                     } catch (e) {
-                        console.warn(
-                            `Could not access microphone (${e.message}). You can still upload audio files by setting 'file upload' in settings.`
-                        );
+                        let errorMsg = `Could not access microphone (${e.message}). You can still upload audio files by setting 'file upload' in settings.`;
+                        console.warn(errorMsg);
+                        this.snackbar = true;
+                        this.snackbarText = errorMsg;
                     }
                 }
                 break;

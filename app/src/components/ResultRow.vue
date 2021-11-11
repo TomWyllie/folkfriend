@@ -23,7 +23,7 @@
                     {{ descriptor }}
                 </v-col>
                 <v-col
-                    v-show="score"
+                    v-show="score !== null"
                     class="py-0 text-right score"
                     :style="`color: ${scoreColour};`"
                 >

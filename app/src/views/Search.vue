@@ -97,6 +97,11 @@ export default {
                 this.indexLoaded = true;
             });
         }
+
+        eventBus.$on('searchError', (errorMsg) => {
+            this.snackbar = true;
+            this.snackbarText = errorMsg || 'An error ocurred 😟';
+        });
     },
     methods: {
         nameQuery() {

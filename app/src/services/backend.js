@@ -77,6 +77,20 @@ class FFBackend {
         const contour = await this.transcribePCMBuffer();
         console.debug('contour', contour);
 
+        try {
+            let errorMsg = JSON.parse(contour)['error'];
+            if (errorMsg) {
+                eventBus.$emit('searchError', errorMsg);
+                store.setSearchState(store.searchStates.READY);
+                return;
+            }
+        } catch (e) {
+            if (!(e instanceof SyntaxError)) {
+                store.setSearchState(store.searchStates.READY);
+                throw e;
+            }
+        }
+
         // If we have limited the recording time, then the query will probably
         //  be short, and so it's sensible to run a search query. Users can
         //  disable the automatic querying if they desire, for example if
@@ -85,8 +99,20 @@ class FFBackend {
 
         if (doQuery) {
             const queryResults = await this.runTranscriptionQuery(contour);
+
+            // No point proceeding if not a single sensible note was found...
+            const highestScore = (queryResults[0] || {
+                score: 0
+            }).score;
+            if (highestScore === 0) {
+                eventBus.$emit('searchError', 'Could not detect any music');
+                store.setSearchState(store.searchStates.READY);
+                return;
+            }
+
             store.state.lastResults = queryResults;
 
+            console.debug(queryResults);
             router.push({
                 name: 'results'
             });

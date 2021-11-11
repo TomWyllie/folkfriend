@@ -190,7 +190,7 @@ impl FolkFriendWASM {
         match self.ff.transcribe_pcm_buffer() {
             Ok(transcription) => transcription,
             Err(_) => json!({
-                "error": "Could not transcribe any music".to_string()
+                "error": "Could not detect any notes".to_string()
             })
             .to_string(),
         }

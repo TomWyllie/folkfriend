@@ -68,11 +68,13 @@ export default {
         },
         mode: {
             type: String,
-            required: true,
+            required: false,
+            default: null
         },
         meter: {
             type: String,
-            required: true,
+            required: false,
+            default: null
         },
     },
     data: function () {

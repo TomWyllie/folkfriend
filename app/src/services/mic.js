@@ -62,7 +62,7 @@ class MicService {
         } catch (e) {
             this.finishOpening();
 
-            console.error(e);
+            console.warn(e);
 
             await this.stopRecording();
             store.setSearchState(store.searchStates.READY);
@@ -78,7 +78,9 @@ class MicService {
         //  trust that this works in Safari etc so we allow arbitrary
         //  sampleRates (within reason), which we detect after getUserMedia.
         //  The WebAssembly DSP functions can handle arbitrary sample rates.
-        this.audioCtx = new AudioContext({ sampleRate: sampleRate });
+        this.audioCtx = new AudioContext({
+            sampleRate: sampleRate
+        });
 
         // TODO this needs investigated further and confirmed the value is high
         //  enough for different devices.
