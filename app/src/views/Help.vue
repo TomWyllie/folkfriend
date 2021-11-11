@@ -1,7 +1,12 @@
 <template>
     <v-container>
-        <v-card class="pa-5 my-2 UnstableRelease" v-if="!isStableRelease">
-            <v-icon class="WarningIcon px-3">{{ icons.alertCircle }}</v-icon>
+        <v-card
+            v-if="!isStableRelease"
+            class="pa-5 my-2 UnstableRelease"
+        >
+            <v-icon class="WarningIcon px-3">
+                {{ icons.alertCircle }}
+            </v-icon>
             <span>You are not using the stable release version of FolkFriend, which is at <a href="https://folkfriend.app">folkfriend.app</a>. This is the development version, which may contain features which are untested.</span>
         </v-card>
         <v-card class="pa-5 my-2">
@@ -14,30 +19,62 @@
                 entirely in browser and works without an internet connection.
             </p>
         </v-card>
-        <v-card class="pa-5 my-2" ref="helpDownload">
+        <v-card
+            ref="helpDownload"
+            class="pa-5 my-2"
+        >
             <h1>Download</h1>
             <p>
                 FolkFriend is a "Web App", which means it installs onto your
                 Home Screen just like any other app.
             </p>
-            <p v-if="isPWA" align="center" >FolkFriend is installed <v-icon class="pb-1 Installed">{{ icons.checkCircle }}</v-icon></p>
+            <p
+                v-if="isPWA"
+                align="center"
+            >
+                FolkFriend is installed <v-icon class="pb-1 Installed">
+                    {{ icons.checkCircle }}
+                </v-icon>
+            </p>
             <p v-else-if="ua.isSafari && ua.isMobile">
                 On iOS Safari,
                 <ul>
-                    <li>Tap <v-icon class="pb-2">{{ icons.iosShare }}</v-icon> "share"</li>
+                    <li>
+                        Tap <v-icon class="pb-2">
+                            {{ icons.iosShare }}
+                        </v-icon> "share"
+                    </li>
                     <li>Scroll down</li>
-                    <li>Tap <v-icon class="pb-1">{{ icons.iosAddToHomeScreen }}</v-icon> "add to home screen"</li>
+                    <li>
+                        Tap <v-icon class="pb-1">
+                            {{ icons.iosAddToHomeScreen }}
+                        </v-icon> "add to home screen"
+                    </li>
                 </ul>
             </p>
-            <p v-else-if="ua.isChrome && ua.isMobile">On Chrome mobile,
+            <p v-else-if="ua.isChrome && ua.isMobile">
+                On Chrome mobile,
                 <ul>
-                    <li>Tap <v-icon class="pb-1">{{ icons.dotsVertical }}</v-icon> "Customise"</li>
-                    <li>Tap <v-icon class="pb-1">{{ icons.cellphoneArrowDown }}</v-icon> "Install FolkFriend"</li>
+                    <li>
+                        Tap <v-icon class="pb-1">
+                            {{ icons.dotsVertical }}
+                        </v-icon> "Customise"
+                    </li>
+                    <li>
+                        Tap <v-icon class="pb-1">
+                            {{ icons.cellphoneArrowDown }}
+                        </v-icon> "Install FolkFriend"
+                    </li>
                 </ul>
             </p>
-            <p v-else-if="ua.isChrome && !ua.isMobile">On Chrome desktop,
+            <p v-else-if="ua.isChrome && !ua.isMobile">
+                On Chrome desktop,
                 <ul>
-                    <li>Tap <v-icon class="pb-1">{{ icons.cellphoneArrowDown }}</v-icon> "install app"</li>
+                    <li>
+                        Tap <v-icon class="pb-1">
+                            {{ icons.cellphoneArrowDown }}
+                        </v-icon> "install app"
+                    </li>
                 </ul>
             </p>
             <p v-else>
@@ -45,7 +82,10 @@
                 and select "Add to Home Screen" or "Install App".
             </p>
         </v-card>
-        <v-card class="pa-5 my-2" ref="helpShare">
+        <v-card
+            ref="helpShare"
+            class="pa-5 my-2"
+        >
             <h1>Share</h1>
             <p>Scan the QR code on another device to open FolkFriend.</p>
             <v-img
@@ -54,7 +94,7 @@
                 align-center
                 center
                 contain
-            ></v-img>
+            />
         </v-card>
         <v-card class="pa-5 my-2">
             <h1>Donate</h1>
@@ -65,17 +105,17 @@
             </p>
         </v-card>
         <p class="AppInfo">
-            App version: {{ frontendVersion }}<br />Backend version:
-            {{ backendVersion }}<br />© 2021 Tom Wyllie. All Rights Reserved.
+            App version: {{ frontendVersion }}<br>Backend version:
+            {{ backendVersion }}<br>© 2021 Tom Wyllie. All Rights Reserved.
         </p>
     </v-container>
 </template>
 
 <script>
-import store from "@/services/store.js";
-import ffConfig from "@/ffConfig.js";
-import eventBus from "@/eventBus";
-import utils from "@/services/utils";
+import store from '@/services/store.js';
+import ffConfig from '@/ffConfig.js';
+import eventBus from '@/eventBus';
+import utils from '@/js/utils.js';
 
 import {
     mdiAlertCircle,
@@ -84,13 +124,11 @@ import {
     mdiDotsVertical,
     mdiExportVariant,
     mdiPlusBoxOutline,
-    // mdiInstallDesktop,
-    // mdiInstallMobile,
-} from "@mdi/js";
+} from '@mdi/js';
 
 export default {
-    name: "Help",
-    props: ["download", "share"],
+    name: 'HelpView',
+    props: ['download', 'share'],
     data: () => ({
         icons: {
             alertCircle: mdiAlertCircle,
@@ -115,15 +153,14 @@ export default {
         },
     },
     created: function () {
-        eventBus.$emit("parentViewActivated");
+        eventBus.$emit('parentViewActivated');
         this.ua = utils.checkUserAgent();
     },
     mounted: function () {
-        console.debug(this.download, this.share);
         if(this.download) {
-            this.$refs["helpDownload"].$el.scrollIntoView();
+            this.$refs['helpDownload'].$el.scrollIntoView();
         } else if(this.share) {
-            this.$refs["helpShare"].$el.scrollIntoView();
+            this.$refs['helpShare'].$el.scrollIntoView();
         }
     },
 };

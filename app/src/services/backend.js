@@ -1,22 +1,27 @@
-import * as Comlink from "@/services/comlink.js";
-import store from "@/services/store.js";
-import router from "@/router/index.js";
-import eventBus from "@/eventBus";
+import * as Comlink from '@/js/comlink.js';
+import store from '@/services/store.js';
+import router from '@/router/index.js';
+import eventBus from '@/eventBus';
+import {
+    HistoryItem
+} from '@/js/schema';
 
 class FFBackend {
-    /* Yet another layer of abstraction. This class is the route that all 
-        information to / from the WebAssembly backend must pass through.
-        This is the class that the app directly uses to make use of folkfriend.
-        It uses comlink and callbacks to communicate with the worker thread,
-        which actually loads in the WebAssembly module.
-    */
+    /* Yet another layer of abstraction. This class is the route that all
+            information to / from the WebAssembly backend must pass through.
+            This is the class that the app directly uses to make use of folkfriend.
+            It uses comlink and callbacks to communicate with the worker thread,
+            which actually loads in the WebAssembly module.
+        */
 
     constructor() {
-        const worker = new Worker("./worker.js", { type: "module" });
+        const worker = new Worker('./worker.js', {
+            type: 'module'
+        });
         this.folkfriendWorker = Comlink.wrap(worker);
 
         this.folkfriendWorker.onIndexLoad(Comlink.proxy(() => {
-            eventBus.$emit("indexLoaded");
+            eventBus.$emit('indexLoaded');
         }));
     }
 
@@ -24,7 +29,7 @@ class FFBackend {
         return new Promise(resolve => {
             this.folkfriendWorker.version(Comlink.proxy(version => {
                 resolve(version);
-            }))
+            }));
         });
     }
 
@@ -49,28 +54,28 @@ class FFBackend {
     }
 
     async transcribePCMBuffer() {
-        console.time("transcribe-pcm-buffer");
+        console.time('transcribe-pcm-buffer');
         return new Promise(resolve => {
             this.folkfriendWorker.transcribePCMBuffer(Comlink.proxy(contour => {
-                console.timeEnd("transcribe-pcm-buffer");
+                console.timeEnd('transcribe-pcm-buffer');
                 resolve(contour);
-            }))
+            }));
         });
     }
 
     async runTranscriptionQuery(query) {
-        console.time("run-transcription-query");
+        console.time('run-transcription-query');
         return new Promise(resolve => {
             this.folkfriendWorker.runTranscriptionQuery(query, Comlink.proxy(response => {
-                console.timeEnd("run-transcription-query");
+                console.timeEnd('run-transcription-query');
                 resolve(response);
             }));
-        })
+        });
     }
 
     async submitFilledBuffer() {
         const contour = await this.transcribePCMBuffer();
-        console.debug("contour", contour);
+        console.debug('contour', contour);
 
         // If we have limited the recording time, then the query will probably
         //  be short, and so it's sensible to run a search query. Users can
@@ -81,16 +86,23 @@ class FFBackend {
         if (doQuery) {
             const queryResults = await this.runTranscriptionQuery(contour);
             store.state.lastResults = queryResults;
-            router.push({ name: "results" });
-            eventBus.$emit("childViewActivated");
+
+            router.push({
+                name: 'results'
+            });
+            eventBus.$emit('childViewActivated');
         }
 
-        const notes = await this.contourToAbc(contour);
-        store.state.lastNotes = notes;
+        store.state.lastContour = contour;
+        store.addToHistory(new HistoryItem({
+            contour: contour
+        }));
 
         if (!doQuery) {
-            router.push({ name: "score" });
-            eventBus.$emit("childViewActivated");
+            router.push({
+                name: 'notes'
+            });
+            eventBus.$emit('childViewActivated');
         }
 
         store.setSearchState(store.searchStates.READY);
@@ -101,7 +113,7 @@ class FFBackend {
             this.folkfriendWorker.runNameQuery(query, Comlink.proxy(response => {
                 resolve(response);
             }));
-        })
+        });
     }
 
     async contourToAbc(contour) {
@@ -109,7 +121,7 @@ class FFBackend {
             this.folkfriendWorker.contourToAbc(contour, Comlink.proxy(abc => {
                 resolve(abc);
             }));
-        })
+        });
     }
 
     async settingsFromTuneID(tuneID) {
@@ -117,7 +129,7 @@ class FFBackend {
             this.folkfriendWorker.settingsFromTuneID(tuneID, Comlink.proxy(response => {
                 resolve(response);
             }));
-        })
+        });
     }
 
     async aliasesFromTuneID(tuneID) {
@@ -125,7 +137,7 @@ class FFBackend {
             this.folkfriendWorker.aliasesFromTuneID(tuneID, Comlink.proxy(response => {
                 resolve(response);
             }));
-        })
+        });
     }
 }
 

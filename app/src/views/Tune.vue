@@ -1,27 +1,34 @@
 <template>
-    <v-container class="tune mx-auto" v-if="name">
+    <v-container
+        v-if="name"
+        class="tune mx-auto"
+    >
         <h1 class="my-2">
-            {{ this.name }}
+            {{ name }}
         </h1>
-        <v-container class="my-1" v-if="displayableAliases.length">
+        <v-container
+            v-if="displayableAliases.length"
+            class="my-1"
+        >
             <span class="font-italic text--secondary">Also known as: </span>
             <v-chip
-                v-for="alias in this.displayableAliases"
+                v-for="alias in displayableAliases"
                 :key="alias"
                 class="nameChip ma-1 px-2"
                 label
                 small
-                >{{ alias }}
+            >
+                {{ alias }}
             </v-chip>
         </v-container>
         <v-expansion-panels
             v-model="expandedIndex"
-            v-bind:class="{ abcFullScreen: abcFullScreen }"
+            :class="{ abcFullScreen: abcFullScreen }"
             multiple
         >
             <v-expansion-panel
+                v-for="settingData in settings"
                 v-show="settings"
-                v-for="settingData in this.settings"
                 :key="settingData.setting_id"
                 :setting="settingData"
             >
@@ -42,26 +49,34 @@
                         :meter="settingData.meter"
                         @abcGoFullScreen="abcGoFullScreen"
                         @abcExitFullScreen="abcExitFullScreen"
-                    ></AbcDisplay>
+                    />
                 </v-expansion-panel-content>
             </v-expansion-panel>
         </v-expansion-panels>
     </v-container>
     <!-- This actually shouldn't ever happen unless the user manually navigates to /tunes -->
-    <v-container v-else>
-        <p class="px-10">No tune loaded. Please search for a tune.</p>
+    <v-container v-else-if="!tuneID">
+        <p class="px-10">
+            No tune loaded. Please search for a tune.
+        </p>
     </v-container>
 </template>
 
 <script>
-import utils from "@/services/utils.js";
-import AbcDisplay from "@/components/AbcDisplay";
-import ffBackend from "@/services/backend.js";
-import eventBus from "@/eventBus";
-import abcjs from "abcjs/midi";
+import utils from '@/js/utils.js';
+import AbcDisplay from '@/components/AbcDisplay';
+import ffBackend from '@/services/backend.js';
+import eventBus from '@/eventBus';
+import abcjs from 'abcjs/midi';
 
 export default {
-    name: "Tune",
+    name: 'TuneView',
+    components: { AbcDisplay },
+    props: {
+        tuneID: null,
+        settingID: null,
+        displayName: null,
+    },
     data: function () {
         return {
             settings: null,
@@ -72,15 +87,11 @@ export default {
             expandedIndex: [],
         };
     },
-    components: { AbcDisplay },
 
     created: async function () {
-        eventBus.$emit("childViewActivated");
+        eventBus.$emit('childViewActivated');
 
-        // Stop any MIDI tracks that might be playing already
-        abcjs.midi.stopPlaying();
-
-        if (typeof this.tuneID === "undefined") {
+        if (typeof this.tuneID === 'undefined') {
             return;
         }
 
@@ -89,10 +100,10 @@ export default {
 
         let primaryAliasIndex = 0;
 
-        if (typeof this.displayName !== "undefined") {
+        if (typeof this.displayName !== 'undefined') {
             primaryAliasIndex = aliases.indexOf(this.displayName);
             if (primaryAliasIndex == -1) {
-                console.warn("Display name was not found in aliases!");
+                console.warn('Display name was not found in aliases!');
                 primaryAliasIndex = 0;
             }
         }
@@ -116,6 +127,10 @@ export default {
             //  as above.
             this.expandedIndex = [0];
         }
+
+        // Stop any MIDI tracks that might be playing already
+        abcjs.midi.stopPlaying();
+
     },
     methods: {
         descriptor: function (setting) {
@@ -127,11 +142,6 @@ export default {
         abcExitFullScreen: function () {
             this.abcFullScreen = false;
         },
-    },
-    props: {
-        tuneID: null,
-        settingID: null,
-        displayName: null,
     },
 };
 </script>

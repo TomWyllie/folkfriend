@@ -1,6 +1,5 @@
-import ffBackend from "@/services/backend.js";
-import ffConfig from "@/ffConfig.js";
-import store from "./store";
+import ffBackend from '@/services/backend.js';
+import store from './store';
 
 const AUDIO_CONSTRAINTS = {
     audio: {
@@ -98,11 +97,11 @@ class MicService {
         //  it yet. But the cognoscente (rtoy) reckon it's not going anywhere 
         //  anytime soon; https://github.com/WebAudio/web-audio-api/issues/2391.
         this.micProcessor = this.audioCtx.createScriptProcessor(this.bufferSize, 1, 1);
-        this.micProcessor.onaudioprocess = function (audioProcessingEvent) {
+        this.micProcessor.onaudioprocess = function(audioProcessingEvent) {
             let channelData = audioProcessingEvent.inputBuffer.getChannelData(0);
             // console.debug("audioProcessingEvent");
             ffBackend.feedSinglePCMWindow(channelData);
-        }
+        };
 
         // Connect things up
         this.micSource = this.audioCtx.createMediaStreamSource(this.micStream);

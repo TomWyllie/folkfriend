@@ -1,30 +1,29 @@
-import Vue from 'vue'
-import VueRouter from 'vue-router'
+import Vue from 'vue';
+import VueRouter from 'vue-router';
 import Search from '@/views/Search.vue';
-import Score from '@/views/Score.vue';
+import Notes from '@/views/Notes.vue';
 import Results from '@/views/Results.vue';
-import Tune from "@/views/Tune.vue";
-import Settings from "@/views/Settings.vue";
-import History from "@/views/History.vue";
-import Help from "@/views/Help.vue";
+import Tune from '@/views/Tune.vue';
+import Settings from '@/views/Settings.vue';
+import History from '@/views/History.vue';
+import Help from '@/views/Help.vue';
 
-Vue.use(VueRouter)
+Vue.use(VueRouter);
 
-const routes = [
-    {
+const routes = [{
         path: '/',
         name: 'search',
         component: Search
     },
     {
-        path: '/score',
-        name: 'score',
-        component: Score,
+        path: '/notes',
+        name: 'notes',
+        component: Notes
     },
     {
         path: '/results',
         name: 'results',
-        component: Results,
+        component: Results
     },
     {
         path: '/tune',
@@ -35,12 +34,12 @@ const routes = [
     {
         path: '/history',
         name: 'history',
-        component: History,
+        component: History
     },
     {
         path: '/settings',
         name: 'settings',
-        component: Settings,
+        component: Settings
     },
     {
         path: '/help',
@@ -57,8 +56,9 @@ const routes = [
 
 const router = new VueRouter({
     mode: 'history',
+    // eslint-disable-next-line no-undef
     base: process.env.BASE_URL,
     routes
-})
+});
 
-export default router
+export default router;

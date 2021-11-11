@@ -1,7 +1,10 @@
 // Self-contained functions which come in handy throughout the project
 
 // https://grammar.yourdictionary.com/capitalization/rules-for-capitalization-in-titles.html
-const LOWER_TITLE_WORDS = new Set(["a", "an", "the", "at", "by", "for", "in", "of", "on", "to", "up", "and", "as", "but", "or", "nor"]);
+const LOWER_TITLE_WORDS = new Set(['a', 'an', 'the', 'at', 'by', 'for', 'in', 'of', 'on', 'to', 'up', 'and', 'as', 'but', 'or', 'nor']);
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MS_12_HOURS = 12 * 60 * 60 * 1000;
+const MS_6_MONTHS = 365 * MS_12_HOURS;
 
 // Wrap in a class for ease of exports
 export default class utils {
@@ -17,13 +20,30 @@ export default class utils {
         return Math.max(0, daysSince2020);
     }
 
+    static utcToString(utc) {
+        let msAge = Date.now() - utc;
+        let date = new Date(utc);
+        let dateString;
+
+        if (msAge > MS_12_HOURS) {
+            dateString = date.getDate().toString() + ' ' + MONTHS[date.getMonth()];
+            dateString = msAge > MS_6_MONTHS ? dateString + ' ' + date.getFullYear() : dateString;
+        } else {
+            let hour = date.getHours();
+            let afternoon = Boolean(Math.floor(hour / 12));
+            dateString = (hour % 12).toString() + ':' + ('0' + date.getMinutes()).slice(-2) + ' ';
+            dateString += afternoon ? 'PM' : 'AM';
+        }
+        return dateString;
+    }
+
     static parseDisplayableName(rawName) {
         // https://bitbucket.org/Tom_Wyllie/folk-friend-web-app/src/master/app/js/folkfriend-app.js
         if (rawName.endsWith(', the')) {
             rawName = 'the ' + rawName.slice(0, -5);
         }
 
-        let words = rawName.split(" ");
+        let words = rawName.split(' ');
 
         // Ensure small words are not capitalised, unless they are at the start of the word
         for (let [i, word] of words.entries()) {
@@ -31,7 +51,7 @@ export default class utils {
                 words[i] = words[i].charAt(0).toUpperCase() + words[i].slice(1);
             }
         }
-        return words.join(" ");
+        return words.join(' ');
     }
 
     static parseDisplayableDescription(setting) {
@@ -75,14 +95,22 @@ export default class utils {
 
         ua.isIOS = /ipad|iphone|ipod/.test(uaString);
         ua.isMobile = /mobile/.test(uaString);
-        if ((ua.isChrome) && (ua.isSafari)) { ua.isSafari = false; }
+        if ((ua.isChrome) && (ua.isSafari)) {
+            ua.isSafari = false;
+        }
         if ((ua.isChrome) && ((ua.isEdgeDesktop) ||
-            (ua.isEdgeiOS) ||
-            (ua.isEdgeAndroid))) { ua.isChrome = false; }
+                (ua.isEdgeiOS) ||
+                (ua.isEdgeAndroid))) {
+            ua.isChrome = false;
+        }
         if ((ua.isSafari) && ((ua.isEdgeDesktop) ||
-            (ua.isEdgeiOS) ||
-            (ua.isEdgeAndroid))) { ua.isSafari = false; }
-        if ((ua.isChrome) && (ua.isOpera)) { ua.isChrome = false; }
+                (ua.isEdgeiOS) ||
+                (ua.isEdgeAndroid))) {
+            ua.isSafari = false;
+        }
+        if ((ua.isChrome) && (ua.isOpera)) {
+            ua.isChrome = false;
+        }
 
         if (/ipad/.test(uaString)) {
             ua.whereIsShare = 'top';

@@ -1,7 +1,13 @@
 /* https://vuejs.org/v2/guide/state-management.html#Simple-State-Management-from-Scratch */
 // Vuex is overkill for out needs. Use a very simple global object store for
 //  very basic state management.
-import eventBus from "@/eventBus.js";
+import eventBus from '@/eventBus.js';
+import {get,
+    set
+} from 'idb-keyval';
+import {
+    SearchResult
+} from '@/js/schema';
 
 // TODO load from local storage or similar
 const USER_SETTING_DEFAULTS = {
@@ -9,25 +15,25 @@ const USER_SETTING_DEFAULTS = {
     preferFileUpload: false,
     showAbcText: false,
     microphoneChoice: null
-}
+};
 
 class Store {
     constructor() {
         this.state = {
             indexLoaded: false,
             lastResults: [],
-            lastNotes: "",
+            lastContour: '',
             lastTimer: null,
-            backendVersion: "not loaded",
+            backendVersion: 'not loaded'
         };
 
         this.searchStates = {
-            READY: "ready",
-            RECORDING: "recording",
-            WORKING: "working"
+            READY: 'ready',
+            RECORDING: 'recording',
+            WORKING: 'working'
         };
 
-        this.userSettings = JSON.parse(localStorage.getItem("userSettings")) || USER_SETTING_DEFAULTS;
+        this.userSettings = JSON.parse(localStorage.getItem('userSettings')) || USER_SETTING_DEFAULTS;
         this.searchState = this.searchStates.READY;
     }
 
@@ -35,9 +41,33 @@ class Store {
         // Usable immediately and synchronously by the entire application.
         this.userSettings = userSettings;
 
-        // Save for later so that when we reload the settings page / restart 
+        // Save for later so that when we reload the settings page / restart
         //  app, the settings are maintained.
-        localStorage.setItem("userSettings", JSON.stringify(userSettings));
+        localStorage.setItem('userSettings', JSON.stringify(userSettings));
+    }
+
+    async getHistoryItems() {
+        return await get('historyItems') || [];
+    }
+
+    async addToHistory(tuneHistoryItem) {
+        let historyItems = await get('historyItems') || [];
+
+        if (tuneHistoryItem.result.setting && tuneHistoryItem.result.setting.tune_id) {
+            let newTuneID = tuneHistoryItem.result.setting.tune_id;
+            for (let [i, oldHistoryItem] of historyItems.entries()) {
+                if (oldHistoryItem.result.setting && oldHistoryItem.result.setting.tune_id === newTuneID) {
+                    console.debug('poppin', i, oldHistoryItem, historyItems[i]);
+                    historyItems.splice(i, 1);
+                    break;
+                }
+            }
+        }
+
+        historyItems.unshift(tuneHistoryItem);
+        historyItems = historyItems.slice(0, 100);
+
+        await set('historyItems', historyItems);
     }
 
     isReady() {
@@ -58,9 +88,9 @@ class Store {
             this.searchState = this.searchStates.READY;
             console.error(`Invalid state ${state}`);
         }
-        eventBus.$emit("setSearchState");
+        eventBus.$emit('setSearchState');
     }
-};
+}
 
 const store = new Store();
 export default store;

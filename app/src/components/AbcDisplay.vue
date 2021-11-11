@@ -1,30 +1,53 @@
 <template>
     <v-card elevation="0">
-        <v-container class="ma-0 pa-0" v-if="showAbcText">
-            <span class="abcTextView mx-auto">{{ this.abcText }}</span>
+        <v-container
+            v-if="showAbcText"
+            class="ma-0 pa-0"
+        >
+            <span class="abcTextView mx-auto">{{ abcText }}</span>
         </v-container>
         <div
-            @click="exitFullScreen"
-            v-bind:class="{ FullScreenAbcDisplay: fullscreen }"
+            :class="{ FullScreenAbcDisplay: fullscreen }"
             class="abcSheetMusic"
+            @click="exitFullScreen"
         >
             <!-- Render ABC sheet music here -->
-            <div></div>
+            <div />
             <!-- Render MIDI thing here -->
-            <div style="display: none"></div>
+            <div style="display: none" />
         </div>
-        <v-row wrap justify="center" class="py-2">
-            <v-btn class="mx-1 px-3 abcControls" @click="restartPlaying">
+        <v-row
+            wrap
+            justify="center"
+            class="py-2"
+        >
+            <v-btn
+                class="mx-1 px-3 abcControls"
+                @click="restartPlaying"
+            >
                 <v-icon>{{ icons.replay }}</v-icon>
             </v-btn>
-            <v-btn class="mx-1 px-3 abcControls" @click="startPlaying">
-                <v-icon v-if="paused">{{ icons.play }}</v-icon>
-                <v-icon v-else>{{ icons.pause }}</v-icon>
+            <v-btn
+                class="mx-1 px-3 abcControls"
+                @click="startPlaying"
+            >
+                <v-icon v-if="paused">
+                    {{ icons.play }}
+                </v-icon>
+                <v-icon v-else>
+                    {{ icons.pause }}
+                </v-icon>
             </v-btn>
-            <v-btn class="mx-1 px-3 abcControls" @click="stopPlaying">
+            <v-btn
+                class="mx-1 px-3 abcControls"
+                @click="stopPlaying"
+            >
                 <v-icon>{{ icons.stop }}</v-icon>
             </v-btn>
-            <v-btn class="mx-1 px-3 abcControls" @click="goFullScreen">
+            <v-btn
+                class="mx-1 px-3 abcControls"
+                @click="goFullScreen"
+            >
                 <v-icon>{{ icons.fullscreen }}</v-icon>
             </v-btn>
         </v-row>
@@ -38,15 +61,16 @@ import abcjs from "abcjs/midi";
 
 export default {
     name: "AbcDisplay",
-    mounted: async function () {
-        const abcJsWrapperDiv = this.$el.childNodes[1];
-        const svgDiv = abcJsWrapperDiv.firstChild;
-        const midDiv = abcJsWrapperDiv.lastChild;
-
-        abcjs.renderAbc(svgDiv, this.abcText, { responsive: "resize" });
-
-        abcjs.renderMidi(midDiv, this.abcText, {});
-        this.midPlayDiv = midDiv.lastChild;
+    props: {
+        abc: {
+            type: String,
+        },
+        mode: {
+            type: String,
+        },
+        meter: {
+            type: String,
+        },
     },
     data: function () {
         return {
@@ -79,16 +103,15 @@ export default {
             return store.userSettings.showAbcText;
         },
     },
-    props: {
-        abc: {
-            type: String,
-        },
-        mode: {
-            type: String,
-        },
-        meter: {
-            type: String,
-        },
+    mounted: async function () {
+        const abcJsWrapperDiv = this.$el.childNodes[1];
+        const svgDiv = abcJsWrapperDiv.firstChild;
+        const midDiv = abcJsWrapperDiv.lastChild;
+
+        abcjs.renderAbc(svgDiv, this.abcText, { responsive: "resize" });
+
+        abcjs.renderMidi(midDiv, this.abcText, {});
+        this.midPlayDiv = midDiv.lastChild;
     },
     methods: {
         startPlaying: function () {

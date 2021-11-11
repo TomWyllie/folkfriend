@@ -1,6 +1,9 @@
 <template>
     <v-app>
-        <v-navigation-drawer v-model="drawer" app>
+        <v-navigation-drawer
+            v-model="drawer"
+            app
+        >
             <!-- By the way the @click="0" thing adds the ripple animation.
                   Guess otherwise vuetify thinks it's not clickable?
                   The 0 is insignificant I just needed any valid javascript-->
@@ -8,21 +11,29 @@
                 <router-link to="/">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon medium>{{ icons.microphone }}</v-icon>
+                            <v-icon medium>
+                                {{ icons.microphone }}
+                            </v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title class="navBarEntry">Search</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">
+                                Search
+                            </v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
 
-                <router-link to="/score">
+                <router-link to="/notes">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon medium>{{ icons.musicNote }}</v-icon>
+                            <v-icon medium>
+                                {{ icons.musicNote }}
+                            </v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title class="navBarEntry">Score</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">
+                                Notes
+                            </v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
@@ -30,32 +41,44 @@
                 <router-link to="/results">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon medium>{{ icons.formatListBulleted }}</v-icon>
+                            <v-icon medium>
+                                {{ icons.formatListBulleted }}
+                            </v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title class="navBarEntry">Results</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">
+                                Results
+                            </v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
 
-                <!-- <router-link to="/history">
+                <router-link to="/history">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon medium>{{ icons.history }}</v-icon>
+                            <v-icon medium>
+                                {{ icons.history }}
+                            </v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title class="navBarEntry">History</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">
+                                History
+                            </v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
-                </router-link> -->
+                </router-link>
 
                 <router-link to="/settings">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon medium>{{ icons.cog }}</v-icon>
+                            <v-icon medium>
+                                {{ icons.cog }}
+                            </v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title class="navBarEntry">Settings</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">
+                                Settings
+                            </v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
@@ -63,35 +86,46 @@
                 <router-link to="/help">
                     <v-list-item @click="0">
                         <v-list-item-action>
-                            <v-icon medium>{{ icons.help }}</v-icon>
+                            <v-icon medium>
+                                {{ icons.help }}
+                            </v-icon>
                         </v-list-item-action>
                         <v-list-item-content>
-                            <v-list-item-title class="navBarEntry">About</v-list-item-title>
+                            <v-list-item-title class="navBarEntry">
+                                About
+                            </v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
             </v-list>
         </v-navigation-drawer>
 
-        <v-app-bar app color="white" elevate-on-scroll>
+        <v-app-bar
+            app
+            color="white"
+            elevate-on-scroll
+        >
             <v-icon
                 v-if="hamburgerState === hamburgerStates.hamburger"
                 color="primary"
                 @click.stop="drawer = !drawer"
-                >{{ icons.menu }}</v-icon
             >
+                {{ icons.menu }}
+            </v-icon>
             <v-icon
                 v-else-if="hamburgerState === hamburgerStates.back"
                 color="primary"
                 @click="hamburgerBack"
-                >{{ icons.arrowLeft }}</v-icon
             >
+                {{ icons.arrowLeft }}
+            </v-icon>
             <v-icon
                 v-else-if="hamburgerState === hamburgerStates.cancel"
                 color="primary"
                 @click="hamburgerCancel"
-                >{{ icons.close }}</v-icon
             >
+                {{ icons.close }}
+            </v-icon>
 
             <v-img
                 src="@/assets/logo.svg"
@@ -101,10 +135,23 @@
                 align-center
                 center
                 contain
-            ></v-img>
-            <v-btn icon color="primary">
-                <v-icon @click="clickShare" v-if="isPWA">{{ icons.shareVariant }}</v-icon>
-                <v-icon @click="clickDownload" v-else>{{ icons.download }}</v-icon>
+            />
+            <v-btn
+                icon
+                color="primary"
+            >
+                <v-icon
+                    v-if="isPWA"
+                    @click="clickShare"
+                >
+                    {{ icons.shareVariant }}
+                </v-icon>
+                <v-icon
+                    v-else
+                    @click="clickDownload"
+                >
+                    {{ icons.download }}
+                </v-icon>
             </v-btn>
         </v-app-bar>
 
@@ -116,10 +163,10 @@
 
 
 <script>
-import ffBackend from "@/services/backend.js";
-import store from "@/services/store.js";
-import eventBus from "@/eventBus.js";
-import router from "@/router/index.js";
+import ffBackend from '@/services/backend.js';
+import store from '@/services/store.js';
+import eventBus from '@/eventBus.js';
+import router from '@/router/index.js';
 import {
     mdiArrowLeft,
     mdiCog,
@@ -132,20 +179,20 @@ import {
     mdiMicrophone,
     mdiMusicNote,
     mdiShareVariant,
-} from "@mdi/js";
-import utils from "@/services/utils";
+} from '@mdi/js';
+import utils from '@/js/utils.js';
 
 export default {
-    name: "App",
+    name: 'App',
     data: () => ({
         drawer: null,
         menu: null,
         hamburgerStates: {
-            hamburger: "hamburger",
-            back: "back",
-            cancel: "cancel",
+            hamburger: 'hamburger',
+            back: 'back',
+            cancel: 'cancel',
         },
-        hamburgerState: "hamburger",
+        hamburgerState: 'hamburger',
         icons: {
             arrowLeft: mdiArrowLeft,
             cog: mdiCog,
@@ -173,7 +220,7 @@ export default {
         //  by having the nice gears animation and disabling the navigation
         //  hamburger. As a fallback, the navigation hamburger becomes a cross
         //  which refreshes the page in case recording / working hangs completely.
-        eventBus.$on("setSearchState", () => {
+        eventBus.$on('setSearchState', () => {
             if (store.isReady()) {
                 if (this.hamburgerState === this.hamburgerStates.cancel) {
                     this.hamburgerState = this.hamburgerStates.hamburger;
@@ -195,18 +242,18 @@ export default {
         //  return to the results and try the next one down. This introduces
         //  a hierarchy for which hamburger navigation on its own becomes
         //  unintuitive and cumbersome.
-        eventBus.$on("childViewActivated", () => {
+        eventBus.$on('childViewActivated', () => {
             this.hamburgerState = this.hamburgerStates.back;
         });
 
         // Make sure hamburger is in the right state if we navigate back
         //  from a child view WITHOUT pressing the back button in app
         //  (e.g. physical back button on phone, alt + left shortcut on PC)
-        eventBus.$on("parentViewActivated", () => {
+        eventBus.$on('parentViewActivated', () => {
             this.hamburgerState = this.hamburgerStates.hamburger;
         });
 
-        eventBus.$on("indexLoaded", () => {
+        eventBus.$on('indexLoaded', () => {
             store.state.indexLoaded = true;
         });
     },
@@ -215,19 +262,19 @@ export default {
             router.back();
         },
         hamburgerCancel() {
-            let result = window.confirm("Cancel this search?");
+            let result = window.confirm('Cancel this search?');
             if (result) {
                 window.location.reload(false);
             }
         },
         clickDownload() {
-            if(this.$route.name != "help") {
-                router.push({ name: "help", params: {download: true} });
+            if(this.$route.name != 'help') {
+                router.push({ name: 'help', params: {download: true} });
             }
         },
         clickShare() {
-            if(this.$route.name != "help") {
-                router.push({ name: "help", params: {share: true} });
+            if(this.$route.name != 'help') {
+                router.push({ name: 'help', params: {share: true} });
             }
         }
     },
@@ -236,7 +283,7 @@ export default {
 async function initSetup() {
     ffBackend.version().then((version) => {
         store.state.backendVersion = version;
-        console.info("Loaded folkfriend backend version", version);
+        console.info('Loaded folkfriend backend version', version);
     });
     await ffBackend.setupTuneIndex();
 }
@@ -250,9 +297,4 @@ async function initSetup() {
 h1 {
     color: var(--v-secondary-base);
 }
-
-/* .navBarEntry {
-    font-size: large !important;
-    line-height: 1.2 !important;
-} */
 </style>

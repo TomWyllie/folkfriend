@@ -1,12 +1,11 @@
 import ffBackend from '@/services/backend.js';
-// import { OfflineAudioContext } from 'standardized-audio-context';
 
 class AudioService {
     constructor() {
         this.micActive = false;
         this.audioCtx = null;
         this.micAnalyser = null;
-        
+
         // IMPORTANT - issues with standardized-audio-context not respecting
         //  this value going above 2048 and missing out 50% of frames.
         //  (needs further examination)
@@ -24,8 +23,8 @@ class AudioService {
             audio.onloadedmetadata = resolve;
         });
         audio.removeAttribute('src'); // Don't yet load in the rest of the file
-        
-        await ffBackend.setSampleRate(this.sampleRate)
+
+        await ffBackend.setSampleRate(this.sampleRate);
 
         const offlineNumSamples = audio.duration * this.sampleRate;
 
@@ -54,129 +53,6 @@ class AudioService {
         //  https://github.com/WebAudio/web-audio-api/issues/30
         return decodedBuffer.getChannelData(0);
     }
-
-
-
-    // async startRecording() {
-    //     if (this.micActive) {
-    //         return;
-    //     }
-
-    //     this.micActive = true;
-
-    //     // It's possible for a call to stopRecording to come in whilst we are
-    //     //  still running startRecording (if the button is pushed very quickly).
-    //     //  Track how we're doing setting up the audio pipeline so we can
-    //     //  block stopRecording until this is finished.
-    //     this.opening = new Promise((resolve) => {
-    //         this.finishOpening = resolve;
-    //     });
-
-    //     await transcriber.flush();
-
-    //     // This is the case on ios/chrome, when clicking links from within ios/slack (sometimes), etc.
-    //     if (!navigator || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    //         throw 'Missing support for navigator.mediaDevices.getUserMedia';
-    //     }
-
-    //     let sampleRate;
-    //     try {
-    //         this.micStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
-    //         sampleRate = this.micStream.getTracks()[0].getSettings().sampleRate;
-    //         const nyq = sampleRate / 2;
-    //         this.sampleRate = sampleRate;
-
-    //         // Recall the highest interpolated value in the spectral frame from
-    //         //  the dsp functions is greater than the midi value (up to half a
-    //         //  note higher). Give ourselves some space to breathe.
-    //         if (utils.midiToHertz(FFConfig.MIDI_HIGH + 1) > nyq) {
-    //             // noinspection ExceptionCaughtLocallyJS
-    //             throw `Sample rate too low: ${sampleRate}`;
-    //         }
-
-    //         console.debug(`Using context sample rate ${sampleRate}Hz`);
-    //         await transcriber.setSampleRate(sampleRate);
-
-    //     } catch (e) {
-    //         this.micActive = false;
-    //         throw e;
-    //     }
-
-    //     // IMPORTANT NODE: we can simply set
-    //     //  { sampleRate: FFConfig.SAMPLE_RATE }
-    //     //  as a config for this constructor and Chrome magically resamples
-    //     //  everything into our desired sample rate. Unfortunately I don't
-    //     //  trust that this works in Safari etc so we allow arbitrary
-    //     //  sampleRates (within reason), which we detect after getUserMedia.
-    //     //  The WebAssembly DSP functions can handle arbitrary sample rates.
-    //     this.micCtx = new AudioContext({ sampleRate: sampleRate });
-
-    //     // TODO this needs investigated further and confirmed the value is high
-    //     //  enough for different devices.
-    //     // Ideally we would set fftSize to FFConfig.SPEC_WINDOW_SIZE but on
-    //     //  some devices (confirmed on Tom's old Samsung Galaxy S6) this
-    //     //  introduces glitches where WebAudio can't update itself fast
-    //     //  enough, so each frame is duplicated three or four times without
-    //     //  changing (disastrously bad for audio quality). We choose a longer
-    //     //  size which introduces more latency (which doesn't really matter)
-    //     //  which reduces glitches. The latency doesn't matter because we're
-    //     //  not doing any real-time processing of audio that is *sent back* to
-    //     //  to the user.
-    //     this.micAnalyser = this.micCtx.createAnalyser({
-    //         fftSize: this.timeDomainBufferSize,
-    //         smoothingTimeConstant: 0
-    //     });
-
-    //     this.micSource = this.micCtx.createMediaStreamSource(this.micStream);
-
-    //     // Connect things up
-    //     this.micSource.connect(this.micAnalyser);
-
-    //     let micSamplerInterval = this.getMicSamplerInterval(sampleRate);
-    //     this.timeDomainData = new Float32Array(this.timeDomainBufferSize);
-    //     this.micSampler = setInterval(() => {
-    //         // Race condition can occur where this is asynchronously called
-    //         //  mid-way through us tearing down the pipeline.
-    //         if (!this.micAnalyser) {
-    //             return;
-    //         }
-    //         this.micAnalyser.getFloatTimeDomainData(this.timeDomainData);
-    //         transcriber.feed(this.timeDomainData.slice(0)).then(() => {
-    //             transcriber.advance().then();
-    //         });
-    //     }, micSamplerInterval);
-
-    //     this.finishOpening();
-    // }
-
-    // async stopRecording() {
-    //     if (!this.micActive) {
-    //         return;
-    //     }
-
-    //     // Make sure we don't try to close whilst in the process
-    //     //  of opening.
-    //     await this.opening;
-
-    //     clearInterval(this.micSampler);
-
-    //     if (this.micAnalyser) {
-    //         this.micAnalyser.disconnect();
-    //         this.micAnalyser = null;
-    //     }
-
-    //     if (this.micStream) {
-    //         this.micStream.getTracks().forEach((track) => track.stop());
-    //         this.micStream = null;
-    //     }
-
-    //     if (this.micCtx) {
-    //         await this.micCtx.close();
-    //         this.micCtx = null;
-    //     }
-
-    //     this.micActive = false;
-    // }
 }
 
 const audioService = new AudioService();
