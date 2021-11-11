@@ -131,7 +131,7 @@ impl QueryEngine {
 
                 // scored_names.sort_unstable_by(|a, b| b.ngram_score.partial_cmp(&a.ngram_score).unwrap());
 
-                scored_names.sort_unstable_by(|a, b| match b.ngram_score.cmp(&a.ngram_score) {
+                scored_names.sort_unstable_by(|a, b| match b.ngram_score.partial_cmp(&a.ngram_score).unwrap() {
                     std::cmp::Ordering::Less => std::cmp::Ordering::Less,
                     std::cmp::Ordering::Greater => std::cmp::Ordering::Greater,
                     std::cmp::Ordering::Equal => {

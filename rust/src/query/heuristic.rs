@@ -7,7 +7,7 @@ use std::collections::HashMap;
 pub struct ScoredName {
     pub tune_id: TuneID,
     pub alias_index: usize,
-    pub ngram_score: usize,
+    pub ngram_score: f32,
 }
 
 pub fn run_transcription_query(
@@ -34,6 +34,7 @@ pub fn run_transcription_query(
 
 pub fn run_name_query(query: &String, tune_index: &TuneIndex) -> Vec<ScoredName> {
     let query = query.to_lowercase();
+    let query_len = query.len() as f32;
     let ngrams = ngrams_str(&query, ff_config::QUERY_NGRAM_SIZE_NAME);
 
     let mut scored_names: Vec<ScoredName> = Vec::new();
@@ -44,7 +45,7 @@ pub fn run_name_query(query: &String, tune_index: &TuneIndex) -> Vec<ScoredName>
                 .find_overlapping_iter(&alias)
                 .collect::<Vec<Match>>()
                 .len();
-            // let score = score as f32 / alias.len() as f32;
+            let score = score as f32 / f32::max(alias.len() as f32, query_len);
             scored_names.push(ScoredName {
                 tune_id: tune_id.clone(),
                 alias_index: alias_id,
