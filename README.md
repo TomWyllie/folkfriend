@@ -1,6 +1,8 @@
 # FolkFriend
 Scripts and Web Application for folk music tune transcription and recognition.
 
+This is the Github repository for the FolkFriend app, for advanced users and developers of the app. If you are looking to simply use the web version of the app please instead go to [folkfriend.app](https://folkfriend.app). 
+
 # Dependencies
 - `rust` (for compiling the folkfriend library from source to run natively)
 - `python 3.x` (for running some misc scripts, for example evaluating datasets)
