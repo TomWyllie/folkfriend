@@ -9,6 +9,7 @@
     "dependencies": {
         "comlink": "^4.3.1",
         "core-js": "^3.6.5",
+        "firebase": "^9.4.1",
         "idb-keyval": "^6.0.3",
         "register-service-worker": "^1.7.1",
         "standardized-audio-context": "^25.3.12",
