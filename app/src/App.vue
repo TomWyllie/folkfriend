@@ -117,7 +117,7 @@
                 color="primary"
                 @click="hamburgerBack"
             >
-                {{ icons.arrowLeft }}
+                {{ icons.chevronLeft }}
             </v-icon>
             <v-icon
                 v-else-if="hamburgerState === hamburgerStates.cancel"
@@ -171,7 +171,7 @@ import store from '@/services/store.js';
 import eventBus from '@/eventBus.js';
 import router from '@/router/index.js';
 import {
-    mdiArrowLeft,
+    mdiChevronLeft,
     mdiCog,
     mdiClose,
     mdiDownload,
@@ -197,7 +197,7 @@ export default {
         },
         hamburgerState: 'hamburger',
         icons: {
-            arrowLeft: mdiArrowLeft,
+            chevronLeft: mdiChevronLeft,
             cog: mdiCog,
             close: mdiClose,
             download: mdiDownload,
