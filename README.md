@@ -2,33 +2,26 @@
 Scripts and Web Application for folk music tune transcription and recognition.
 
 # Dependencies
-- `pyenv`
-- `abcmidi` (if building data indices)
+- `rust` (for compiling the folkfriend library from source to run natively)
+- `python 3.x` (for running some misc scripts, for example evaluating datasets)
+- `wasm-pack` (for compiling the folkfriend library from source into WebAssembly)
+- `Vue.js v2.x` (for frontend development)
+
+I shall soon add some precompiled executables for windows + linux so compiling from source is not necessary to use the command line version of the library.
 
 # Structure of Repository
 
 | Directory | Description |
 | ---       | ---         |
-| `app/`| bits and bobs relating to the javascript app |
-| `scripts/`| Python scripts for backend things
+| `app/`| Source code and build scripts for the PWA hosted at [folkfriend.app](https://folkfriend.app) |
+| `resources/`| Miscellaneous static assets |
+| `rust/`| FolkFriend library source code (in rust) |
 | `utils/`  | Contains the `folkfriend` module; python implementation of all the functionality that runs client-side in the app.
+
+Note that if you are unfamiliar with rust, you can find implementations of all the key parts of FolkFriend in Python 3 in the commit history of this repository (I originally wrote FolkFriend in Python and learned rust as I went about translating into a WASM friendly language). The Python code is unmaintained and may be out of date.
 
 # Using Rust
 
 1. Install Rust
 2. From the `rust/` directory of this repository, run `cargo build --release` to compile the `folkfriend` executable on your machine.
-3. Add the `folkfriend` executable to your system path, for example using `sudo cp folkfriend /usr/local/bin/`.
-
-# Using Python
-
-To use the python scripts and the python module `folkfriend` located in the `utils` directory, please follow the steps below.
-
-1. Ensure you have installed pyenv
-2. Ensure you have installed the correct python version by running `pyenv install`
-3. Verify using `which python` and `which pip` that you are using your pyenv and not your system wide python installation any other virtual environment. The output should look something like `/home/tom/.pyenv/shims/python`.
-4. Install the `virtualenv` module to your pyenv using `pip install virtualenv`
-5. Create a local virtual environment in the directory `venv` by running `python -m virtualenv venv`
-6. Source the env script by running `source env.sh` which does three things:
-    * Activates the virtual environment you made in the `venv` directory
-    * Installs the required modules from `requirements.txt` to your virtual environment.
-    * Prepends the absolute path of the directory `utils/` to your `PYTHONPATH` environment variable, which allows you to import the `folkfriend` module inside the `utils/` directory, anytime that you have this virtual environment activated.
+3. Add the `folkfriend` executable to your system path, for example by including a directory containing `folkfriend` to your path environment variable or by using `sudo cp folkfriend /usr/local/bin/`.
