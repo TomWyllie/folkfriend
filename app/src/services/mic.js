@@ -3,7 +3,7 @@ import store from './store';
 
 const AUDIO_CONSTRAINTS = {
     audio: {
-        echoCancellation: false
+        echoCancellation: false,
     }
 };
 
@@ -39,35 +39,14 @@ class MicService {
             throw 'Missing support for navigator.mediaDevices.getUserMedia';
         }
 
-        let sampleRate;
         try {
             this.micStream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
-            sampleRate = this.micStream.getTracks()[0].getSettings().sampleRate;
-
-            // TODO integrate this with the sample rate checking included in rust
-            // const nyq = sampleRate / 2;
-            // this.usingSampleRate = sampleRate;
-
-            // // Recall the highest interpolated value in the spectral frame from
-            // //  the dsp functions is greater than the midi value (up to half a
-            // //  note higher). Give ourselves some space to breathe.
-            // if (utils.midiToHertz(FFConfig.MIDI_HIGH + 1) > nyq) {
-            //     // noinspection ExceptionCaughtLocallyJS
-            //     throw `Sample rate too low: ${sampleRate}`;
-            // }
-
-            ffBackend.setSampleRate(sampleRate).then(() => {
-                console.debug(`Using context sample rate ${sampleRate}Hz`);
-            });
+            // sampleRate = this.micStream.getTracks()[0].getSettings().sampleRate;
         } catch (e) {
             this.finishOpening();
-
             console.warn(e);
-
             await this.stopRecording();
             store.setSearchState(store.searchStates.READY);
-
-            // Propagate
             throw e;
         }
 
@@ -78,9 +57,7 @@ class MicService {
         //  trust that this works in Safari etc so we allow arbitrary
         //  sampleRates (within reason), which we detect after getUserMedia.
         //  The WebAssembly DSP functions can handle arbitrary sample rates.
-        this.audioCtx = new AudioContext({
-            sampleRate: sampleRate
-        });
+        this.audioCtx = new AudioContext();
 
         // TODO this needs investigated further and confirmed the value is high
         //  enough for different devices.
@@ -108,8 +85,23 @@ class MicService {
         // Connect things up
         this.micSource = this.audioCtx.createMediaStreamSource(this.micStream);
         this.micSource.connect(this.micProcessor);
-        console.debug(this.audioCtx);
         this.micProcessor.connect(this.audioCtx.destination);
+
+        try {
+            // On Chrome, Safari, we can use MediaTrackSettings.sampleRate to
+            //  get the sample rate and then initialise the AudioContext with
+            //  that. Firefox doesn't let you know the sample rate until after
+            //  you've connected it up to the audio context.
+            let sampleRate = this.audioCtx.sampleRate;
+            console.debug(`Using microphone sample rate ${sampleRate}`);
+            await ffBackend.setSampleRate(sampleRate);
+        } catch (e) {
+            this.finishOpening();
+            console.warn(e);
+            await this.stopRecording();
+            store.setSearchState(store.searchStates.READY);
+            throw e;
+        }
 
         this.finishOpening();
     }

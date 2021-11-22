@@ -4,6 +4,7 @@ mod pitch_model;
 pub mod types;
 
 use crate::feature::types::Features;
+use crate::feature::signal;
 use std::fmt;
 use types::{Contour, ContourString, LatticePath};
 
@@ -21,10 +22,14 @@ impl fmt::Display for DecoderError {
 }
 
 impl FeatureDecoder {
-    pub fn new(sample_rate: u32) -> FeatureDecoder {
-        FeatureDecoder {
-            sample_rate: sample_rate
+    pub fn new(sample_rate: u32) -> Result<FeatureDecoder, signal::SampleRateError> {
+        if !signal::validate_sample_rate(&sample_rate) {
+            return Err(signal::SampleRateError);
         }
+        
+        Ok(FeatureDecoder {
+            sample_rate: sample_rate
+        })
     }
 
     pub fn decode_lattice_path(

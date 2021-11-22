@@ -1,5 +1,4 @@
 use crate::decode::pitch_model::PitchModel;
-// use crate::decode::proposal::Proposal;
 use crate::decode::types::{LatticePath, PitchInterval};
 use crate::decode::DecoderError;
 use crate::feature::normalise::Normalisable;
@@ -15,7 +14,13 @@ pub fn decode(features: &mut Features) -> Result<LatticePath, DecoderError> {
     //  found using dynamic programming, governed by a few rules in how likely
     //  relative lengths of notes / relative jumps in pitch, are.
     // Normalise energy to average 1.0 AU per frame
-    features.normalise();
+    let feature_energy_by_frame = features.energy_by_frame();
+    let total_energy: f32 = feature_energy_by_frame.iter().sum();
+    if total_energy == 0.0 {
+        // Cannot decode complete silence!
+        return Err(DecoderError);
+    }
+    features.normalise(&feature_energy_by_frame);
 
     // Do this after normalising in case trimmed silence means not enough
     //  frames remain.
@@ -35,25 +40,14 @@ pub fn decode(features: &mut Features) -> Result<LatticePath, DecoderError> {
     // Dynamic programming lattice; each entry in the grid represents the
     //   score of the highest-scored path to that state.
     let mut lattice_scores: Vec<[f32; ff_config::MIDI_NUM as usize]> = Vec::new();
-    // Dynamic programming lattice; each entry in the grid represents the
-    //   index in the previous frame that was the best route to this one.
-    // let mut lattice_paths: Vec<[usize; ff_config::MIDI_NUM as usize]> = Vec::new();
 
     // Set up first frame
     let first_scores = features[0];
     lattice_scores.push(first_scores);
-    // let first_paths = features[0]
-    //     .iter()
-    //     .enumerate()
-    //     .map(|(i, _)| i)
-    //     .collect::<Vec<usize>>();
-    // lattice_paths.push(first_paths.try_into().unwrap());
 
     for frame in 1..features.len() {
         let mut next_scores: [f32; ff_config::MIDI_NUM as usize] =
             [-f32::INFINITY; ff_config::MIDI_NUM as usize];
-        // let mut next_paths: [usize; ff_config::MIDI_NUM as usize] =
-        //     [0; ff_config::MIDI_NUM as usize];
 
         // For each state at time t...
         for state_t in 0..ff_config::MIDI_NUM as usize {
@@ -64,16 +58,13 @@ pub fn decode(features: &mut Features) -> Result<LatticePath, DecoderError> {
                 let energy_score = features[frame][state_t];
                 let carry_score = lattice_scores[frame - 1][state_t_minus_one];
                 let proposed_score = carry_score + interval_score + energy_score;
-                // let proposed_score = f32::max(proposed_score, ff_config::MIN_LATTICE_SCORE);
 
                 if proposed_score > next_scores[state_t] {
                     next_scores[state_t] = proposed_score;
-                    // next_paths[state_t] = state_t_minus_one;
                 }
             }
         }
         lattice_scores.push(next_scores);
-        // lattice_paths.push(next_paths);
     }
 
     // ===============================

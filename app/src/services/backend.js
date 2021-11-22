@@ -2,6 +2,7 @@ import * as Comlink from '@/js/comlink.js';
 import store from '@/services/store.js';
 import router from '@/router/index.js';
 import eventBus from '@/eventBus';
+import ffConfig from '@/ffConfig.js';
 import {
     HistoryItem
 } from '@/js/schema';
@@ -38,6 +39,15 @@ class FFBackend {
     }
 
     async setSampleRate(sampleRate) {
+        // Same check as in folkfriend::feature::signal::validate_sample_rate
+        let isValid = sampleRate < ffConfig.SAMPLE_RATE_MAX && sampleRate > ffConfig.SAMPLE_RATE_MIN;
+        if (!isValid) {
+            throw {
+                name: 'SampleRateError',
+                message: `Invalid sample rate: ${sampleRate} Hz`
+            };
+        }
+
         await this.folkfriendWorker.setSampleRate(sampleRate);
     }
 

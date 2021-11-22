@@ -3,7 +3,7 @@ use crate::ff_config;
 use crate::feature::types::Features;
 
 pub trait Normalisable {
-    fn normalise(&mut self);
+    fn normalise(&mut self, energy_by_frame: &Vec<f32>);
     fn energy_by_frame(&self) -> Vec<f32>;
 }
 
@@ -20,14 +20,12 @@ impl Normalisable for Features {
         return energy_by_frame;
     }
 
-    fn normalise(&mut self) {
+    fn normalise(&mut self, energy_by_frame: &Vec<f32>) {
         // Trims silent edges and normalises energy to have on average 
         //  1 AU per frame.
         
-        let energy_by_frame = self.energy_by_frame();
         // println!("{:#?}", energy_by_frame);
         // println!("{:#?}", energy_by_frame.len());
-
 
         // let loudest_frame = energy_by_frame
         //         .iter()
@@ -57,11 +55,6 @@ impl Normalisable for Features {
         for i in 0..self.len() {
             for j in 0..ff_config::MIDI_NUM {
                 self[i][j as usize] *= norm_const;
-                
-                // TODO Don't forget that this is here
-                // if j > ff_config::MIDI_NUM - 10 {
-                //     self[i][j as usize] *= 0.0;
-                // }
             }
         }
 

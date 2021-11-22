@@ -1,8 +1,6 @@
-use crate::feature::signal::{validate_sample_rate, hertz_to_midi};
+use crate::feature::signal::hertz_to_midi;
 use crate::feature::types::InterpInds;
 use crate::ff_config;
-
-
 
 #[derive(Debug)]
 pub struct InterpInd {
@@ -11,9 +9,7 @@ pub struct InterpInd {
     pub hi_index: usize,
 }
 
-
-pub fn compute_interp_inds(sample_rate: &u32) -> InterpInds {
-    validate_sample_rate(sample_rate);
+pub fn compute_interp_inds(valid_sample_rate: &u32) -> InterpInds {
     let half_window: usize = ff_config::SPEC_WINDOW_SIZE / 2;
 
     // We will have a buffer that contains 1 + SPEC_WINDOW_SIZE / 2 unique
@@ -31,7 +27,7 @@ pub fn compute_interp_inds(sample_rate: &u32) -> InterpInds {
     let mut ac_bin_midis: Vec<f32> = Vec::new();
 
     for ac_bin in 1..half_window + 1 {
-        let ac_freq = *sample_rate as f32 / ac_bin as f32;
+        let ac_freq = *valid_sample_rate as f32 / ac_bin as f32;
         let ac_midi = hertz_to_midi(&ac_freq);
         ac_bin_midis.push(ac_midi);
     }
@@ -39,7 +35,8 @@ pub fn compute_interp_inds(sample_rate: &u32) -> InterpInds {
     if ac_bin_midis[0] < ff_config::MIDI_HIGH as f32
         || ac_bin_midis[half_window - 1] > ff_config::MIDI_LOW as f32
     {
-        panic!("Spectrogram range is insufficient");
+        // TODO better behaviour than just panicking.
+        panic!("Spectrogram range is insufficient. Has an invalid sample rate been used?");
     }
 
     let mut interp_indices: InterpInds = Vec::new();

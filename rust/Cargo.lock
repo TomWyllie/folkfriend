@@ -144,6 +144,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "console_error_panic_hook"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a06aeb73f470f66dcdbf7223caeebb85984942f22f1adb2a088cf9668146bbbc"
+dependencies = [
+ "cfg-if",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -293,10 +303,11 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "folkfriend"
-version = "1.1.4"
+version = "1.1.5"
 dependencies = [
  "aho-corasick",
  "clap",
+ "console_error_panic_hook",
  "csv",
  "dirs",
  "fnv",

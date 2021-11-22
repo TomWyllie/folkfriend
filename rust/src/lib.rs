@@ -5,9 +5,11 @@ pub mod ff_config;
 pub mod index;
 pub mod query;
 
+use console_error_panic_hook;
 use js_sys;
 use serde_json::json;
 use std::convert::TryInto;
+use std::panic;
 use std::slice;
 use wasm_bindgen::prelude::*;
 
@@ -30,10 +32,8 @@ impl FolkFriend {
     pub fn new() -> FolkFriend {
         FolkFriend {
             query_engine: query::QueryEngine::new(),
-            feature_extractor: feature::FeatureExtractor::new(
-                ff_config::SAMPLE_RATE_DEFAULT,
-            ),
-            feature_decoder: decode::FeatureDecoder::new(ff_config::SAMPLE_RATE_DEFAULT),
+            feature_extractor: feature::FeatureExtractor::new(ff_config::SAMPLE_RATE_DEFAULT).unwrap(),
+            feature_decoder: decode::FeatureDecoder::new(ff_config::SAMPLE_RATE_DEFAULT).unwrap(),
             abc_processor: abc::AbcProcessor::new(),
         }
     }
@@ -47,13 +47,14 @@ impl FolkFriend {
         self.query_engine.use_tune_index(tune_index);
     }
 
-    pub fn set_sample_rate(&mut self, sample_rate: u32) {
+    pub fn set_sample_rate(&mut self, sample_rate: u32) -> Result<(), feature::signal::SampleRateError> {
         if self.feature_extractor.sample_rate != sample_rate {
-            self.feature_extractor = feature::FeatureExtractor::new(sample_rate);
+            self.feature_extractor = feature::FeatureExtractor::new(sample_rate)?;
         }
         if self.feature_decoder.sample_rate != sample_rate {
-            self.feature_decoder = decode::FeatureDecoder::new(sample_rate);
+            self.feature_decoder = decode::FeatureDecoder::new(sample_rate)?;
         }
+        Ok(())
     }
 
     pub fn feed_entire_pcm_signal(&mut self, pcm_signal: Vec<f32>) {
@@ -71,7 +72,6 @@ impl FolkFriend {
     pub fn transcribe_pcm_buffer(
         &mut self,
     ) -> Result<decode::types::ContourString, decode::DecoderError> {
-        // log(format!("{:?}", self.feature_extractor.features).as_str());
         let lattice_path = self
             .feature_decoder
             .decode_lattice_path(&mut self.feature_extractor.features)?;
@@ -131,6 +131,7 @@ pub struct FolkFriendWASM {
 impl FolkFriendWASM {
     #[wasm_bindgen(constructor)]
     pub fn new() -> FolkFriendWASM {
+        panic::set_hook(Box::new(console_error_panic_hook::hook));
         FolkFriendWASM {
             ff: FolkFriend::new(),
         }
@@ -146,8 +147,11 @@ impl FolkFriendWASM {
         self.ff.query_engine.use_tune_index(tune_index);
     }
 
-    pub fn set_sample_rate(&mut self, sample_rate: u32) {
-        self.ff.set_sample_rate(sample_rate);
+    pub fn set_sample_rate(&mut self, sample_rate: u32) -> bool {
+        match self.ff.set_sample_rate(sample_rate) {
+            Ok(()) => true,
+            Err(_) => false
+        }
     }
 
     pub fn feed_entire_pcm_signal(&mut self) {

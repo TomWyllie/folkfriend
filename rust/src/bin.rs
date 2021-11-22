@@ -114,8 +114,8 @@ fn process_audio_files(ff: FolkFriend, input: String, with_transcription_query: 
         // The FolkFriend struct is not set up for happy concurrency.
         //  To avoid the unecessary complication of mutex etc, we just
         //  bypass the higher level wrapper.
-        let mut fe = folkfriend::feature::FeatureExtractor::new(sample_rate);
-        let feature_decoder = folkfriend::decode::FeatureDecoder::new(sample_rate);
+        let mut fe = folkfriend::feature::FeatureExtractor::new(sample_rate).expect("Invalid sample rate");
+        let feature_decoder = folkfriend::decode::FeatureDecoder::new(sample_rate).expect("Invalid sample rate");
 
         fe.feed_signal(signal);
 

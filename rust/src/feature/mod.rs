@@ -22,14 +22,18 @@ pub struct FeatureExtractor {
 }
 
 impl FeatureExtractor {
-    pub fn new(sample_rate: u32) -> FeatureExtractor {
-        FeatureExtractor {
+    pub fn new(sample_rate: u32) -> Result<FeatureExtractor, signal::SampleRateError> {
+        if !validate_sample_rate(&sample_rate) {
+            return Err(signal::SampleRateError);
+        }
+
+        Ok(FeatureExtractor {
             sample_rate: sample_rate,
             window_function: gen_blackman_window(),
             fft: Radix4::new(ff_config::SPEC_WINDOW_SIZE, FftDirection::Forward),
             interp_inds: compute_interp_inds(&sample_rate),
             features: Vec::new(),
-        }
+        })
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: u32) {

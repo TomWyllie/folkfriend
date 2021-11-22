@@ -1,6 +1,8 @@
 import * as Comlink from '@/js/comlink';
 import ffConfig from '@/ffConfig';
-import {get, set } from 'idb-keyval';
+import {get,
+    set
+} from 'idb-keyval';
 
 
 class FolkFriendWASMWrapper {
@@ -120,7 +122,9 @@ class FolkFriendWASMWrapper {
                 //  selectively deleting from IndexedDB. As browsers do delete
                 //   from IndexedDB when under storage pressure it's best to
                 //   cover this case and be safe.
-                tuneIndexMetadataLocal = { 'v': 0 };
+                tuneIndexMetadataLocal = {
+                    'v': 0
+                };
             }
 
             const remoteVersion = tuneIndexMetadataRemote['v'];
@@ -155,6 +159,13 @@ class FolkFriendWASMWrapper {
 
     async setSampleRate(sampleRate) {
         await this.loadedWASM;
+
+        // This can fail by returning false. We never actually check the return
+        //  value because it can only fail if passed an invalid sample rate,
+        //  and it's trivial to check the sample rate before passing that value
+        //  into this worker. It should be impossible for an invalid sample 
+        //  rate to make it to the worker, but even if it does the WASM backend
+        //  simply ignores the invalid sample rate and stays on the default.
         await this.folkfriendWASM.set_sample_rate(sampleRate);
         this.setLoadedSampleRate();
     }
@@ -190,8 +201,16 @@ class FolkFriendWASMWrapper {
     }
 
     async transcribePCMBuffer(cb) {
-        const contour = await this.folkfriendWASM.transcribe_pcm_buffer();
-        cb(contour);
+        try {
+            const contour = await this.folkfriendWASM.transcribe_pcm_buffer();
+            cb(contour);
+        } catch (e) {
+            console.error(e);
+            console.warn('Aborting transcribePCMBuffer');
+            cb(JSON.stringify({
+                'error': 'An error ocurred whilst transcribing audio.'
+            }));
+        }
     }
 
     async runTranscriptionQuery(query, cb) {
