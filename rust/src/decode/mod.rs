@@ -1,5 +1,6 @@
 mod beam_search;
 mod contour;
+mod octave;
 mod pitch_model;
 pub mod types;
 
@@ -36,7 +37,6 @@ impl FeatureDecoder {
         &self,
         features: &mut Features,
     ) -> Result<LatticePath, DecoderError> {
-        // beam_search::decode(features, &self.pitch_model, &self.tempo_model)
         beam_search::decode(features)
     }
 
@@ -45,7 +45,8 @@ impl FeatureDecoder {
         lattice_path: &LatticePath,
         features: &Features
     ) -> Result<ContourString, DecoderError> {
-        let contour: Contour = contour::contour_from_lattice_path(lattice_path, features, self.sample_rate)?;
+        let mut contour: Contour = contour::contour_from_lattice_path(lattice_path, features, self.sample_rate)?;
+        octave::correct_contour_octave(&mut contour);
         return Ok(types::contour_to_contour_string(&contour));
     }
 }
