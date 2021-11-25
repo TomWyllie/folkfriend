@@ -1,6 +1,6 @@
 {
     "name": "folkfriend",
-    "version": "3.2.2",
+    "version": "3.2.3",
     "private": true,
     "scripts": {
         "serve": "vue-cli-service serve",
@@ -18,7 +18,7 @@
         "vuetify": "^2.4.0"
     },
     "devDependencies": {
-        "@mdi/js": "^6.4.95",
+        "@mdi/js": "^6.5.95",
         "@vue/cli-plugin-babel": "~4.5.0",
         "@vue/cli-plugin-pwa": "~4.5.0",
         "@vue/cli-plugin-router": "~4.5.0",

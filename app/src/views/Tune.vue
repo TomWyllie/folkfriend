@@ -22,14 +22,15 @@
             </v-chip>
         </v-container>
         <v-expansion-panels
+            ref="expansionPanels"
             v-model="expandedIndex"
             :class="{ abcFullScreen: abcFullScreen }"
             multiple
         >
             <v-expansion-panel
                 v-for="settingData in settings"
-                v-show="settings"
                 :key="settingData.setting_id"
+                class="expansionPanel"
                 :setting="settingData"
             >
                 <v-expansion-panel-header>
@@ -49,6 +50,7 @@
                         :meter="settingData.meter"
                         @abcGoFullScreen="abcGoFullScreen"
                         @abcExitFullScreen="abcExitFullScreen"
+                        @abcRendered="scrollIntoView"
                     />
                 </v-expansion-panel-content>
             </v-expansion-panel>
@@ -152,6 +154,15 @@ export default {
         abcExitFullScreen: function () {
             this.abcFullScreen = false;
         },
+        scrollIntoView: function() {
+            // If it's a couple of tunes down then help the user by scrolling
+            //  the setting into view.
+            let expandedIndex = this.expandedIndex[0];
+            if(expandedIndex && expandedIndex >= 3) {
+                let panels = this.$refs.expansionPanels;
+                panels.$children[expandedIndex].$el.scrollIntoView();
+            }
+        }
     },
 };
 </script>
@@ -172,5 +183,9 @@ export default {
 
 h1 {
     font-size: x-large;
+}
+
+.expansionPanel {
+    scroll-margin-top: 60px;
 }
 </style>

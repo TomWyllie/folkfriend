@@ -5,9 +5,6 @@ import eventBus from '@/eventBus.js';
 import {get,
     set
 } from 'idb-keyval';
-import {
-    SearchResult
-} from '@/js/schema';
 
 // TODO load from local storage or similar
 const USER_SETTING_DEFAULTS = {
@@ -57,7 +54,6 @@ class Store {
             let newTuneID = tuneHistoryItem.result.setting.tune_id;
             for (let [i, oldHistoryItem] of historyItems.entries()) {
                 if (oldHistoryItem.result.setting && oldHistoryItem.result.setting.tune_id === newTuneID) {
-                    console.debug('poppin', i, oldHistoryItem, historyItems[i]);
                     historyItems.splice(i, 1);
                     break;
                 }

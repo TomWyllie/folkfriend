@@ -113,7 +113,7 @@
             </p> -->
         </v-card>
         <p class="AppInfo">
-            App version: {{ frontendVersion }}<br>Backend version:
+            Folkfriend app version: {{ frontendVersion }}<br>Folkfriend library version:
             {{ backendVersion }}<br>© 2021 Tom Wyllie. All Rights Reserved.
         </p>
     </v-container>
