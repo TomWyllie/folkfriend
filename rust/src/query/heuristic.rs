@@ -45,7 +45,7 @@ pub fn run_name_query(query: &String, tune_index: &TuneIndex) -> Vec<ScoredName>
                 .find_overlapping_iter(&alias)
                 .collect::<Vec<Match>>()
                 .len();
-            let score = score as f32 / f32::max(alias.len() as f32, query_len);
+            let score = score as f32 / f32::max((alias.len() as f32).sqrt(), query_len);
             scored_names.push(ScoredName {
                 tune_id: tune_id.clone(),
                 alias_index: alias_id,
