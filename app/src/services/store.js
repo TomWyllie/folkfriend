@@ -5,6 +5,9 @@ import eventBus from '@/eventBus.js';
 import {get,
     set
 } from 'idb-keyval';
+import {
+    logEvent
+} from 'firebase/analytics';
 
 // TODO load from local storage or similar
 const USER_SETTING_DEFAULTS = {
@@ -32,6 +35,8 @@ class Store {
 
         this.userSettings = JSON.parse(localStorage.getItem('userSettings')) || USER_SETTING_DEFAULTS;
         this.searchState = this.searchStates.READY;
+
+        this.analytics = null;
     }
 
     async updateUserSettings(userSettings) {
@@ -64,6 +69,16 @@ class Store {
         historyItems = historyItems.slice(0, 100);
 
         await set('historyItems', historyItems);
+    }
+
+    loadAnalytics(analytics) {
+        this.analytics = analytics;
+    }
+
+    logAnalyticsEvent(eventLabel, eventData) {
+        if (this.analytics) {
+            logEvent(this.analytics, eventLabel, eventData);
+        }
     }
 
     isReady() {

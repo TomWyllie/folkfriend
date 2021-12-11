@@ -82,10 +82,15 @@ class FolkFriendWASMWrapper {
         return downloadedTuneIndex;
     }
 
-    async setupTuneIndex() {
+    async setupTuneIndex(cb) {
         // This is the entry point, run every application start, for
         //  loading in the tune index ASAP and also maintaining an up-to-date
         //  offline copy.
+        let t0 = performance.now();
+        let analyticsData = {
+            'newly_installed': false,
+            'newly_updated': false
+        };
         console.time('tune-index-setup');
         console.time('tune-index-load');
 
@@ -106,6 +111,9 @@ class FolkFriendWASMWrapper {
             await set('tuneIndex', downloadedTuneIndex);
             await set('tuneIndexMetadata', tuneIndexMetadata);
 
+            analyticsData['days_since_update'] = 0;
+            analyticsData['tune_index_metadata_version'] = tuneIndexMetadata['v'];
+            analyticsData['newly_installed'] = true;
         } else {
             console.debug('Found cached tune index');
 
@@ -143,9 +151,21 @@ class FolkFriendWASMWrapper {
                 const downloadedTuneIndex = await this.fetchTuneIndexData();
                 await set('tuneIndex', downloadedTuneIndex);
                 await set('tuneIndexMetadata', tuneIndexMetadataRemote);
+                analyticsData['days_since_update'] = 0;
+                analyticsData['tune_index_metadata_version'] = tuneIndexMetadataRemote['v'];
+                analyticsData['newly_updated'] = true;
+            } else {
+                analyticsData['days_since_update'] = daysSinceUpdate;
+                analyticsData['tune_index_metadata_version'] = tuneIndexMetadataLocal['v'];
             }
         }
+
         console.timeEnd('tune-index-setup');
+
+        let tEnd = performance.now();
+        analyticsData['wall_time'] = tEnd - t0;
+
+        cb(analyticsData);
     }
 
     async loadTuneIndex(tuneIndex) {

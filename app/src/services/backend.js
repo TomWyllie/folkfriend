@@ -35,7 +35,12 @@ class FFBackend {
     }
 
     async setupTuneIndex() {
-        await this.folkfriendWorker.setupTuneIndex();
+        const analyticsData = await new Promise(resolve => {
+            this.folkfriendWorker.setupTuneIndex(Comlink.proxy(analyticsData => {
+                resolve(analyticsData);
+            }));
+        });
+        store.logAnalyticsEvent('setup_tune_index', analyticsData);
     }
 
     async setSampleRate(sampleRate) {
@@ -84,8 +89,17 @@ class FFBackend {
     }
 
     async submitFilledBuffer() {
+        let t0 = performance.now();
         const contour = await this.transcribePCMBuffer();
+        let tEnd = performance.now();
+
         console.debug('contour', contour);
+
+        store.logAnalyticsEvent('transcription', {
+            'wall_time': tEnd - t0,
+            'contour': contour,
+            'contour_length': contour.length,
+        });
 
         try {
             let errorMsg = JSON.parse(contour)['error'];
@@ -108,12 +122,21 @@ class FFBackend {
         const doQuery = !store.userSettings.advancedMode;
 
         if (doQuery) {
+            let t0 = performance.now();
             const queryResults = await this.runTranscriptionQuery(contour);
+            let tEnd = performance.now();
 
-            // No point proceeding if not a single sensible note was found...
             const highestScore = (queryResults[0] || {
                 score: 0
             }).score;
+
+            store.logAnalyticsEvent('transcription_query', {
+                'wall_time': tEnd - t0,
+                'query_length': contour.length,
+                'highest_score': highestScore,
+            });
+
+            // No point proceeding if not a single sensible note was found...
             if (highestScore === 0) {
                 eventBus.$emit('searchError', 'Could not detect any music');
                 store.setSearchState(store.searchStates.READY);
@@ -122,7 +145,6 @@ class FFBackend {
 
             store.state.lastResults = queryResults;
 
-            console.debug(queryResults);
             router.push({
                 name: 'results'
             });

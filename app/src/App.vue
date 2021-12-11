@@ -294,9 +294,14 @@ async function initAnalytics() {
         messagingSenderId: '632280350288',
         appId: '1:632280350288:web:c4869728d2b5241b1edb55'
     };
-    // Initialize Firebase
+
+    // Initialize Firebase analytics
     const app = initializeApp(firebaseConfig);
-    getAnalytics(app);
+    const analytics = getAnalytics(app);
+    store.loadAnalytics(analytics);
+
+    store.logAnalyticsEvent('running_standalone', {'value': utils.checkStandalone()});
+
 }
 
 async function initSetup() {
@@ -305,7 +310,7 @@ async function initSetup() {
         console.info('Loaded folkfriend backend version', version);
     });
     await ffBackend.setupTuneIndex();
-    initAnalytics();
+    await initAnalytics();
 }
 </script>
 
