@@ -40,7 +40,7 @@ class FFBackend {
                 resolve(analyticsData);
             }));
         });
-        store.logAnalyticsEvent('setup_tune_index', analyticsData);
+        store.logAnalyticsEvent('tune_index_init', analyticsData).then();
     }
 
     async setSampleRate(sampleRate) {
@@ -99,7 +99,7 @@ class FFBackend {
             'wall_time': tEnd - t0,
             'contour': contour,
             'contour_length': contour.length,
-        });
+        }).then();
 
         try {
             let errorMsg = JSON.parse(contour)['error'];
@@ -134,7 +134,7 @@ class FFBackend {
                 'wall_time': tEnd - t0,
                 'query_length': contour.length,
                 'highest_score': highestScore,
-            });
+            }).then();
 
             // No point proceeding if not a single sensible note was found...
             if (highestScore === 0) {

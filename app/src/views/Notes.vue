@@ -1,12 +1,18 @@
 <template>
-    <v-container v-if="abc">
+    <v-container 
+        v-if="abc" 
+        class="viewContainerWrapper"
+    >
         <h1 class="my-2">
             Notes from audio
         </h1>
         <AbcDisplay :abc="abc" />
     </v-container>
     <v-container v-else-if="empty">
-        <p class="px-10">
+        <h1 class="my-2">
+            Notes from audio
+        </h1>
+        <p>
             Please record some music or upload an audio file to generate sheet
             music.
         </p>
@@ -55,11 +61,6 @@ export default {
 </script>
 
 <style scoped>
-.resultsTableWrapper {
-    display: block;
-    max-width: min(90vh, 90vw);
-}
-
 .resultsTable div:nth-child(odd) {
     background: #efefef;
 }

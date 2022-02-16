@@ -97,6 +97,21 @@
                         </v-list-item-content>
                     </v-list-item>
                 </router-link>
+
+                <router-link to="/donate">
+                    <v-list-item @click="0">
+                        <v-list-item-action>
+                            <v-icon medium>
+                                {{ icons.heart }}
+                            </v-icon>
+                        </v-list-item-action>
+                        <v-list-item-content>
+                            <v-list-item-title class="navBarEntry">
+                                Donate
+                            </v-list-item-title>
+                        </v-list-item-content>
+                    </v-list-item>
+                </router-link>
             </v-list>
         </v-navigation-drawer>
 
@@ -136,23 +151,12 @@
                 center
                 contain
             />
-            <v-btn
-                icon
+            <v-icon
                 color="primary"
+                @click="clickSettings"
             >
-                <v-icon
-                    v-if="isPWA"
-                    @click="clickShare"
-                >
-                    {{ icons.shareVariant }}
-                </v-icon>
-                <v-icon
-                    v-else
-                    @click="clickDownload"
-                >
-                    {{ icons.download }}
-                </v-icon>
-            </v-btn>
+                {{ icons.cog }}
+            </v-icon>
         </v-app-bar>
 
         <v-main>
@@ -178,10 +182,11 @@ import {
     mdiFormatListBulleted,
     mdiHelpCircleOutline,
     mdiHistory,
+    mdiHeart,
     mdiMenu,
     mdiMicrophone,
     mdiMusicNote,
-    mdiShareVariant,
+    // mdiShareVariant,
 } from '@mdi/js';
 import utils from '@/js/utils.js';
 
@@ -202,12 +207,13 @@ export default {
             close: mdiClose,
             download: mdiDownload,
             formatListBulleted: mdiFormatListBulleted,
+            heart: mdiHeart,
             help: mdiHelpCircleOutline,
             history: mdiHistory,
             menu: mdiMenu,
             microphone: mdiMicrophone,
             musicNote: mdiMusicNote,
-            shareVariant: mdiShareVariant,
+            // shareVariant: mdiShareVariant,
         },
         isPWA: utils.checkStandalone(),
     }),
@@ -270,14 +276,15 @@ export default {
                 window.location.reload(false);
             }
         },
-        clickDownload() {
-            if(this.$route.name != 'help') {
-                router.push({ name: 'help', params: {download: true} });
-            }
-        },
-        clickShare() {
-            if(this.$route.name != 'help') {
-                router.push({ name: 'help', params: {share: true} });
+        clickSettings() {
+            if(this.$route.name != 'settings') {
+                // User can shortcut back to search if they tap the settings from there.
+                //  If tapped from anywhere else just goes back to a normal hamburger state.
+                if(this.$route.name == 'search') {
+                    eventBus.$emit('childViewActivated');
+                }
+
+                router.push({ name: 'settings' });
             }
         },
     },
@@ -299,9 +306,7 @@ async function initAnalytics() {
     const app = initializeApp(firebaseConfig);
     const analytics = getAnalytics(app);
     store.loadAnalytics(analytics);
-
-    store.logAnalyticsEvent('running_standalone', {'value': utils.checkStandalone()});
-
+    store.logAnalyticsEvent('running_standalone', {'value': utils.checkStandalone()}).then();
 }
 
 async function initSetup() {
@@ -325,5 +330,14 @@ h1 {
 
 html, body {
     overscroll-behavior-y: contain;  
+}
+
+.viewContainerWrapper {
+    display: block;
+    max-width: min(90vh, 90vw);
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: auto;
+    margin-right: auto;
 }
 </style>

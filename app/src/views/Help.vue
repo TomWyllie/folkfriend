@@ -1,5 +1,7 @@
 <template>
-    <v-container>
+    <v-container 
+        class="viewContainerWrapper"
+    >
         <v-card
             v-if="!isStableRelease"
             class="pa-5 my-2 UnstableRelease"
@@ -20,70 +22,6 @@
             </p>
         </v-card>
         <v-card
-            ref="helpDownload"
-            class="pa-5 my-2"
-        >
-            <h1>Download</h1>
-            <p>
-                FolkFriend is a "Web App", which means it installs onto your
-                Home Screen just like any other app.
-            </p>
-            <p
-                v-if="isPWA"
-                align="center"
-            >
-                FolkFriend is installed <v-icon class="pb-1 Installed">
-                    {{ icons.checkCircle }}
-                </v-icon>
-            </p>
-            <p v-else-if="ua.isSafari && ua.isMobile">
-                On iOS Safari,
-                <ul>
-                    <li>
-                        Tap <v-icon class="pb-2">
-                            {{ icons.iosShare }}
-                        </v-icon> "share"
-                    </li>
-                    <li>Scroll down</li>
-                    <li>
-                        Tap <v-icon class="pb-1">
-                            {{ icons.iosAddToHomeScreen }}
-                        </v-icon> "add to home screen"
-                    </li>
-                </ul>
-            </p>
-            <p v-else-if="ua.isChrome && ua.isMobile">
-                On Chrome mobile,
-                <ul>
-                    <li>
-                        Tap <v-icon class="pb-1">
-                            {{ icons.dotsVertical }}
-                        </v-icon> "Customise"
-                    </li>
-                    <li>
-                        Tap <v-icon class="pb-1">
-                            {{ icons.cellphoneArrowDown }}
-                        </v-icon> "Install FolkFriend"
-                    </li>
-                </ul>
-            </p>
-            <p v-else-if="ua.isChrome && !ua.isMobile">
-                On Chrome desktop,
-                <ul>
-                    <li>
-                        Tap <v-icon class="pb-1">
-                            {{ icons.cellphoneArrowDown }}
-                        </v-icon> "install app"
-                    </li>
-                </ul>
-            </p>
-            <p v-else>
-                To install FolkFriend, navigate to the settings of your browser
-                and select "Add to Home Screen" or "Install App".
-            </p>
-        </v-card>
-        <v-card
-            ref="helpShare"
             class="pa-5 my-2"
         >
             <h1>Share</h1>
@@ -136,18 +74,6 @@ import {
 
 export default {
     name: 'HelpView',
-    props: {
-        'download': {
-            type: Boolean,
-            required: false,
-            default: false
-        }, 
-        'share':  {
-            type: Boolean,
-            required: false,
-            default: false
-        }, 
-    },
     data: () => ({
         icons: {
             alertCircle: mdiAlertCircle,
@@ -161,7 +87,6 @@ export default {
             dotsVertical: mdiDotsVertical,
         },
         isStableRelease: utils.isStableRelease(),
-        isPWA: utils.checkStandalone(),
     }),
     computed: {
         backendVersion() {
@@ -173,7 +98,6 @@ export default {
     },
     created: function () {
         eventBus.$emit('parentViewActivated');
-        this.ua = utils.checkUserAgent();
     },
     mounted: function () {
         if(this.download) {

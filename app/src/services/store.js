@@ -37,6 +37,9 @@ class Store {
         this.searchState = this.searchStates.READY;
 
         this.analytics = null;
+        this.analyticsLoaded = new Promise(resolve => {
+            this.setAnalyticsLoaded = resolve;
+        });
     }
 
     async updateUserSettings(userSettings) {
@@ -73,10 +76,13 @@ class Store {
 
     loadAnalytics(analytics) {
         this.analytics = analytics;
+        this.setAnalyticsLoaded();
     }
 
-    logAnalyticsEvent(eventLabel, eventData) {
-        if (this.analytics) {
+    async logAnalyticsEvent(eventLabel, eventData) {
+        await this.analyticsLoaded;
+        if (process.env.NODE_ENV === 'production') {
+            console.debug('EVENT LOGGED', eventLabel);
             logEvent(this.analytics, eventLabel, eventData);
         }
     }

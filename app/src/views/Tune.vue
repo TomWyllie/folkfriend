@@ -1,9 +1,9 @@
 <template>
     <v-container
         v-if="name"
-        class="tune mx-auto"
+        class="viewContainerWrapper"
     >
-        <h1 class="my-1">
+        <h1 class="my-2">
             {{ name }}
         </h1>
 
@@ -206,10 +206,6 @@ export default {
 .descriptor::first-letter {
     text-transform: uppercase;
     display: inline-block;
-}
-
-.tune {
-    max-width: 100vh;
 }
 
 .abcFullScreen {
