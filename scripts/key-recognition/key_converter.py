@@ -1,6 +1,8 @@
 import re
 from pprint import pprint
 
+from key_detector import KeyDetector
+
 # This lookup says: for each mode, if a note X is such that starting on X
 #   takes this back to a major scale, then how many semitones above the first
 #   note of the scale is note X.
@@ -47,7 +49,7 @@ OFFSETS_BY_KEY = {
 CIRCLE_OF_FIFTHS = list('FCGDAEB')
 
 
-class Key:
+class MajorKey:
     def __init__(self, letter: str, modifier: int):
         self.letter: str = letter
         self.modifier: int = modifier
@@ -63,7 +65,7 @@ class Key:
         return f'{self.letter}{modifier_str}'
 
     def get_compound_major_key_signature(self):
-        key_sig = Key.get_simple_major_key_signature(self.letter)
+        key_sig = MajorKey.get_simple_major_key_signature(self.letter)
         for letter in key_sig:
             key_sig[letter] += self.modifier
         return key_sig
@@ -95,6 +97,10 @@ class Key:
 
         return base_key_sig
 
+    def is_accidental(self, midi_pitch):
+        accidentals = {1, 3, 6, 8, 10}
+        return (midi_pitch - self.relative_midi()) % 12 in accidentals
+
     def relative_midi(self):
         return (69 + OFFSETS_BY_KEY[self.letter] + self.modifier) % 12
 
@@ -106,35 +112,48 @@ class AbcNote:
         self.octave: int = octave
 
     def __repr__(self):
+        return self.get_as_abc(modifier=True)
+
+    def get_modifier_abc(self):
         modifier_str = '='
         if self.modifier > 0:
             modifier_str = self.modifier * '^'
         elif self.modifier < 0:
             modifier_str = abs(self.modifier) * '_'
+        return modifier_str
 
+    def get_letter_abc(self):
         lowercase = self.octave >= 5
-        abc_letter = self.letter.lower() if lowercase else self.letter.upper()
+        return self.letter.lower() if lowercase else self.letter.upper()
 
+    def get_octave_abc(self) -> str:
         if self.octave >= 6:
-            abc_letter += "'" * (self.octave - 5)
+            return "'" * (self.octave - 5)
         elif self.octave <= 3:
-            abc_letter += ',' * (4 - self.octave)
+            return ',' * (4 - self.octave)
+        else:
+            return ''
 
-        return f'{modifier_str}{abc_letter}'
+    def get_as_abc(self, modifier=True):
+        return (
+            f'{self.get_modifier_abc() if modifier else ""}'
+            f'{self.get_letter_abc()}'
+            f'{self.get_octave_abc()}')
+
 
 KEYS_BY_OFFSET = {
-    0: Key('A', 0),
-    1: Key('B', -1),
-    2: Key('B', 0),
-    3: Key('C', 0),
-    4: Key('C', 1),
-    5: Key('D', 0),
-    6: Key('E', -1),
-    7: Key('E', 0),
-    8: Key('F', 0),
-    9: Key('F', 1),
-    10: Key('G', 0),
-    11: Key('A', -1),
+    0: MajorKey('A', 0),
+    1: MajorKey('B', -1),
+    2: MajorKey('B', 0),
+    3: MajorKey('C', 0),
+    4: MajorKey('C', 1),
+    5: MajorKey('D', 0),
+    6: MajorKey('E', -1),
+    7: MajorKey('E', 0),
+    8: MajorKey('F', 0),
+    9: MajorKey('F', 1),
+    10: MajorKey('G', 0),
+    11: MajorKey('A', -1),
 }
 
 
@@ -164,31 +183,28 @@ key_mode_parser = re.compile(
     r'^(?P<key>[a-g])(?P<key_modifier>#?b?) ?(?P<mode>\w*)$', re.IGNORECASE)
 
 
-class KeyedMode:
-    def __init__(self, keyed_mode):
-        self.keyed_mode = keyed_mode.strip()
-        self.rel_major_key = self.parse_keyed_mode(self.keyed_mode)
+def parse_rel_major(keyed_mode) -> MajorKey:
+    keyed_mode = keyed_mode.strip()
 
-    def parse_keyed_mode(self, keyed_mode):
-        try:
-            match = key_mode_parser.match(keyed_mode.lower())
-            assert match is not None
-            groups = match.groupdict()
-            assert groups['mode'] in MODES_RELATIVE_MAJOR_TONIC
-        except AssertionError:
-            raise RuntimeError(f'Invalid keyed mode "{keyed_mode}"')
+    try:
+        match = key_mode_parser.match(keyed_mode.lower())
+        assert match is not None
+        groups = match.groupdict()
+        assert groups['mode'] in MODES_RELATIVE_MAJOR_TONIC
+    except AssertionError:
+        raise RuntimeError(f'Invalid keyed mode "{keyed_mode}"')
 
-        base_key = OFFSETS_BY_KEY[groups['key'].upper()]
+    base_key = OFFSETS_BY_KEY[groups['key'].upper()]
 
-        if groups['key_modifier'] == '#':
-            base_key += 1
-        elif groups['key_modifier'] == 'b':
-            base_key -= 1
+    if groups['key_modifier'] == '#':
+        base_key += 1
+    elif groups['key_modifier'] == 'b':
+        base_key -= 1
 
-        rel_major_key_offset = base_key - \
-            MODES_RELATIVE_MAJOR_TONIC[groups['mode']]
-        rel_major_key_offset %= 12
-        return KEYS_BY_OFFSET[rel_major_key_offset]
+    rel_major_key_offset = (
+        base_key - MODES_RELATIVE_MAJOR_TONIC[groups['mode']])
+    rel_major_key_offset %= 12
+    return KEYS_BY_OFFSET[rel_major_key_offset]
 
 
 def get_midi_to_abc_note(rel_major_key):
@@ -209,7 +225,7 @@ def get_midi_to_abc_note(rel_major_key):
 
     for tonic_offset, modifier in MAJOR_SCALE_MODIFIERS:
         note = MAJOR_SCALE_NOTES[(notes_offset + tonic_offset) % 7]
-        chromatic_scale.append(Key(
+        chromatic_scale.append(MajorKey(
             note,
             modifier + rel_major_key.key_sig[note],
         ))
@@ -236,32 +252,121 @@ def get_midi_to_abc_note(rel_major_key):
 
     return midi_to_abc_note
 
+
+class AbcGenerator():
+    def __init__(self):
+        pass
+
+    def contour_to_abc(self, contour):
+
+        # Auto-detect the key / mode based on the MIDI notes in the contour.
+        key_detector = KeyDetector()
+        key, mode = key_detector.detect_key(contour)
+        key_and_mode = key + mode[:3]
+        rel_major = parse_rel_major(key_and_mode)
+        midi_to_abc_note = get_midi_to_abc_note(rel_major)
+
+        contour_with_durations = AbcGenerator.get_durations_in_contour(contour)
+
+        active_modifiers = {}
+        bars = []
+        bar = []
+
+        for midi, duration in contour_with_durations:
+            if len(bar) == 4:
+                bar.append(' ')
+
+            if len(bar) >= 9:
+                bars.append(bar)
+                active_modifiers = {}
+                bar = []
+
+            abc_note = midi_to_abc_note[midi]
+            duration_str = str(duration) if duration >= 2 else ''
+
+            unmodified_note = abc_note.get_as_abc(modifier=False)
+            modified_note = abc_note.get_as_abc(modifier=True)
+
+            note_is_modified = unmodified_note in active_modifiers
+            modifier_is_correct = active_modifiers.get(
+                unmodified_note) == abc_note.modifier
+
+            if (
+                (rel_major.is_accidental(midi) and not note_is_modified) or
+                    (note_is_modified and not modifier_is_correct)):
+                bar.append(
+                    f'{modified_note}{duration_str}')
+                active_modifiers[unmodified_note] = abc_note.modifier
+            else:
+                bar.append(
+                    f'{unmodified_note}{duration_str}')
+
+        if len(bar):
+            bars.append(bar)
+
+        bars = [''.join(bar) for bar in bars]
+
+        output_abc = f'K:{key_and_mode}\n'
+
+        bars_on_line = 0
+        for bar in bars:
+            if bars_on_line >= 4:
+                output_abc += '\n'
+                bars_on_line = 0
+
+            output_abc += bar
+            output_abc += ' |'
+            bars_on_line += 1
+
+        return output_abc
+
+        # TODO then pass through and break up into bars
+
+        # at start of each bar reset the active modifiers
+
+        # for each note, check if midi pitch is in active modifiers
+        #   if it is, remove the modifier from the ABC note and use the letter on its own. This means
+        #   the relevant sharp or flat had already been used this bar.
+        #
+        # Then check if the midi pitch is an accidental (there's a fixed set of accidental pitches for each key signature)
+        #
+        # if it is not an accidental, use the base note without any modifiers
+        #
+        # if it is an accidental, use the base note *with* the modifier, and update the active modifiers to include this pitch.
+        #
+        # after N notes insert a new bar line
+
+    @staticmethod
+    def get_durations_in_contour(contour):
+        hold = 0
+        last_pitch = contour[0]
+        out = []
+
+        for pitch in contour:
+            if pitch != last_pitch:
+                out.append((last_pitch, hold))
+                hold = 1
+            else:
+                hold += 1
+            last_pitch = pitch
+
+        out.append((last_pitch, hold))
+
+        return out
+
+
 if __name__ == '__main__':
-    km = KeyedMode('G')
+    jenny = [71, 74, 76, 78, 81, 76, 78, 74, 74, 78, 74, 76, 78, 79, 76, 74, 78, 74, 76, 76, 74, 71, 74, 74, 78, 74, 76, 78, 79, 76, 81, 69, 69, 69, 76, 78, 76, 78, 74, 74, 78, 78, 74, 76, 78, 79, 76, 74, 76, 78, 78, 74, 76, 76, 74, 71, 74, 74, 78, 74, 76, 78, 79, 76, 81, 69, 69, 69, 76, 78, 76, 78, 74]
+    time_will_end = [64, 76, 64, 74, 60, 59, 71, 74, 69, 62, 67, 69, 71, 71, 63, 71, 67, 67, 66, 64, 64, 62, 64, 64, 66, 67, 67, 71, 69, 62, 66, 66, 67, 67, 55, 55, 67, 69, 67, 55, 67, 79, 78, 78, 60, 60, 67, 64, 76, 64, 60, 60, 74, 71, 71, 74, 62, 69, 69, 67, 69, 71, 71, 69]
+    banks_of_allan = [73, 71, 71, 73, 71, 71, 69, 69, 69, 73, 73, 73, 73, 71, 69, 69, 73, 73, 76, 76, 76, 76, 81, 78, 87, 81, 76, 81, 81, 66, 78, 66, 62, 86, 76, 81, 81, 73, 73, 73, 71, 69, 73, 76, 76, 76, 88, 94, 81, 78, 81, 78, 76, 73, 69, 73, 64, 64, 71, 71, 69, 71]
+    slide_from_grace = [74, 71, 71, 69, 66, 74, 76, 78, 74, 74, 71, 71, 69, 66, 69, 69, 71, 74, 74, 71, 71, 69, 66, 74, 76, 78, 78, 78, 76, 76, 76, 74, 76, 76, 78, 83, 83, 78, 81, 78, 76, 74, 76, 78, 69, 71, 69, 69, 66, 69, 74, 76]
 
-    print(km.keyed_mode)
-    print(km.rel_major_key)
+    # contour = time_will_end
+    # contour = jenny
+    # contour =  banks_of_allan
+    contour = slide_from_grace
 
-    midi_to_abc_note = get_midi_to_abc_note(km.rel_major_key)
+    abc_generator = AbcGenerator()
+    output_abc = abc_generator.contour_to_abc(contour)
 
-    print(midi_to_abc_note)
-
-    # TODO map all MIDIs to abc notes
-
-    # TODO then pass through and break up into bars
-
-    # at start of each bar reset the active modifiers
-
-    # for each note, check if midi pitch is in active modifiers
-    #   if it is, remove the modifier from the ABC note and use the letter on its own. This means
-    #   the relevant sharp or flat had already been used this bar.
-    # 
-    # Then check if the midi pitch is an accidental (there's a fixed set of accidental pitches for each key signature)
-    # 
-    # if it is not an accidental, use the base note without any modifiers
-    # 
-    # if it is an accidental, use the base note *with* the modifier, and update the active modifiers to include this pitch.
-    # 
-    # after N notes insert a new bar line 
-
-    print(km.rel_major_key.key_sig)
+    print(output_abc)
