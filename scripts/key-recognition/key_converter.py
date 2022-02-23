@@ -1,109 +1,13 @@
-import re
-from pprint import pprint
-
 from key_detector import KeyDetector
+from key_parser import parse_rel_major
 
-# This lookup says: for each mode, if a note X is such that starting on X
-#   takes this back to a major scale, then how many semitones above the first
-#   note of the scale is note X.
-#   Relevant: https://abcnotation.com/wiki/abc:standard:v2.1#kkey
-MODES_RELATIVE_MAJOR_TONIC = {
-    'ionian': 0,
-    'ion': 0,
-    'major': 0,
-    'maj': 0,
-    '': 0,
-
-    'dorian': 2,
-    'dor': 2,
-
-    'phrygian': 4,
-    'phr': 4,
-
-    'lydian': 5,
-    'lyd': 5,
-
-    'mixolydian': 7,
-    'mix': 7,
-
-    'aeolian': 9,
-    'aeo': 9,
-    'minor': 9,
-    'min': 9,
-    'm': 9,
-
-    'locrian': 11,
-    'loc': 11
-}
-
-OFFSETS_BY_KEY = {
-    'A': 0,
-    'B': 2,
-    'C': 3,
-    'D': 5,
-    'E': 7,
-    'F': 8,
-    'G': 10
-}
-
-CIRCLE_OF_FIFTHS = list('FCGDAEB')
-
-
-class MajorKey:
-    def __init__(self, letter: str, modifier: int):
-        self.letter: str = letter
-        self.modifier: int = modifier
-        self.key_offset: int = OFFSETS_BY_KEY[letter]
-        self.key_sig = self.get_compound_major_key_signature()
-
-    def __repr__(self):
-        modifier_str = ''
-        if self.modifier > 0:
-            modifier_str = self.modifier * '#'
-        elif self.modifier < 0:
-            modifier_str = abs(self.modifier) * 'b'
-        return f'{self.letter}{modifier_str}'
-
-    def get_compound_major_key_signature(self):
-        key_sig = MajorKey.get_simple_major_key_signature(self.letter)
-        for letter in key_sig:
-            key_sig[letter] += self.modifier
-        return key_sig
-
-    @staticmethod
-    def get_simple_major_key_signature(letter):
-        base_key_sig = {
-            'F': 0,
-            'C': 0,
-            'G': 0,
-            'D': 0,
-            'A': 0,
-            'E': 0,
-            'B': -1,
-        }
-
-        try:
-            num_steps_from_f = CIRCLE_OF_FIFTHS.index(letter)
-        except ValueError:
-            raise RuntimeError(
-                f'Invalid simple key "{letter}". No sharps or flats are allowed.')
-
-        modifier_ptr = 6
-
-        for _ in range(num_steps_from_f):
-            key_to_modify = CIRCLE_OF_FIFTHS[modifier_ptr % 7]
-            base_key_sig[key_to_modify] += 1
-            modifier_ptr += 1
-
-        return base_key_sig
-
-    def is_accidental(self, midi_pitch):
-        accidentals = {1, 3, 6, 8, 10}
-        return (midi_pitch - self.relative_midi()) % 12 in accidentals
-
-    def relative_midi(self):
-        return (69 + OFFSETS_BY_KEY[self.letter] + self.modifier) % 12
-
+from key_types import (
+    MusicalKey,
+    AbcVocab,
+    MusicalKeySignature, 
+    MidiPitch, 
+    get_relative_midi
+)
 
 class AbcNote:
     def __init__(self, letter: str, modifier: int, octave: int):
@@ -140,119 +44,6 @@ class AbcNote:
             f'{self.get_letter_abc()}'
             f'{self.get_octave_abc()}')
 
-
-KEYS_BY_OFFSET = {
-    0: MajorKey('A', 0),
-    1: MajorKey('B', -1),
-    2: MajorKey('B', 0),
-    3: MajorKey('C', 0),
-    4: MajorKey('C', 1),
-    5: MajorKey('D', 0),
-    6: MajorKey('E', -1),
-    7: MajorKey('E', 0),
-    8: MajorKey('F', 0),
-    9: MajorKey('F', 1),
-    10: MajorKey('G', 0),
-    11: MajorKey('A', -1),
-}
-
-
-# For a major scale, do we prefer to raise or lower a note in the scale
-#   to produce an accidental. This structure is generated based on the
-#   proximity of those notes to the portion of the circle of fifths that
-#   contains the notes of that scale.
-#   See https://music.stackexchange.com/a/85848 ("Approach #3")
-MAJOR_SCALE_NOTES = 'ABCDEFG'
-MAJOR_SCALE_MODIFIERS = [
-    (0, 0),
-    (0, 1),
-    (1, 0),
-    (2, -1),
-    (2, 0),
-    (3, 0),
-    (3, 1),
-    (4, 0),
-    (4, 1),
-    (5, 0),
-    (6, -1),
-    (6, 0),
-]
-
-
-key_mode_parser = re.compile(
-    r'^(?P<key>[a-g])(?P<key_modifier>#?b?) ?(?P<mode>\w*)$', re.IGNORECASE)
-
-
-def parse_rel_major(keyed_mode) -> MajorKey:
-    keyed_mode = keyed_mode.strip()
-
-    try:
-        match = key_mode_parser.match(keyed_mode.lower())
-        assert match is not None
-        groups = match.groupdict()
-        assert groups['mode'] in MODES_RELATIVE_MAJOR_TONIC
-    except AssertionError:
-        raise RuntimeError(f'Invalid keyed mode "{keyed_mode}"')
-
-    base_key = OFFSETS_BY_KEY[groups['key'].upper()]
-
-    if groups['key_modifier'] == '#':
-        base_key += 1
-    elif groups['key_modifier'] == 'b':
-        base_key -= 1
-
-    rel_major_key_offset = (
-        base_key - MODES_RELATIVE_MAJOR_TONIC[groups['mode']])
-    rel_major_key_offset %= 12
-    return KEYS_BY_OFFSET[rel_major_key_offset]
-
-
-def get_midi_to_abc_note(rel_major_key):
-    chromatic_scale = []
-    notes_offset = MAJOR_SCALE_NOTES.index(rel_major_key.letter)
-
-    # This is important. It defines how we choose between saying, for example,
-    #   that something is an A# or a Bb. Again see:
-    #   https://music.stackexchange.com/a/85848 ("Approach #3")
-    # This leads to some interesting results. For example, in the key of
-    #   F# major, we are "closer" (in steps in the circle of fifths) to a key
-    #   containing F## (i.e., G# major) than we are to any key containing a G
-    #   natural (closest being D major).
-    # On the other end of the circle, if we're in a relative mode of Ab major,
-    #   such as F minor, we should sooner use a Cb than a B natural, because
-    #   again a key containing Cb (namely Gb major) is closer than any key
-    #   containing a B natural (the closest being C major).
-
-    for tonic_offset, modifier in MAJOR_SCALE_MODIFIERS:
-        note = MAJOR_SCALE_NOTES[(notes_offset + tonic_offset) % 7]
-        chromatic_scale.append(MajorKey(
-            note,
-            modifier + rel_major_key.key_sig[note],
-        ))
-
-    relative_midi_to_keys = {
-        key.relative_midi(): key
-        for key in chromatic_scale}
-
-    NUM_MIDI = 48
-    MIDI_LOW = 48
-
-    midi_to_abc_note = {}
-
-    for midi in range(MIDI_LOW, MIDI_LOW + NUM_MIDI):
-        octave = (midi // 12) - 1
-        relative_midi = midi % 12
-        key = relative_midi_to_keys[relative_midi]
-
-        midi_to_abc_note[midi] = AbcNote(
-            letter=key.letter,
-            modifier=key.modifier,
-            octave=octave
-        )
-
-    return midi_to_abc_note
-
-
 class AbcGenerator():
     def __init__(self):
         pass
@@ -263,8 +54,9 @@ class AbcGenerator():
         key_detector = KeyDetector()
         key, mode = key_detector.detect_key(contour)
         key_and_mode = key + mode[:3]
+        
         rel_major = parse_rel_major(key_and_mode)
-        midi_to_abc_note = get_midi_to_abc_note(rel_major)
+        abc_vocab = get_abc_vocab(rel_major)
 
         contour_with_durations = AbcGenerator.get_durations_in_contour(contour)
 
@@ -281,7 +73,7 @@ class AbcGenerator():
                 active_modifiers = {}
                 bar = []
 
-            abc_note = midi_to_abc_note[midi]
+            abc_note = abc_vocab[midi]
             duration_str = str(duration) if duration >= 2 else ''
 
             unmodified_note = abc_note.get_as_abc(modifier=False)
@@ -292,7 +84,7 @@ class AbcGenerator():
                 unmodified_note) == abc_note.modifier
 
             if (
-                (rel_major.is_accidental(midi) and not note_is_modified) or
+                (is_accidental(rel_major, midi) and not note_is_modified) or
                     (note_is_modified and not modifier_is_correct)):
                 bar.append(
                     f'{modified_note}{duration_str}')
@@ -320,22 +112,6 @@ class AbcGenerator():
 
         return output_abc
 
-        # TODO then pass through and break up into bars
-
-        # at start of each bar reset the active modifiers
-
-        # for each note, check if midi pitch is in active modifiers
-        #   if it is, remove the modifier from the ABC note and use the letter on its own. This means
-        #   the relevant sharp or flat had already been used this bar.
-        #
-        # Then check if the midi pitch is an accidental (there's a fixed set of accidental pitches for each key signature)
-        #
-        # if it is not an accidental, use the base note without any modifiers
-        #
-        # if it is an accidental, use the base note *with* the modifier, and update the active modifiers to include this pitch.
-        #
-        # after N notes insert a new bar line
-
     @staticmethod
     def get_durations_in_contour(contour):
         hold = 0
@@ -354,17 +130,152 @@ class AbcGenerator():
 
         return out
 
+def get_abc_vocab(key: MusicalKey) -> AbcVocab:
+    """Create a mapping from MIDI pitches to AbcNotes.
+    
+    To do this correctly requires care. We can't just say all the "black keys"
+        are sharps: depending on which key we're in we might want to use flats
+        instead of sharps.
+
+    Furthermore, when we see an accidental, instead of just using sharps in 
+        sharp keys and flats in flat keys, we choose notes based on proximity,
+        within the circle of fifths, to the current scale.
+
+    We use the approach from the following post:
+        https://music.stackexchange.com/a/85848 ("Approach #3")
+
+    For example G major is two steps away (G -> C -> F) from F major, which
+        contains a Bb. However it is four steps away (G -> D -> A -> E -> B)
+        from B major - which is the nearest key containing an A#. Therefore,
+        even though G major is a "sharp" key using an F# in the key signature,
+        we use a Bb instead of an A# when denoting that accidental, because
+        it's "closer" musically.
+      
+    This leads to some interesting results. For example, in the key of F# 
+        major, we are "closer" (in steps in the circle of fifths) to a key
+        containing F## (i.e., G# major) than we are to any key containing a G
+        natural (closest being D major).
+    
+    On the other end of the circle, if we're in a relative mode of Ab major,
+        such as F minor, we should sooner use a Cb than a B natural, because
+        again a key containing Cb (namely Gb major) is closer than any key
+        containing a B natural (the closest being C major).
+
+    """
+
+    # TODO shift this scale from A to C just makes things more consisent + 
+    #   easier to understand.
+
+    # We only to write the 'vocabulary' of which notes in the scale should be
+    #   raised or lowered, once, and then we transpose it depending on which
+    #   key we're in.
+    scale_letters = 'ABCDEFG'
+    scale_modifiers = [
+        # (tonic_offset, modifier)
+        (0, 0),     # A
+        (0, 1),     # (A)#
+        (1, 0),     # B
+        (2, -1),    # (C#)b
+        (2, 0),     # C#
+        (3, 0),     # D
+        (3, 1),     # (D)#
+        (4, 0),     # E
+        (4, 1),     # (E)#
+        (5, 0),     # F#
+        (6, -1),    # (G#)b
+        (6, 0),     # G#
+    ]
+    
+    key_signature: MusicalKeySignature = get_major_key_signature(key)
+    chromatic_scale = []
+    letter_offset = scale_letters.index(key.letter)
+
+    for tonic_offset, modifier in scale_modifiers:
+        offset = letter_offset + tonic_offset
+        offset %= len(scale_letters)
+        letter = scale_letters[offset]
+
+        chromatic_scale.append(
+            MusicalKey(letter, key_signature[letter] + modifier,
+        ))
+
+    # Build our vocabulary for this key, for one arbitrary octave.
+    abc_vocab_one_octave = {}
+    for chrom_note in chromatic_scale:
+        abc_vocab_one_octave[get_relative_midi(chrom_note)] = chrom_note
+
+    # TODO import these from ff_config when in rust
+    NUM_MIDI = 48
+    MIDI_LOW = 48
+
+    # Expand the one octave vocubulary all octaves. 
+    abc_vocab = {}
+    for midi in range(MIDI_LOW, MIDI_LOW + NUM_MIDI):
+        octave = (midi // 12) - 1
+        relative_midi = midi % 12
+        
+        key = abc_vocab_one_octave[relative_midi]
+        abc_vocab[midi] = AbcNote(
+            letter=key.letter,
+            modifier=key.modifier,
+            octave=octave
+        )
+
+    return abc_vocab
+
+def is_accidental(key: MusicalKey, midi_pitch: MidiPitch) -> bool:
+    """Check if a pitch is an accidental note in the major mode of a key."""
+    accidentals = {1, 3, 6, 8, 10}
+    return (midi_pitch - get_relative_midi(key)) % 12 in accidentals
+
+def get_major_key_signature(key: MusicalKey) -> MusicalKeySignature:
+    """Get the key signature of a the major mode of a given key."""
+    circle_of_fifths = list('FCGDAEB')
+    
+    # We find the key signature by working out the sharps or flats
+    #   for the 'unmodified' scale, i.e. for Bb major we start with
+    #   B major, then apply the modifier (i.e. flatten every letter).
+
+    # Initialise key signature as F major
+    base_key_sig = {letter: 0 for letter in circle_of_fifths}
+    base_key_sig['B'] = -1
+
+    try:
+        num_steps_from_f = circle_of_fifths.index(key.letter)
+    except ValueError:
+        raise RuntimeError(
+            f'Invalid letter "{key.letter}"')
+
+    modifier_ptr = 6
+    for _ in range(num_steps_from_f):
+        letter_to_modify = circle_of_fifths[modifier_ptr % 7]
+        base_key_sig[letter_to_modify] += 1
+        modifier_ptr += 1
+
+    for letter in base_key_sig:
+        base_key_sig[letter] += key.modifier
+
+    return base_key_sig
+
 
 if __name__ == '__main__':
     jenny = [71, 74, 76, 78, 81, 76, 78, 74, 74, 78, 74, 76, 78, 79, 76, 74, 78, 74, 76, 76, 74, 71, 74, 74, 78, 74, 76, 78, 79, 76, 81, 69, 69, 69, 76, 78, 76, 78, 74, 74, 78, 78, 74, 76, 78, 79, 76, 74, 76, 78, 78, 74, 76, 76, 74, 71, 74, 74, 78, 74, 76, 78, 79, 76, 81, 69, 69, 69, 76, 78, 76, 78, 74]
     time_will_end = [64, 76, 64, 74, 60, 59, 71, 74, 69, 62, 67, 69, 71, 71, 63, 71, 67, 67, 66, 64, 64, 62, 64, 64, 66, 67, 67, 71, 69, 62, 66, 66, 67, 67, 55, 55, 67, 69, 67, 55, 67, 79, 78, 78, 60, 60, 67, 64, 76, 64, 60, 60, 74, 71, 71, 74, 62, 69, 69, 67, 69, 71, 71, 69]
     banks_of_allan = [73, 71, 71, 73, 71, 71, 69, 69, 69, 73, 73, 73, 73, 71, 69, 69, 73, 73, 76, 76, 76, 76, 81, 78, 87, 81, 76, 81, 81, 66, 78, 66, 62, 86, 76, 81, 81, 73, 73, 73, 71, 69, 73, 76, 76, 76, 88, 94, 81, 78, 81, 78, 76, 73, 69, 73, 64, 64, 71, 71, 69, 71]
     slide_from_grace = [74, 71, 71, 69, 66, 74, 76, 78, 74, 74, 71, 71, 69, 66, 69, 69, 71, 74, 74, 71, 71, 69, 66, 74, 76, 78, 78, 78, 76, 76, 76, 74, 76, 76, 78, 83, 83, 78, 81, 78, 76, 74, 76, 78, 69, 71, 69, 69, 66, 69, 74, 76]
+    duchess = [71, 71, 71, 71, 69, 68, 64, 64, 64, 59, 59, 64, 71, 71, 71, 71, 71, 71, 71, 69, 71, 73,
+ 76, 78, 78, 76, 78, 80, 71, 71, 71, 71, 69, 68, 69, 64, 71, 64, 68, 64, 64, 64, 64, 64,
+ 59, 64, 68, 66, 64, 66, 68, 69, 68, 66, 64, 66, 64, 64, 64, 71, 71, 71, 71, 69, 68, 64,
+ 64, 64, 59, 59, 64, 71, 71, 71, 71, 69, 71, 71, 69, 71, 73, 76, 78, 78, 76, 78, 80, 71,
+ 71, 71, 71, 69, 68, 69, 71, 69, 68, 64, 64, 64, 64, 64, 59, 61, 64, 64, 68, 66, 64, 66, 69, 68, 66, 64, 66, 68, 64, 64, 69, 64, 68, 66, 64, 71, 64, 59, 64, 64, 59, 64, 66, 64, 66, 71, 69, 68, 66, 64, 66, 68, 64, 57, 59, 61, 64, 66, 68, 69, 71, 69, 68, 66, 64, 71, 64, 64, 64, 73, 64, 64, 64, 71, 73, 75, 76, 78, 80, 76, 73, 78, 76, 71, 71, 68, 69, 71, 73, 75, 76, 78, 73, 71, 71, 68, 66, 64, 71, 64, 59, 64, 94, 94, 64, 64, 64, 64, 66, 71, 69, 68, 66, 64, 66, 68, 64, 59, 61, 64, 66, 68, 64, 66, 68, 71, 68, 66, 64, 71, 64, 64, 64, 73, 64, 64, 64, 71, 75, 76, 78, 80, 76, 73, 78, 76, 71, 71, 68, 69, 71, 73, 75, 76, 78, 80, 78, 71, 76]
+    knitting = [62, 62, 62, 60, 62, 57, 60, 62, 65, 64, 64, 62, 62, 57, 60, 62, 65, 64, 65, 67, 65, 67, 69, 65, 64, 62, 64, 65, 67, 64, 60, 57, 62, 62, 62, 60, 62, 57, 60, 62, 65, 64, 64, 62, 62, 57, 60, 62, 65, 64, 65, 67, 65, 67, 69, 65, 64, 62, 60, 57, 62, 62, 62, 62, 62, 74, 74, 72, 72, 69, 72, 72, 74, 72, 72, 69, 71, 69, 67, 64, 65, 64, 62, 65, 65, 64, 65, 67, 69, 65, 67, 64, 65, 62, 64, 60, 62, 74, 74, 72, 72, 69, 72, 72, 74, 72, 72, 69, 71, 69, 67, 64, 65, 64, 62, 65, 65, 64, 65, 67, 69, 65, 67, 64]
 
     # contour = time_will_end
     # contour = jenny
     # contour =  banks_of_allan
-    contour = slide_from_grace
+    # contour = slide_from_grace
+    # contour = duchess
+    contour = knitting
 
     abc_generator = AbcGenerator()
     output_abc = abc_generator.contour_to_abc(contour)
