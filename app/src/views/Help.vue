@@ -42,17 +42,10 @@
                 class="feedbackEmail"
                 href="mailto:feedback@folkfriend.app"
             >feedback@folkfriend.app</a>.
-            <!-- TODO donations -->
-            <!-- <h1>Donate</h1>
-            <p>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                Pellentesque id tellus cursus, pellentesque tortor gravida,
-                sollicitudin nulla. Nulla sit amet tellus nulla.
-            </p> -->
         </v-card>
         <p class="AppInfo">
             Folkfriend app version: {{ frontendVersion }}<br>Folkfriend library version:
-            {{ backendVersion }}<br>© 2021 Tom Wyllie. All Rights Reserved.
+            {{ backendVersion }}<br>© {{ year }} Tom Wyllie. All Rights Reserved.
         </p>
     </v-container>
 </template>
@@ -87,6 +80,7 @@ export default {
             dotsVertical: mdiDotsVertical,
         },
         isStableRelease: utils.isStableRelease(),
+        year: new Date().getFullYear()
     }),
     computed: {
         backendVersion() {

@@ -71,7 +71,7 @@ pub fn contour_to_abc(contour: &Contour) -> String {
 
     // Auto-detect the key / mode based on the pitches in the contour
     let (key, mode) = detect_key_and_mode(contour);
-    let rel_major = parse_rel_major(&key, &mode);
+    let rel_major = get_rel_major(&key, &mode);
     let abc_vocab = get_abc_vocab(&rel_major);
 
     // Convert to ABC notation
@@ -167,7 +167,7 @@ pub fn get_relative_midi(key: &MusicalKey) -> Pitch {
         _ => panic!("Invalid musical letter."),
     };
     let rel_midi: i32 = 69 + key.modifier + (letter_offset as i32);
-    return (rel_midi % 12).try_into().unwrap();
+    return rel_midi.rem_euclid(12).try_into().unwrap();
 }
 
 pub fn get_mode_as_abc(mode: &MusicalMode) -> String {
@@ -268,7 +268,7 @@ pub fn detect_key_and_mode(contour: &Contour) -> (MusicalKey, MusicalMode) {
 
     let mut shape_query: ScaleShape = vec![0.; 12];
     for midi in contour.iter() {
-        shape_query[(midi % 12) as usize] += 1.0
+        shape_query[midi.rem_euclid(12) as usize] += 1.0
     }
 
     // Create sliding windows of shape vector, i.e. a 'circulant matrix'
@@ -303,11 +303,11 @@ pub fn detect_key_and_mode(contour: &Contour) -> (MusicalKey, MusicalMode) {
     return (hi_key.unwrap(), hi_mode.unwrap());
 }
 
-pub fn parse_rel_major(key: &MusicalKey, mode: &MusicalMode) -> MusicalKey {
+pub fn get_rel_major(key: &MusicalKey, mode: &MusicalMode) -> MusicalKey {
     // Apply mode to find equivalent (relative) major key. See how the enum
     //   values of MusicalMode are chosen to explain this computation.
-    let rel_midi = (get_relative_midi(&key) - mode.tonic as u32) % 12;
-    let (letter, modifier) = KEYS_BY_RELATIVE_MIDI[rel_midi as usize];
+    let rel_midi = get_relative_midi(&key) as i32 - mode.tonic;
+    let (letter, modifier) = KEYS_BY_RELATIVE_MIDI[rel_midi.rem_euclid(12) as usize];
     return MusicalKey { letter, modifier };
 }
 
@@ -393,7 +393,7 @@ pub fn get_abc_vocab(key: &MusicalKey) -> AbcVocab {
     for midi in ff_config::MIDI_LOW..=ff_config::MIDI_HIGH {
         // Floor division
         let octave = (midi / 12) - 1;
-        let relative_midi = midi % 12;
+        let relative_midi = midi.rem_euclid(12);
         let key = abc_vocab_one_octave.get(&relative_midi).unwrap();
 
         abc_vocab.insert(
@@ -412,7 +412,7 @@ pub fn get_abc_vocab(key: &MusicalKey) -> AbcVocab {
 pub fn is_accidental(key: &MusicalKey, midi_pitch: Pitch) -> bool {
     /* Check if a pitch is an accidental note in the major mode of a key. */
     let accidentals = vec![1, 3, 6, 8, 10];
-    let tonic_offset = (midi_pitch - get_relative_midi(&key)) % 12;
+    let tonic_offset = (midi_pitch - get_relative_midi(&key)).rem_euclid(12);
     return accidentals.contains(&tonic_offset);
 }
 

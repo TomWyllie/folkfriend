@@ -112,7 +112,6 @@ import {
     mdiDotsVertical,
     mdiExportVariant,
     // mdiMonitorArrowDownVariant,
-    mdiMonitorArrowDown,
     mdiPlusBoxOutline,
 } from '@mdi/js';
 
@@ -137,7 +136,7 @@ export default {
             // TODO waiting on these icons being pushed to the npm version
             // installDesktop: mdiMonitorArrowDownVariant,
             // installMobile: mdiCellphoneArrowDownVariant,
-            installDesktop: mdiMonitorArrowDown,
+            installDesktop: mdiCellphoneArrowDown,
             installMobile: mdiCellphoneArrowDown,
             dotsVertical: mdiDotsVertical,
         },
