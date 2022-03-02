@@ -1,6 +1,10 @@
 <template>
-    <v-container>
-        <h1>History</h1>
+    <v-container 
+        class="viewContainerWrapper"
+    >
+        <h1 class="my-2">
+            History
+        </h1>
         <v-list class="resultsTable">
             <HistoryRow
                 v-for="historyRow in historyRowsProps"

@@ -124,20 +124,25 @@ export default {
             store.userSettings.advancedMode = mode;
         },
         async audioFileChanged(e) {
-            store.setSearchState(store.searchStates.WORKING);
-
-            console.time('file-upload');
-            const file = e.target.files[0];
-            const url = URL.createObjectURL(file);
-            const audioData = await audioService.urlToTimeDomainData(url);
-            console.timeEnd('file-upload');
-
-            console.time('feed-pcm-signal');
-            await ffBackend.feedEntirePCMSignal(audioData);
-            console.timeEnd('feed-pcm-signal');
-
-            await ffBackend.submitFilledBuffer();
-            store.setSearchState(store.searchStates.READY);
+            try {
+                store.setSearchState(store.searchStates.WORKING);
+    
+                console.time('file-upload');
+                const file = e.target.files[0];
+                const url = URL.createObjectURL(file);
+                const audioData = await audioService.urlToTimeDomainData(url);
+                console.timeEnd('file-upload');
+                
+                console.time('feed-pcm-signal');
+                await ffBackend.feedEntirePCMSignal(audioData);
+                console.timeEnd('feed-pcm-signal');
+                
+                await ffBackend.submitFilledBuffer();
+            } catch(e) {
+                console.error(e);
+            } finally {
+                store.setSearchState(store.searchStates.READY);
+            }
         },
     },
 };

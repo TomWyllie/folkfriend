@@ -6,8 +6,8 @@ import {get,
     set
 } from 'idb-keyval';
 import {
-    SearchResult
-} from '@/js/schema';
+    logEvent
+} from 'firebase/analytics';
 
 // TODO load from local storage or similar
 const USER_SETTING_DEFAULTS = {
@@ -35,6 +35,11 @@ class Store {
 
         this.userSettings = JSON.parse(localStorage.getItem('userSettings')) || USER_SETTING_DEFAULTS;
         this.searchState = this.searchStates.READY;
+
+        this.analytics = null;
+        this.analyticsLoaded = new Promise(resolve => {
+            this.setAnalyticsLoaded = resolve;
+        });
     }
 
     async updateUserSettings(userSettings) {
@@ -57,7 +62,6 @@ class Store {
             let newTuneID = tuneHistoryItem.result.setting.tune_id;
             for (let [i, oldHistoryItem] of historyItems.entries()) {
                 if (oldHistoryItem.result.setting && oldHistoryItem.result.setting.tune_id === newTuneID) {
-                    console.debug('poppin', i, oldHistoryItem, historyItems[i]);
                     historyItems.splice(i, 1);
                     break;
                 }
@@ -68,6 +72,19 @@ class Store {
         historyItems = historyItems.slice(0, 100);
 
         await set('historyItems', historyItems);
+    }
+
+    loadAnalytics(analytics) {
+        this.analytics = analytics;
+        this.setAnalyticsLoaded();
+    }
+
+    async logAnalyticsEvent(eventLabel, eventData) {
+        await this.analyticsLoaded;
+        if (process.env.NODE_ENV === 'production') {
+            console.debug('EVENT LOGGED', eventLabel);
+            logEvent(this.analytics, eventLabel, eventData);
+        }
     }
 
     isReady() {

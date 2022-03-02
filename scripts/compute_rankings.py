@@ -18,9 +18,9 @@ def main(queries_path, labels_path):
 
         # Recover the original audio file path from the path of the slice
         audio_slice_path = audio_slice_record[0]
-        original_audio_path = audio_slice_path.replace('slices/', '')
+        original_audio_path = audio_slice_path.replace('slices/', 'full-recordings/')
         original_audio_path = original_audio_path[:-8] + '.mp3'
-        
+       
         try:
             assert original_audio_path in labels
         except AssertionError as e:

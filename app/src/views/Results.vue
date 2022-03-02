@@ -1,8 +1,11 @@
 <template>
     <v-container
         v-if="lastResults.length"
-        class="resultsTableWrapper mx-auto px-0"
+        class="viewContainerWrapper"
     >
+        <h1 class="my-2">
+            Results
+        </h1>
         <v-list class="resultsTable">
             <ResultRow
                 v-for="result in lastResults"
@@ -15,7 +18,10 @@
         </v-list>
     </v-container>
     <v-container v-else>
-        <p class="px-10">
+        <h1 class="my-2">
+            Results
+        </h1>
+        <p>
             Please record some music or upload an audio file to search the tune database.
         </p>
     </v-container>

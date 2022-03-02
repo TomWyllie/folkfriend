@@ -1,35 +1,60 @@
 <template>
     <v-container
         v-if="name"
-        class="tune mx-auto"
+        class="viewContainerWrapper"
     >
         <h1 class="my-2">
             {{ name }}
         </h1>
+
         <v-container
             v-if="displayableAliases.length"
-            class="my-1"
+            class="mt-0 mb-2 py-0"
         >
-            <span class="font-italic text--secondary">Also known as: </span>
+            <span class="akaSpan pl-2 pr-1">Also known as</span>
             <v-chip
                 v-for="alias in displayableAliases"
                 :key="alias"
-                class="nameChip ma-1 px-2"
-                label
+                class="ma-1 px-2"
                 small
             >
                 {{ alias }}
             </v-chip>
+            <v-chip
+                small
+                class="sourceChip ma-1 px-2"
+                @click="sourceClicked"
+            >
+                Source&nbsp;<v-icon small>
+                    {{ icons.openInNew }}
+                </v-icon>
+            </v-chip>
         </v-container>
+        <v-container
+            v-else
+            class="mt-0 mb-2 py-0"
+        >
+            <v-chip
+                small
+                class="sourceChip ma-1 px-2 py-2"
+                @click="sourceClicked"
+            >
+                Source&nbsp;<v-icon small>
+                    {{ icons.openInNew }}
+                </v-icon>
+            </v-chip>
+        </v-container>
+
         <v-expansion-panels
+            ref="expansionPanels"
             v-model="expandedIndex"
             :class="{ abcFullScreen: abcFullScreen }"
             multiple
         >
             <v-expansion-panel
                 v-for="settingData in settings"
-                v-show="settings"
                 :key="settingData.setting_id"
+                class="expansionPanel"
                 :setting="settingData"
             >
                 <v-expansion-panel-header>
@@ -49,6 +74,7 @@
                         :meter="settingData.meter"
                         @abcGoFullScreen="abcGoFullScreen"
                         @abcExitFullScreen="abcExitFullScreen"
+                        @abcRendered="scrollIntoView"
                     />
                 </v-expansion-panel-content>
             </v-expansion-panel>
@@ -68,18 +94,22 @@ import AbcDisplay from '@/components/AbcDisplay';
 import ffBackend from '@/services/backend.js';
 import eventBus from '@/eventBus';
 import abcjs from 'abcjs/midi';
-
+import {
+    mdiOpenInNew,
+} from '@mdi/js';
 export default {
     name: 'TuneView',
     components: { AbcDisplay },
     props: {
         tuneID: {
             type: String,
-            required: true
+            required: false,
+            default: ''
         },
         displayName: {
             type: String,
-            required: true
+            required: false,
+            default: ''
         },
         settingID: {
             type: String,
@@ -95,13 +125,17 @@ export default {
             abcFullScreen: false,
 
             expandedIndex: [],
+
+            icons: {
+                openInNew: mdiOpenInNew
+            },
+            sourceTheSession: `https://thesession.org/tunes/${this.tuneID}`
         };
     },
-
     created: async function () {
         eventBus.$emit('childViewActivated');
 
-        if (typeof this.tuneID === 'undefined') {
+        if (this.tuneID === '') {
             return;
         }
 
@@ -152,6 +186,18 @@ export default {
         abcExitFullScreen: function () {
             this.abcFullScreen = false;
         },
+        scrollIntoView: function() {
+            // If it's a couple of tunes down then help the user by scrolling
+            //  the setting into view.
+            let expandedIndex = this.expandedIndex[0];
+            if(expandedIndex && expandedIndex >= 3) {
+                let panels = this.$refs.expansionPanels;
+                panels.$children[expandedIndex].$el.scrollIntoView();
+            }
+        },
+        sourceClicked: function() {
+            window.open(this.sourceTheSession);
+        }
     },
 };
 </script>
@@ -162,10 +208,6 @@ export default {
     display: inline-block;
 }
 
-.tune {
-    max-width: 100vh;
-}
-
 .abcFullScreen {
     z-index: 8;
 }
@@ -173,4 +215,18 @@ export default {
 h1 {
     font-size: x-large;
 }
+
+.expansionPanel {
+    scroll-margin-top: 60px;
+}
+
+.sourceChip {
+    font-style: italic;
+}
+
+.akaSpan {
+    font-size: smaller;
+    font-style: italic;
+}
+
 </style>

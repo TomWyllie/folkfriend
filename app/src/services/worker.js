@@ -1,6 +1,8 @@
 import * as Comlink from '@/js/comlink';
 import ffConfig from '@/ffConfig';
-import {get, set } from 'idb-keyval';
+import {get,
+    set
+} from 'idb-keyval';
 
 
 class FolkFriendWASMWrapper {
@@ -80,10 +82,15 @@ class FolkFriendWASMWrapper {
         return downloadedTuneIndex;
     }
 
-    async setupTuneIndex() {
+    async setupTuneIndex(cb) {
         // This is the entry point, run every application start, for
         //  loading in the tune index ASAP and also maintaining an up-to-date
         //  offline copy.
+        let t0 = performance.now();
+        let analyticsData = {
+            'newly_installed': false,
+            'newly_updated': false
+        };
         console.time('tune-index-setup');
         console.time('tune-index-load');
 
@@ -104,6 +111,9 @@ class FolkFriendWASMWrapper {
             await set('tuneIndex', downloadedTuneIndex);
             await set('tuneIndexMetadata', tuneIndexMetadata);
 
+            analyticsData['days_since_update'] = 0;
+            analyticsData['tune_index_metadata_version'] = tuneIndexMetadata['v'];
+            analyticsData['newly_installed'] = true;
         } else {
             console.debug('Found cached tune index');
 
@@ -120,7 +130,9 @@ class FolkFriendWASMWrapper {
                 //  selectively deleting from IndexedDB. As browsers do delete
                 //   from IndexedDB when under storage pressure it's best to
                 //   cover this case and be safe.
-                tuneIndexMetadataLocal = { 'v': 0 };
+                tuneIndexMetadataLocal = {
+                    'v': 0
+                };
             }
 
             const remoteVersion = tuneIndexMetadataRemote['v'];
@@ -139,9 +151,21 @@ class FolkFriendWASMWrapper {
                 const downloadedTuneIndex = await this.fetchTuneIndexData();
                 await set('tuneIndex', downloadedTuneIndex);
                 await set('tuneIndexMetadata', tuneIndexMetadataRemote);
+                analyticsData['days_since_update'] = 0;
+                analyticsData['tune_index_metadata_version'] = tuneIndexMetadataRemote['v'];
+                analyticsData['newly_updated'] = true;
+            } else {
+                analyticsData['days_since_update'] = daysSinceUpdate;
+                analyticsData['tune_index_metadata_version'] = tuneIndexMetadataLocal['v'];
             }
         }
+
         console.timeEnd('tune-index-setup');
+
+        let tEnd = performance.now();
+        analyticsData['wall_time'] = tEnd - t0;
+
+        cb(analyticsData);
     }
 
     async loadTuneIndex(tuneIndex) {
@@ -155,6 +179,13 @@ class FolkFriendWASMWrapper {
 
     async setSampleRate(sampleRate) {
         await this.loadedWASM;
+
+        // This can fail by returning false. We never actually check the return
+        //  value because it can only fail if passed an invalid sample rate,
+        //  and it's trivial to check the sample rate before passing that value
+        //  into this worker. It should be impossible for an invalid sample 
+        //  rate to make it to the worker, but even if it does the WASM backend
+        //  simply ignores the invalid sample rate and stays on the default.
         await this.folkfriendWASM.set_sample_rate(sampleRate);
         this.setLoadedSampleRate();
     }
@@ -190,8 +221,16 @@ class FolkFriendWASMWrapper {
     }
 
     async transcribePCMBuffer(cb) {
-        const contour = await this.folkfriendWASM.transcribe_pcm_buffer();
-        cb(contour);
+        try {
+            const contour = await this.folkfriendWASM.transcribe_pcm_buffer();
+            cb(contour);
+        } catch (e) {
+            console.error(e);
+            console.warn('Aborting transcribePCMBuffer');
+            cb(JSON.stringify({
+                'error': 'An error ocurred whilst transcribing audio.'
+            }));
+        }
     }
 
     async runTranscriptionQuery(query, cb) {

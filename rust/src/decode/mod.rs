@@ -1,9 +1,11 @@
 mod beam_search;
 mod contour;
+mod octave;
 mod pitch_model;
 pub mod types;
 
 use crate::feature::types::Features;
+use crate::feature::signal;
 use std::fmt;
 use types::{Contour, ContourString, LatticePath};
 
@@ -21,17 +23,20 @@ impl fmt::Display for DecoderError {
 }
 
 impl FeatureDecoder {
-    pub fn new(sample_rate: u32) -> FeatureDecoder {
-        FeatureDecoder {
-            sample_rate: sample_rate
+    pub fn new(sample_rate: u32) -> Result<FeatureDecoder, signal::SampleRateError> {
+        if !signal::validate_sample_rate(&sample_rate) {
+            return Err(signal::SampleRateError);
         }
+        
+        Ok(FeatureDecoder {
+            sample_rate: sample_rate
+        })
     }
 
     pub fn decode_lattice_path(
         &self,
         features: &mut Features,
     ) -> Result<LatticePath, DecoderError> {
-        // beam_search::decode(features, &self.pitch_model, &self.tempo_model)
         beam_search::decode(features)
     }
 
@@ -40,7 +45,8 @@ impl FeatureDecoder {
         lattice_path: &LatticePath,
         features: &Features
     ) -> Result<ContourString, DecoderError> {
-        let contour: Contour = contour::contour_from_lattice_path(lattice_path, features, self.sample_rate)?;
+        let mut contour: Contour = contour::contour_from_lattice_path(lattice_path, features, self.sample_rate)?;
+        octave::correct_contour_octave(&mut contour);
         return Ok(types::contour_to_contour_string(&contour));
     }
 }

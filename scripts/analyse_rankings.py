@@ -14,7 +14,7 @@ def main():
     top_row = 'overall_top_one,,'
     bottom_row = '{:.4f},,'.format(overall_top_one)
 
-    subsets = ('fergal', 'cambridge', 'martial')
+    subsets = ('fergal', 'cambridge', 'martial', 'tradschool')
     for subset in subsets:
         ss = [r for r in results if subset in r['rel_path']]
         t, b = top_tiers(ss, label=subset)
@@ -42,7 +42,3 @@ def top_tiers(results, label='all'):
 
 if __name__ == '__main__':
     main()
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('csv', default='results.csv', help='Results CSV file')
-    # args = parser.parse_args()
-    # main(args.csv)

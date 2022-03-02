@@ -21,12 +21,12 @@
             justify="center"
             class="py-2"
         >
-            <v-btn
+            <!-- <v-btn
                 class="mx-1 px-3 abcControls"
                 @click="restartPlaying"
             >
                 <v-icon>{{ icons.replay }}</v-icon>
-            </v-btn>
+            </v-btn> -->
             <v-btn
                 class="mx-1 px-3 abcControls"
                 @click="startPlaying"
@@ -55,7 +55,7 @@
 </template>
 
 <script>
-import { mdiFullscreen, mdiPause, mdiPlay, mdiReplay, mdiStop } from '@mdi/js';
+import { mdiArrowExpand, mdiPause, mdiPlay, mdiStop } from '@mdi/js';
 import store from '@/services/store.js';
 import abcjs from 'abcjs/midi';
 
@@ -84,10 +84,10 @@ export default {
             fullscreen: false,
 
             icons: {
-                fullscreen: mdiFullscreen,
+                fullscreen: mdiArrowExpand,
                 pause: mdiPause,
                 play: mdiPlay,
-                replay: mdiReplay,
+                // replay: mdiReplay,
                 stop: mdiStop,
             },
         };
@@ -114,9 +114,9 @@ export default {
         const midDiv = abcJsWrapperDiv.lastChild;
 
         abcjs.renderAbc(svgDiv, this.abcText, { responsive: 'resize' });
-
         abcjs.renderMidi(midDiv, this.abcText, {});
         this.midPlayDiv = midDiv.lastChild;
+        this.$emit('abcRendered');
     },
     methods: {
         startPlaying: function () {
@@ -129,9 +129,9 @@ export default {
             this.paused = true;
             abcjs.midi.stopPlaying();
         },
-        restartPlaying: function () {
-            abcjs.midi.restartPlaying();
-        },
+        // restartPlaying: function () {
+        //     abcjs.midi.restartPlaying();
+        // },
         goFullScreen: function () {
             this.$emit('abcGoFullScreen');
             this.fullscreen = true;
