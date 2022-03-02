@@ -149,7 +149,8 @@ fn process_audio_files(ff: FolkFriend, input: String, with_transcription_query: 
         if !with_transcription_query {
             println!("=== Transcription for file {:?} ===", audio_file_path);
             println!("Midi sequence: {:?}", contour_string);
-            println!("ABC: {:?}", &ff.contour_to_abc(&contour_string));
+            // println!("ABC: {:?}", &ff.contour_to_abc(&contour_string));
+            println!("\n{}\n", ff.contour_to_abc(&contour_string));
             return;
         }
 
