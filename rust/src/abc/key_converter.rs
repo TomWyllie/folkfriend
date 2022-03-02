@@ -182,42 +182,92 @@ pub fn get_mode_as_abc(mode: &MusicalMode) -> String {
     .to_string();
 }
 
-pub fn detect_key_and_mode(midi_seq: &Contour) -> (MusicalKey, MusicalMode) {
-    // Each of these shapes is normalised to sum to one. This represents the
-    //   probability mass function
+pub fn detect_key_and_mode(contour: &Contour) -> (MusicalKey, MusicalMode) {
+    // Each of these shapes is formed by looking at all of the tunes in the
+    //  database in that mode, counting the occurrences of notes relative to
+    //  the tonic, and normalising the distribution to sum to one. This
+    //  represents the probability mass function. Finally the natural log of
+    //  these probabilities is taken, so that when we multiply by the number of
+    //  observations of each note in a given sequence, we are taking the joint
+    //  probability of that sequence under a multinomial distribution, assuming
+    //  identically-independently drawn notes from that distribution. This is
+    //  calculated for 4 modes X 12 keys = 48 multinomial distributions,
+    //  and the distribution with the highest log probability ("best
+    //  explanation") of the observations is chosen as the predicted key / mode.
+    //  Changing to log probabilities increased accuracy from 68% to 72%.
     let mode_shapes: Vec<(i32, ScaleShape)> = vec![
         (
             MusicalMode::IONIAN,
             vec![
-                0.23721947, 0.00089920, 0.14192422, 0.00117854, 0.17147175, 0.07980328, 0.00336021,
-                0.18184678, 0.00104605, 0.10996197, 0.00410795, 0.06718059,
+                -1.43876953,
+                -7.01400508,
+                -1.95246203,
+                -6.74347889,
+                -1.76333675,
+                -2.52819067,
+                -5.69575181,
+                -1.70459081,
+                -6.86273411,
+                -2.2076207,
+                -5.49483116,
+                -2.70037091,
             ],
         ),
         (
             MusicalMode::MIXOLYDIAN,
             vec![
-                0.24891100, 0.00058114, 0.11803482, 0.00410037, 0.1079509, 0.13229921, 0.00053683,
-                0.19185175, 0.00106514, 0.07561318, 0.11076458, 0.00829107,
+                -1.39065988,
+                -7.45051887,
+                -2.13677561,
+                -5.49667807,
+                -2.22607878,
+                -2.02268918,
+                -7.52982909,
+                -1.65103234,
+                -6.84464903,
+                -2.58212467,
+                -2.20034823,
+                -4.79257625,
             ],
         ),
         (
             MusicalMode::DORIAN,
             vec![
-                0.25061224, 0.00055867, 0.14169932, 0.08923983, 0.00325907, 0.12707732, 0.00095709,
-                0.17060512, 0.00217626, 0.04171721, 0.16928502, 0.00281284,
+                -1.38384839,
+                -7.4899516,
+                -1.95404793,
+                -2.41642781,
+                -5.7263134,
+                -2.06295956,
+                -6.95161313,
+                -1.76840363,
+                -6.13014747,
+                -3.17684153,
+                -1.77617148,
+                -5.87356063,
             ],
         ),
         (
             MusicalMode::AEOLIAN,
             vec![
-                0.23153994, 0.00116728, 0.12028706, 0.15227597, 0.00250881, 0.13079765, 0.00221498,
-                0.18448871, 0.04365511, 0.00570442, 0.11622747, 0.00913261,
+                -1.46300289,
+                -6.75307902,
+                -2.11787423,
+                -1.88206081,
+                -5.98794674,
+                -2.03410381,
+                -6.1125119,
+                -1.69016701,
+                -3.13143494,
+                -5.16651397,
+                -2.15220606,
+                -4.69590375,
             ],
         ),
     ];
 
     let mut shape_query: ScaleShape = vec![0.; 12];
-    for midi in midi_seq.iter() {
+    for midi in contour.iter() {
         shape_query[(midi % 12) as usize] += 1.0
     }
 
@@ -225,7 +275,7 @@ pub fn detect_key_and_mode(midi_seq: &Contour) -> (MusicalKey, MusicalMode) {
     shape_query.extend_from_within(..);
     let sliding_windows = shape_query.windows(12);
 
-    let mut hi_score: f32 = 0.0;
+    let mut hi_score: f32 = f32::NEG_INFINITY;
     let mut hi_mode: Option<MusicalMode> = None;
     let mut hi_key: Option<MusicalKey> = None;
 

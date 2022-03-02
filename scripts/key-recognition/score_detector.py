@@ -4,15 +4,15 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from pprint import pprint
 
-from key_detector import KeyDetector
+from key_converter import get_mode_as_abc, detect_key_and_mode
 
 keys_confusion_matrix = np.zeros((12, 12), dtype=np.int64)
 modes_confusion_matrix = np.zeros((4, 4), dtype=np.int64)
 
 KEYS = [
-    'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'
+    'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'
 ]
-MODES = ['major', 'mixolydian', 'dorian', 'minor']
+MODES = ['maj', 'mix', 'dor', 'min']
 
 KEYS_LOOKUP = {k: i for (i, k) in enumerate(KEYS)}
 MODES_LOOKUP = {m: i for (i, m) in enumerate(MODES)}
@@ -32,24 +32,28 @@ def main():
     for tune in tqdm(ff_nud['settings'].values()):
         contour = tune['contour']
         key = tune['mode'][0]
-        mode = tune['mode'][1:]
+        mode = tune['mode'][1:4]
 
         midi_seq = ctms.convert(contour)
 
-        kd = KeyDetector()
-        predicted_key, predicted_mode = kd.detect_key(midi_seq)
+        pred_key, pred_mode = detect_key_and_mode(midi_seq)
+        
+        pred_key = str(pred_key)
+        pred_mode = get_mode_as_abc(pred_mode)
 
-        correct_key = predicted_key == key
-        correct_mode = predicted_mode == mode
+        correct_key = pred_key == key
+        correct_mode = pred_mode == mode
 
         if correct_key and correct_mode:
             correct_predictions += 1
 
         if not correct_key:
-            keys_confusion_matrix[KEYS_LOOKUP[key], KEYS_LOOKUP[predicted_key]] += 1
-            
+            keys_confusion_matrix[KEYS_LOOKUP[key],
+                                  KEYS_LOOKUP[pred_key]] += 1
+
         if not correct_mode:
-            modes_confusion_matrix[MODES_LOOKUP[mode], MODES_LOOKUP[predicted_mode]] += 1
+            modes_confusion_matrix[MODES_LOOKUP[mode],
+                                   MODES_LOOKUP[pred_mode]] += 1
 
         total_predictions += 1
 

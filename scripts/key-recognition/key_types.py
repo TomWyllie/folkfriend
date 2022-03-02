@@ -40,6 +40,3 @@ def get_relative_midi(key: MusicalKey) -> MidiPitch:
         'G': 10
     }[key.letter.upper()]
     return rel_midi % 12
-
-if __name__ == '__main__':
-    print(MusicalMode.DORIAN)

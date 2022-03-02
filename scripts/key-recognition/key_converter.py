@@ -44,6 +44,11 @@ MODE_SHAPES = {
         0.13229921, 0.00053683, 0.19185175, 0.00106514, 0.07561318,
         0.11076458, 0.00829107]}
 
+for mode, arr in MODE_SHAPES.items():
+    MODE_SHAPES[mode] = np.log(arr)
+    print(mode)
+    print(repr(MODE_SHAPES[mode]))
+
 
 class AbcNote:
     def __init__(self, letter: str, modifier: int, octave: int):
@@ -177,7 +182,7 @@ def detect_key_and_mode(midi_seq) -> tuple[MusicalKey, MusicalMode]:
         shape_query[midi % 12] += 1
     shape_query_stacked = np.concatenate((shape_query, shape_query))
 
-    hi_score = 0
+    hi_score = None
     hi_key = None
     hi_mode = None
 
@@ -193,7 +198,7 @@ def detect_key_and_mode(midi_seq) -> tuple[MusicalKey, MusicalMode]:
             sliding_window = shape_query_stacked[rel_midi: rel_midi + 12]
             score = np.dot(known_shape, sliding_window)
 
-            if score > hi_score:
+            if hi_score is None or score > hi_score:
                 hi_score = score
                 hi_key = KEYS_BY_RELATIVE_MIDI[rel_midi]
                 hi_mode = mode
