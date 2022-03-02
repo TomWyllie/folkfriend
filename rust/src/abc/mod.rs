@@ -1,3 +1,6 @@
+mod key_types;
+mod key_converter;
+
 use crate::decode::types::{Contour, Pitch};
 use std::collections::HashMap;
 
@@ -54,27 +57,29 @@ impl AbcProcessor {
     }
 
     pub fn contour_to_abc(&self, contour: &Contour) -> String {
-        let mut hold = 0;
-        let mut last_pitch = None;
-        let mut out = Vec::new();
+        key_converter::contour_to_abc(&contour)
 
-        for pitch in contour {
-            if Some(pitch) == last_pitch {
-                hold += 1;
-                continue;
-            } else if hold > 0 {
-                out.push(format!("{}", hold + 1));
-                hold = 0;
-            }
+        // let mut hold = 0;
+        // let mut last_pitch = None;
+        // let mut out = Vec::new();
 
-            if out.len() == 0 {
-                out.push(format!("{}", self.midi_to_abc(*pitch)));
-            } else {
-                out.push(format!(" {}", self.midi_to_abc(*pitch)));
-            }
-            last_pitch = Some(pitch);
-        }
+        // for pitch in contour {
+        //     if Some(pitch) == last_pitch {
+        //         hold += 1;
+        //         continue;
+        //     } else if hold > 0 {
+        //         out.push(format!("{}", hold + 1));
+        //         hold = 0;
+        //     }
 
-        return out.join("");
+        //     if out.len() == 0 {
+        //         out.push(format!("{}", self.midi_to_abc(*pitch)));
+        //     } else {
+        //         out.push(format!(" {}", self.midi_to_abc(*pitch)));
+        //     }
+        //     last_pitch = Some(pitch);
+        // }
+
+        // return out.join("");
     }
 }
