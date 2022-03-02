@@ -40,22 +40,8 @@ export default {
             return;
         }
         this.empty = false;
-
-        let notes = await ffBackend.contourToAbc(store.state.lastContour);
-        notes = notes.split(' ');
-        let abc = '';
-        let line = [];
-
-        for (let i = 0; i < notes.length; i++) {
-            if (line.length < 20 && i + 1 < notes.length) {
-                line.push(notes[i]);
-            } else {
-                abc += line.join(' ') + '|\n';
-                line = [];
-            }
-        }
-        console.debug(abc);
-        this.abc = abc;
+        this.abc = await ffBackend.contourToAbc(store.state.lastContour);
+        console.debug(this.abc);
     },
 };
 </script>

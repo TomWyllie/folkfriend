@@ -25,16 +25,15 @@ pub struct FolkFriend {
     query_engine: query::QueryEngine,
     feature_extractor: feature::FeatureExtractor,
     feature_decoder: decode::FeatureDecoder,
-    abc_processor: abc::AbcProcessor,
 }
 
 impl FolkFriend {
     pub fn new() -> FolkFriend {
         FolkFriend {
             query_engine: query::QueryEngine::new(),
-            feature_extractor: feature::FeatureExtractor::new(ff_config::SAMPLE_RATE_DEFAULT).unwrap(),
+            feature_extractor: feature::FeatureExtractor::new(ff_config::SAMPLE_RATE_DEFAULT)
+                .unwrap(),
             feature_decoder: decode::FeatureDecoder::new(ff_config::SAMPLE_RATE_DEFAULT).unwrap(),
-            abc_processor: abc::AbcProcessor::new(),
         }
     }
 
@@ -47,7 +46,10 @@ impl FolkFriend {
         self.query_engine.use_tune_index(tune_index);
     }
 
-    pub fn set_sample_rate(&mut self, sample_rate: u32) -> Result<(), feature::signal::SampleRateError> {
+    pub fn set_sample_rate(
+        &mut self,
+        sample_rate: u32,
+    ) -> Result<(), feature::signal::SampleRateError> {
         if self.feature_extractor.sample_rate != sample_rate {
             self.feature_extractor = feature::FeatureExtractor::new(sample_rate)?;
         }
@@ -97,8 +99,9 @@ impl FolkFriend {
     }
 
     pub fn contour_to_abc(&self, contour_string: &decode::types::ContourString) -> String {
-        self.abc_processor
-            .contour_to_abc(&decode::types::contour_string_to_contour(contour_string))
+        let contour: decode::types::Contour =
+            decode::types::contour_string_to_contour(contour_string);
+        return abc::contour_to_abc(&contour);
     }
 
     pub fn settings_from_tune_id(
@@ -150,7 +153,7 @@ impl FolkFriendWASM {
     pub fn set_sample_rate(&mut self, sample_rate: u32) -> bool {
         match self.ff.set_sample_rate(sample_rate) {
             Ok(()) => true,
-            Err(_) => false
+            Err(_) => false,
         }
     }
 
