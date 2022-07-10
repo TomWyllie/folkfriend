@@ -1,5 +1,3 @@
-const WorkerPlugin = require('worker-plugin');
-
 const fs = require('fs');
 const packageJson = fs.readFileSync('./package.json');
 const version = JSON.parse(packageJson).version || '';
@@ -9,7 +7,6 @@ module.exports = {
     transpileDependencies: ['vuetify'],
     configureWebpack: {
         plugins: [
-            new WorkerPlugin(),
             // This is just to pull the version from package.json into ffConfig.js
             new webpack.DefinePlugin({
                 'process.env': {
@@ -17,23 +14,26 @@ module.exports = {
                 },
             }),
         ],
+        experiments: {
+            asyncWebAssembly: true,
+        }
     },
     chainWebpack: (config) => {
         // Getting PWA stuff like this to work with vue / webpack is a faff.
         //  It's super easy to just supply the manifest file in /public ourselves.
         config.plugins.delete('pwa');
 
-        if (process.env.NODE_ENV === 'production') {
-            config.plugin('copy').tap((opts) => {
-                opts[0][0].ignore.push({
-                    glob: 'folkfriend-non-user-data.json*',
-                });
-                opts[0][0].ignore.push({
-                    glob: 'nud-meta.json',
-                });
-                return opts;
-            });
-        }
+        // if (process.env.NODE_ENV === 'production') {
+        //     config.plugin('copy').tap((opts) => {
+        //         opts[0][0].ignore.push({
+        //             glob: 'folkfriend-non-user-data.json*',
+        //         });
+        //         opts[0][0].ignore.push({
+        //             glob: 'nud-meta.json',
+        //         });
+        //         return opts;
+        //     });
+        // }
     },
     pwa: {
         name: 'FolkFriend',

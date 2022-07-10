@@ -1,7 +1,7 @@
 import Vue from 'vue';
 import VueRouter from 'vue-router';
 import Search from '@/views/Search.vue';
-import Donate from '@/views/Donate.vue';
+// import Donate from '@/views/Donate.vue';
 import Notes from '@/views/Notes.vue';
 import Results from '@/views/Results.vue';
 import Tune from '@/views/Tune.vue';
@@ -40,10 +40,10 @@ const routes = [{
     path: '/help',
     name: 'help',
     component: Help,
-}, {
-    path: '/donate',
-    name: 'donate',
-    component: Donate
+// }, {
+//     path: '/donate',
+//     name: 'donate',
+//     component: Donate
 }];
 
 /* From both of "results" and "history" we can load a tune from the table

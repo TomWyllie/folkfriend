@@ -98,7 +98,7 @@
                     </v-list-item>
                 </router-link>
 
-                <router-link to="/donate">
+                <a href="https://donorbox.org/help-support-development-of-folkfriend" target="_blank">
                     <v-list-item @click="0">
                         <v-list-item-action>
                             <v-icon medium>
@@ -111,7 +111,7 @@
                             </v-list-item-title>
                         </v-list-item-content>
                     </v-list-item>
-                </router-link>
+                </a>
             </v-list>
         </v-navigation-drawer>
 
