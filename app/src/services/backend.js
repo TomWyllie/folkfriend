@@ -16,7 +16,7 @@ class FFBackend {
         */
 
     constructor() {
-        const worker = new Worker(new URL('./worker.js', import.meta.url));
+        const worker = new Worker(new URL('@/services/worker.js', import.meta.url));
         this.folkfriendWorker = Comlink.wrap(worker);
 
         this.folkfriendWorker.onIndexLoad(Comlink.proxy(() => {

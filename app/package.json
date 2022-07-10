@@ -1,41 +1,41 @@
 {
-  "name": "folkfriend",
-  "version": "3.3.0",
-  "private": true,
-  "scripts": {
-    "serve": "vue-cli-service serve",
-    "build": "vue-cli-service build"
-  },
-  "dependencies": {
-    "@mdi/font": "^6.5.95",
-    "comlink": "^4.3.1",
-    "core-js": "^3.6.5",
-    "firebase": "^9.4.1",
-    "idb-keyval": "^6.0.3",
-    "register-service-worker": "^1.7.1",
-    "standardized-audio-context": "^25.3.12",
-    "vue": "^2.6.11",
-    "vue-router": "^3.2.0",
-    "vuetify": "^2.4.0"
-  },
-  "devDependencies": {
-    "@mdi/js": "^6.5.95",
-    "@vue/cli-plugin-babel": "^5.0.6",
-    "@vue/cli-plugin-pwa": "^5.0.6",
-    "@vue/cli-plugin-router": "^5.0.6",
-    "@vue/cli-service": "^5.0.6",
-    "abcjs": "^5.12.0",
-    "eslint": "^7.32.0",
-    "eslint-config-standard": "^16.0.3",
-    "eslint-plugin-import": "^2.25.3",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^5.1.1",
-    "eslint-plugin-vue": "^8.0.3",
-    "sass": "~1.32.0",
-    "sass-loader": "^10.0.0",
-    "vue-cli-plugin-vuetify": "^2.5.1",
-    "vue-template-compiler": "^2.6.11",
-    "vuetify-loader": "^1.7.0",
-    "worker-plugin": "^5.0.1"
-  }
+    "name": "folkfriend",
+    "version": "3.3.0",
+    "private": true,
+    "scripts": {
+        "serve": "vue-cli-service serve",
+        "build": "vue-cli-service build"
+    },
+    "dependencies": {
+        "@mdi/font": "^6.5.95",
+        "comlink": "^4.3.1",
+        "core-js": "^3.6.5",
+        "firebase": "^9.4.1",
+        "idb-keyval": "^6.0.3",
+        "register-service-worker": "^1.7.1",
+        "standardized-audio-context": "^25.3.12",
+        "vue": "^2.6.11",
+        "vue-router": "^3.2.0",
+        "vuetify": "^2.4.0"
+    },
+    "devDependencies": {
+        "@mdi/js": "^6.5.95",
+        "@vue/cli-plugin-babel": "^5.0.6",
+        "@vue/cli-plugin-pwa": "^5.0.6",
+        "@vue/cli-plugin-router": "^5.0.6",
+        "@vue/cli-service": "^5.0.6",
+        "abcjs": "^5.12.0",
+        "eslint": "^7.32.0",
+        "eslint-config-standard": "^16.0.3",
+        "eslint-plugin-import": "^2.25.3",
+        "eslint-plugin-node": "^11.1.0",
+        "eslint-plugin-promise": "^5.1.1",
+        "eslint-plugin-vue": "^8.0.3",
+        "sass": "~1.32.0",
+        "sass-loader": "^10.0.0",
+        "vue-cli-plugin-vuetify": "^2.5.1",
+        "vue-template-compiler": "^2.6.11",
+        "vuetify-loader": "^1.7.0",
+        "worker-plugin": "^5.0.1"
+    }
 }
