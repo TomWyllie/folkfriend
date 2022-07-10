@@ -4,6 +4,7 @@ node_modules
 public/wasm/*
 public/res/*.json*
 public/res/*.mp3
+src/wasm/*
 
 # local env files
 .env.local
