@@ -122,10 +122,6 @@ export default {
         startPlaying: function () {
             this.paused = !this.paused;
 
-<<<<<<< Updated upstream
-            // TODO can desync the pause button by messing around with controls on another setting
-            abcjs.midi.startPlaying(this.midPlayDiv);
-=======
             // Can create an AudioContext here because are inside the context of a button press
             window.AudioContext = window.AudioContext ||
                             window.webkitAudioContext ||
@@ -161,7 +157,6 @@ export default {
                     console.error("AudioContext error", error);
                 })
             });
->>>>>>> Stashed changes
         },
         stopPlaying: function () {
             this.paused = true;

@@ -151,17 +151,10 @@ export default {
             //  as above.
             this.expandedIndex = [0];
         }
-<<<<<<< Updated upstream
-
-        // Stop any MIDI tracks that might be playing already
-        abcjs.midi.stopPlaying();
-
-=======
     },
     beforeRouteLeave: function (to, from, next) {
         eventBus.$emit('stopSynthPlayback');
         next();
->>>>>>> Stashed changes
     },
     methods: {
         descriptor: function (setting) {
