@@ -1,62 +1,32 @@
 <template>
-    <v-container
-        v-if="name"
-        class="viewContainerWrapper"
-    >
+    <v-container v-if="name" class="viewContainerWrapper">
         <h1 class="my-2">
             {{ name }}
         </h1>
 
-        <v-container
-            v-if="displayableAliases.length"
-            class="mt-0 mb-2 py-0"
-        >
+        <v-container v-if="displayableAliases.length" class="mt-0 mb-2 py-0">
             <span class="akaSpan pl-2 pr-1">Also known as</span>
-            <v-chip
-                v-for="alias in displayableAliases"
-                :key="alias"
-                class="ma-1 px-2"
-                small
-            >
+            <v-chip v-for="alias in displayableAliases" :key="alias" class="ma-1 px-2" small>
                 {{ alias }}
             </v-chip>
-            <v-chip
-                small
-                class="sourceChip ma-1 px-2"
-                @click="sourceClicked"
-            >
+            <v-chip small class="sourceChip ma-1 px-2" @click="sourceClicked">
                 Source&nbsp;<v-icon small>
                     {{ icons.openInNew }}
                 </v-icon>
             </v-chip>
         </v-container>
-        <v-container
-            v-else
-            class="mt-0 mb-2 py-0"
-        >
-            <v-chip
-                small
-                class="sourceChip ma-1 px-2 py-2"
-                @click="sourceClicked"
-            >
+        <v-container v-else class="mt-0 mb-2 py-0">
+            <v-chip small class="sourceChip ma-1 px-2 py-2" @click="sourceClicked">
                 Source&nbsp;<v-icon small>
                     {{ icons.openInNew }}
                 </v-icon>
             </v-chip>
         </v-container>
 
-        <v-expansion-panels
-            ref="expansionPanels"
-            v-model="expandedIndex"
-            :class="{ abcFullScreen: abcFullScreen }"
-            multiple
-        >
-            <v-expansion-panel
-                v-for="settingData in settings"
-                :key="settingData.setting_id"
-                class="expansionPanel"
-                :setting="settingData"
-            >
+        <v-expansion-panels ref="expansionPanels" v-model="expandedIndex" :class="{ abcFullScreen: abcFullScreen }"
+            multiple>
+            <v-expansion-panel v-for="settingData in settings" :key="settingData.setting_id" class="expansionPanel"
+                :setting="settingData">
                 <v-expansion-panel-header>
                     <h3 class="descriptor font-weight-medium">
                         {{
@@ -66,16 +36,14 @@
                             )}`
                         }}
                     </h3>
+                    <v-icon v-if="settingData.hasChords" class="justify-end tabChordIcon">
+                        $vuetify.icons.tabChord
+                    </v-icon>
                 </v-expansion-panel-header>
                 <v-expansion-panel-content>
-                    <AbcDisplay
-                        :abc="settingData.abc"
-                        :mode="settingData.mode"
-                        :meter="settingData.meter"
-                        @abcGoFullScreen="abcGoFullScreen"
-                        @abcExitFullScreen="abcExitFullScreen"
-                        @abcRendered="scrollIntoView"
-                    />
+                    <AbcDisplay :abc="settingData.abc" :mode="settingData.mode" :meter="settingData.meter"
+                        @abcGoFullScreen="abcGoFullScreen" @abcExitFullScreen="abcExitFullScreen"
+                        @abcRendered="scrollIntoView" />
                 </v-expansion-panel-content>
             </v-expansion-panel>
         </v-expansion-panels>
@@ -127,7 +95,8 @@ export default {
             expandedIndex: [],
 
             icons: {
-                openInNew: mdiOpenInNew
+                openInNew: mdiOpenInNew,
+
             },
             sourceTheSession: `https://thesession.org/tunes/${this.tuneID}`
         };
@@ -141,6 +110,15 @@ export default {
 
         this.settings = await ffBackend.settingsFromTuneID(this.tuneID);
         let aliases = await ffBackend.aliasesFromTuneID(this.tuneID);
+
+        // Expand this.settings with chords where relevant
+        // TODO move this function about and actually write it properly
+        // This might do:
+        // "[ABCDEFG]b?#?m?(in|aj)?7?(dim)?(\/[ABCDEFG]b?#?m?(in|aj)?7?(dim)?)?"
+        this.settings = this.settings.map((settingData) => {
+            settingData.hasChords = (Math.random() > 0.5);
+            return settingData;
+        })
 
         let primaryAliasIndex = 0;
 
@@ -157,6 +135,8 @@ export default {
         );
         this.name = this.displayableAliases.splice(primaryAliasIndex, 1)[0];
 
+        console.log(this.settings);
+
         // Auto-pop open the matched setting and scroll into view
         if (this.settingID) {
             for (const [i, setting] of this.settings.entries()) {
@@ -171,10 +151,17 @@ export default {
             //  as above.
             this.expandedIndex = [0];
         }
+<<<<<<< Updated upstream
 
         // Stop any MIDI tracks that might be playing already
         abcjs.midi.stopPlaying();
 
+=======
+    },
+    beforeRouteLeave: function (to, from, next) {
+        eventBus.$emit('stopSynthPlayback');
+        next();
+>>>>>>> Stashed changes
     },
     methods: {
         descriptor: function (setting) {
@@ -186,16 +173,16 @@ export default {
         abcExitFullScreen: function () {
             this.abcFullScreen = false;
         },
-        scrollIntoView: function() {
+        scrollIntoView: function () {
             // If it's a couple of tunes down then help the user by scrolling
             //  the setting into view.
             let expandedIndex = this.expandedIndex[0];
-            if(expandedIndex && expandedIndex >= 3) {
+            if (expandedIndex && expandedIndex >= 3) {
                 let panels = this.$refs.expansionPanels;
                 panels.$children[expandedIndex].$el.scrollIntoView();
             }
         },
-        sourceClicked: function() {
+        sourceClicked: function () {
             window.open(this.sourceTheSession);
         }
     },
@@ -228,5 +215,4 @@ h1 {
     font-size: smaller;
     font-style: italic;
 }
-
 </style>

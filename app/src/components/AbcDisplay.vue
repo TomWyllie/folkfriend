@@ -122,8 +122,46 @@ export default {
         startPlaying: function () {
             this.paused = !this.paused;
 
+<<<<<<< Updated upstream
             // TODO can desync the pause button by messing around with controls on another setting
             abcjs.midi.startPlaying(this.midPlayDiv);
+=======
+            // Can create an AudioContext here because are inside the context of a button press
+            window.AudioContext = window.AudioContext ||
+                            window.webkitAudioContext ||
+                            navigator.mozAudioContext ||
+                            navigator.msAudioContext;
+
+            let audioContext = new window.AudioContext();
+
+            audioContext.resume().then(() => {
+                // In theory the AC shouldn't start suspended because it is being initialized in a click handler, but iOS seems to anyway.
+
+                // This does a bare minimum so this object could be created in advance, or whenever convenient.
+                this.midiBuffer = new ABCJS.synth.CreateSynth();
+
+                // midiBuffer.init preloads and caches all the notes needed. There may be significant network traffic here.
+                return this.midiBuffer.init({
+                    visualObj: this.abcVisual,
+                    audioContext: audioContext,
+                    millisecondsPerMeasure: this.abcVisual.millisecondsPerMeasure()
+                }).then(response => {
+                    // midiBuffer.prime actually builds the output buffer.
+                    return this.midiBuffer.prime();
+                }).then(response => {
+                    // At this point, everything slow has happened. midiBuffer.start will return very quickly and will start playing very quickly without lag.
+                    this.midiBuffer.start();
+                    this.midiBuffer.onEnded = () => {
+                        if(!this.paused) {
+                            this.stopPlaying();
+                        }
+                    };
+                    return Promise.resolve();
+                }).catch(error => {
+                    console.error("AudioContext error", error);
+                })
+            });
+>>>>>>> Stashed changes
         },
         stopPlaying: function () {
             this.paused = true;
