@@ -293,6 +293,7 @@ export default {
 async function initAnalytics() {
     // Your web app's Firebase configuration
     const firebaseConfig = {
+        // This **IS** okay to be public !!!
         apiKey: 'AIzaSyBy36nafCGgjwzQ1FvxUhHd6RyBZ_YnPis',
         authDomain: 'folk-friend.firebaseapp.com',
         databaseURL: 'https://folk-friend.firebaseio.com',

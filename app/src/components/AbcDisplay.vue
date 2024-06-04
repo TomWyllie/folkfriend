@@ -173,7 +173,7 @@ export default {
                     return Promise.resolve();
                 }).catch(error => {
                     console.error("AudioContext error", error);
-                }
+                })
             });
         },
         stopPlaying: function () {

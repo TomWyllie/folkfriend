@@ -1,5 +1,6 @@
 import Vue from 'vue';
 import Vuetify from 'vuetify/lib/framework';
+import ChordIcon from '@/components/ChordIcon';
 
 Vue.use(Vuetify);
 
@@ -19,6 +20,11 @@ const opts = {
     },
     icons: {
         iconfont: 'mdiSvg',
+        values: {
+            tabChord: {
+              component: ChordIcon,
+            },
+        },
     },
 };
 
