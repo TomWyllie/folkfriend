@@ -15,5 +15,14 @@ npm run serve
 npm run build
 ```
 
+### Pushing to Firebase environment
+Requires permission to the firebase project configured under `.firebaserc`.
+* ```firebase use dev```
+Or
+* ```firebase use prod```
+Then
+* ```firebase deploy```
+
+
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).

@@ -23,6 +23,7 @@
 import AbcDisplay from '@/components/AbcDisplay';
 import store from '@/services/store.js';
 import ffBackend from '@/services/backend.js';
+import eventBus from '@/eventBus';
 
 export default {
     name: 'TranscriptionsView',
@@ -42,6 +43,10 @@ export default {
         this.empty = false;
         this.abc = await ffBackend.contourToAbc(store.state.lastContour);
         console.debug(this.abc);
+    },
+    beforeRouteLeave: function(to, from, next) {
+        eventBus.$emit('stopSynthPlayback');
+        next();
     },
 };
 </script>

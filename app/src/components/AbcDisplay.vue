@@ -13,8 +13,6 @@
         >
             <!-- Render ABC sheet music here -->
             <div />
-            <!-- Render MIDI thing here -->
-            <div style="display: none" />
         </div>
         <v-row
             wrap
@@ -57,7 +55,8 @@
 <script>
 import { mdiArrowExpand, mdiPause, mdiPlay, mdiStop } from '@mdi/js';
 import store from '@/services/store.js';
-import abcjs from 'abcjs/midi';
+import ABCJS from 'abcjs';
+import eventBus from '@/eventBus'
 
 export default {
     name: 'AbcDisplay',
@@ -79,7 +78,8 @@ export default {
     },
     data: function () {
         return {
-            midPlayDiv: null,
+            abcVisual: null,
+            midiBuffer: null,
             paused: true,
             fullscreen: false,
 
@@ -87,7 +87,6 @@ export default {
                 fullscreen: mdiArrowExpand,
                 pause: mdiPause,
                 play: mdiPlay,
-                // replay: mdiReplay,
                 stop: mdiStop,
             },
         };
@@ -111,16 +110,35 @@ export default {
     mounted: async function () {
         const abcJsWrapperDiv = this.$el.childNodes[1];
         const svgDiv = abcJsWrapperDiv.firstChild;
-        const midDiv = abcJsWrapperDiv.lastChild;
+        // const midDiv = abcJsWrapperDiv.lastChild;
 
-        abcjs.renderAbc(svgDiv, this.abcText, { responsive: 'resize' });
-        abcjs.renderMidi(midDiv, this.abcText, {});
-        this.midPlayDiv = midDiv.lastChild;
+        this.abcVisual = ABCJS.renderAbc(svgDiv, this.abcText, { responsive: 'resize' })[0];
         this.$emit('abcRendered');
+
+        eventBus.$on("stopSynthPlayback", () => {
+            this.stopPlaying();
+            delete this.midiBuffer;
+        });
     },
     methods: {
+        playButton: function() {
+            if (!this.midiBuffer) {
+                this.startPlaying();
+            } else if(this.paused) {
+                this.paused = false;
+                this.midiBuffer.resume();
+            } else {
+                this.paused = true;
+                this.midiBuffer.pause();
+            }
+        },
         startPlaying: function () {
-            this.paused = !this.paused;
+            this.paused = false;
+
+            if (!ABCJS.synth.supportsAudio()) {
+                console.error("ABCJS doesn't support audio synth");
+                return;
+            }
 
             // Can create an AudioContext here because are inside the context of a button press
             window.AudioContext = window.AudioContext ||
@@ -160,11 +178,11 @@ export default {
         },
         stopPlaying: function () {
             this.paused = true;
-            abcjs.midi.stopPlaying();
+            if (this.midiBuffer) {
+                this.midiBuffer.stop();
+                this.pause = false;
+            }
         },
-        // restartPlaying: function () {
-        //     abcjs.midi.restartPlaying();
-        // },
         goFullScreen: function () {
             this.$emit('abcGoFullScreen');
             this.fullscreen = true;

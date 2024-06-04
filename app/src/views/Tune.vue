@@ -61,10 +61,10 @@ import utils from '@/js/utils.js';
 import AbcDisplay from '@/components/AbcDisplay';
 import ffBackend from '@/services/backend.js';
 import eventBus from '@/eventBus';
-import abcjs from 'abcjs/midi';
 import {
     mdiOpenInNew,
 } from '@mdi/js';
+
 export default {
     name: 'TuneView',
     components: { AbcDisplay },
@@ -116,9 +116,9 @@ export default {
         // This might do:
         // "[ABCDEFG]b?#?m?(in|aj)?7?(dim)?(\/[ABCDEFG]b?#?m?(in|aj)?7?(dim)?)?"
         this.settings = this.settings.map((settingData) => {
-            settingData.hasChords = (Math.random() > 0.5);
+            settingData.hasChords = utils.abcStringHasChords(settingData.abc);
             return settingData;
-        })
+        });
 
         let primaryAliasIndex = 0;
 

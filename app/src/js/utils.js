@@ -78,6 +78,18 @@ export default class utils {
         return `rgb(${Math.round(rr)}, ${Math.round(rg)}, ${Math.round(rb)})`;
     }
 
+    static abcStringHasChords(abc) {
+        let chord = "[ABCDEFG]b?#?m?(in|aj)?7?(dim)?";
+        let pattern = new RegExp(`"${chord}(/${chord})?"`, "g");
+        let matches = abc.match(pattern);
+        if (matches) {
+            if(matches.length >= 4) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static checkUserAgent() {
         //  https://github.com/ng-chicago/AddToHomeScreen
         const uaString = navigator.userAgent.toLowerCase();
