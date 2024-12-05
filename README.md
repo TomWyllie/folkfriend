@@ -47,7 +47,7 @@ You may want to add `--release` after `cargo run` to build an optimised binary w
 You can also run the commands over many files by passing in a CSV file. 
 
 #### Transcribing a tune, and searching the tune index
-`cargo run -- transcribe wavs/soup_dragon.wav`
+`cargo run -- query wavs/soup_dragon.wav`
 #### Output
 ```
 === Query for file "wavs/soup_dragon.wav" ===
