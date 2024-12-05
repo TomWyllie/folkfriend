@@ -24,6 +24,47 @@ Note that if you are unfamiliar with rust, you can find implementations of all t
 
 # Using Rust
 
-1. Install Rust
-2. From the `rust/` directory of this repository, run `cargo build --release` to compile the `folkfriend` executable on your machine.
-3. Add the `folkfriend` executable to your system path, for example by including a directory containing `folkfriend` to your path environment variable or by using `sudo cp folkfriend /usr/local/bin/`.
+1. [Install Rust](https://www.rust-lang.org/tools/install).
+2. `cd rust/`
+3. Run `cargo run` to download and compile dependencies, and to run FolkFriend. To see help command line options, `cargo run -- --help`
+4. Optional: from the `rust/` directory of this repository, run `cargo build --release` to compile the `folkfriend` executable on your machine. Then add the `folkfriend` executable to your system path, for example by including the `rust/target/release` directory containing the `folkfriend` executable to your path environment variable or by using `sudo cp rust/target/release/folkfriend /usr/local/bin/`. Now you can use `folkfriend` as a command from your CLI.
+
+# Example usage
+#### Transcribing a tune to ABC 
+`cargo run -- transcribe wavs/soup_dragon.wav`
+#### Output
+```
+=== Transcription for file "wavs/soup_dragon.wav" ===
+Midi sequence: "CEExxvxCEECACCCCACEECACEExxvxCEECACCCEECAxv"
+
+K:Edor
+ef2B2A Bef2e |de4de f2ede |f2B2AB ef2ed |e3f2ed BA |
+
+FolkFriend command finished in 56.96ms
+```
+
+You may want to add `--release` after `cargo run` to build an optimised binary which compiles slower but is around 10x faster.
+You can also run the commands over many files by passing in a CSV file. 
+
+#### Transcribing a tune, and searching the tune index
+`cargo run -- transcribe wavs/soup_dragon.wav`
+#### Output
+```
+=== Query for file "wavs/soup_dragon.wav" ===
+"10785"	"soup dragon, the"	0.872093
+"414"	"seamus cooley's"	0.5697674
+"9477"	"gan ainm"	0.53488374
+"16022"	"jig for jules"	0.5232558
+"23096"	"prince's strand"	0.5
+"1902"	"muireann's"	0.5
+"19744"	"sue morley's"	0.5
+"10420"	"sailor and the maid, the"	0.5
+"1317"	"daniel of the sun"	0.4883721
+"18027"	"oriental, the"	0.4883721
+FolkFriend command finished in 208.24ms
+```
+
+This command downloads the tune index to `~/.folkfriend/` on your local machine. The numbers on the left are the IDs from [thesession.org](thesession.org), which is currently the only data source FolkFriend uses.
+
+# TODO
+`cargo test` doesn't run any tests because I didn't know how good an idea unit tests were when I built this. When I get around to updating & revamping everything I'll add in lots :)
